@@ -8,6 +8,7 @@ import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
 import { GscStatusBanner } from "@/components/gsc-status-banner";
+import { GscPerformanceChart } from "@/components/gsc-performance-chart";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { SyncGscButton } from "@/components/sync-gsc-button";
 import { RankDelta } from "@/components/rank-delta";
@@ -68,8 +69,18 @@ export default async function DashboardHome() {
   thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
   const cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
 
-  const [gscToken, sites, keywords, allPositions, latestBrief, recentRuns, recentBriefRuns, recentGscRuns] =
-    await Promise.all([
+  const [
+    gscToken,
+    sites,
+    keywords,
+    allPositions,
+    latestBrief,
+    recentRuns,
+    recentBriefRuns,
+    recentGscRuns,
+    rawGscMetrics,
+    rawGscSiteMetrics,
+  ] = await Promise.all([
       t.selectGscToken(),
       t.selectSites(),
       t.selectKeywords(),
@@ -102,7 +113,56 @@ export default async function DashboardHome() {
         .where(eq(schema.gscRuns.userId, session.user.id))
         .orderBy(desc(schema.gscRuns.queuedAt))
         .limit(1),
+      db
+        .select({
+          date: schema.gscMetrics.date,
+          clicks: schema.gscMetrics.clicks,
+          impressions: schema.gscMetrics.impressions,
+          ctr: schema.gscMetrics.ctr,
+          position: schema.gscMetrics.gscPosition,
+        })
+        .from(schema.gscMetrics)
+        .where(eq(schema.gscMetrics.userId, session.user.id)),
+      db
+        .select()
+        .from(schema.gscSiteMetrics)
+        .where(eq(schema.gscSiteMetrics.userId, session.user.id)),
     ]);
+
+  // Aggregate GSC metrics by date — sum clicks/impressions, weight CTR by impressions,
+  // average position over keywords that ranked that day.
+  type DailyAgg = { clicks: number; impressions: number; positions: number[] };
+  const byDate = new Map<string, DailyAgg>();
+  for (const m of rawGscMetrics) {
+    const cur = byDate.get(m.date) ?? { clicks: 0, impressions: 0, positions: [] };
+    cur.clicks += m.clicks;
+    cur.impressions += m.impressions;
+    const p = parseFloat(m.position) || 0;
+    if (p > 0) cur.positions.push(p);
+    byDate.set(m.date, cur);
+  }
+  const gscChartData = Array.from(byDate.entries())
+    .map(([date, v]) => ({
+      date,
+      clicks: v.clicks,
+      impressions: v.impressions,
+      ctr: v.impressions > 0 ? v.clicks / v.impressions : 0,
+      position:
+        v.positions.length > 0
+          ? v.positions.reduce((s, p) => s + p, 0) / v.positions.length
+          : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const gscSiteChartData = rawGscSiteMetrics
+    .map((r) => ({
+      date: r.date,
+      clicks: r.clicks,
+      impressions: r.impressions,
+      ctr: parseFloat(r.ctr) || 0,
+      position: parseFloat(r.position) || 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const latestGscRun = recentGscRuns[0] ?? null;
   const gscRunForBanner = latestGscRun
@@ -326,6 +386,11 @@ export default async function DashboardHome() {
       <FetchStatusBanner run={runForBanner} />
       <BriefStatusBanner run={briefRunForBanner} />
       <GscStatusBanner run={gscRunForBanner} />
+
+      {/* GSC Performance chart — Search Console-style time series */}
+      {connected && (
+        <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} />
+      )}
 
       {/* Hero KPIs */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">

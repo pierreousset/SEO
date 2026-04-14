@@ -2,7 +2,7 @@ import { inngest } from "./client";
 import { db, tenantDb, schema } from "@/db/client";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { postSerpTasks, fetchTaskResultMulti, urlToDomain } from "@/lib/dataforseo";
-import { fetchGscHistoryByQuery } from "@/lib/google-oauth";
+import { fetchGscHistoryByQuery, fetchGscSiteTotals } from "@/lib/google-oauth";
 import { decrypt } from "@/lib/encryption";
 import { generateBrief } from "@/lib/llm/brief";
 import { randomUUID } from "node:crypto";
@@ -488,8 +488,43 @@ export const gscHistoryPull = inngest.createFunction(
         fetchGscHistoryByQuery(refreshToken, site.gscPropertyUri!, queries, days),
       );
 
-      // Build query → keywordId lookup for fast matching
-      const byQuery = new Map(activeKeywords.map((k) => [k.query, k.id]));
+      // Pull site-wide totals for the same period — one extra API call, gives us
+      // GSC's default "all site" view of clicks/impressions over time.
+      const siteTotals = await step.run("fetch-gsc-site-totals", () =>
+        fetchGscSiteTotals(refreshToken, site.gscPropertyUri!, days),
+      );
+
+      await step.run("upsert-site-totals", async () => {
+        for (const r of siteTotals) {
+          await db
+            .insert(schema.gscSiteMetrics)
+            .values({
+              id: randomUUID(),
+              userId,
+              date: r.date,
+              clicks: r.clicks,
+              impressions: r.impressions,
+              ctr: r.ctr.toString(),
+              position: r.position.toString(),
+            })
+            .onConflictDoUpdate({
+              target: [schema.gscSiteMetrics.userId, schema.gscSiteMetrics.date],
+              set: {
+                clicks: r.clicks,
+                impressions: r.impressions,
+                ctr: r.ctr.toString(),
+                position: r.position.toString(),
+                fetchedAt: new Date(),
+              },
+            });
+        }
+      });
+
+      // Build query → keywordId lookup. Normalize on both sides (lowercase + trim +
+      // collapse whitespace) so casing/spacing differences don't lose matches.
+      const norm = (s: string) =>
+        s.toLowerCase().trim().replace(/\s+/g, " ");
+      const byQuery = new Map(activeKeywords.map((k) => [norm(k.query), k.id]));
 
       let upserted = 0;
       // Batch upserts — can be large with 90d * many keywords
@@ -497,7 +532,7 @@ export const gscHistoryPull = inngest.createFunction(
         const batch = rows.slice(i, i + 200);
         await step.run(`upsert-batch-${i}`, async () => {
           for (const r of batch) {
-            const keywordId = byQuery.get(r.query);
+            const keywordId = byQuery.get(norm(r.query));
             if (!keywordId) continue;
             await db
               .insert(schema.gscMetrics)

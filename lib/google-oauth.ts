@@ -111,13 +111,58 @@ export function siteUrlToDomain(siteUrl: string): string {
 }
 
 /**
+ * Pull GSC site-wide daily totals (all queries, all pages aggregated).
+ * Used for the "All site" view of the performance chart, matching what
+ * Search Console shows by default.
+ */
+export async function fetchGscSiteTotals(
+  refreshToken: string,
+  siteUrl: string,
+  days = 90,
+): Promise<
+  Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>
+> {
+  const sc = await getSearchConsoleClient(refreshToken);
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - days);
+
+  const res = await sc.searchanalytics.query({
+    siteUrl,
+    requestBody: {
+      startDate: start.toISOString().slice(0, 10),
+      endDate: end.toISOString().slice(0, 10),
+      dimensions: ["date"],
+      rowLimit: 1000, // 365 days max anyway
+    },
+  });
+
+  return (res.data.rows ?? []).map((r) => ({
+    date: (r.keys?.[0] ?? "").toString(),
+    clicks: r.clicks ?? 0,
+    impressions: r.impressions ?? 0,
+    ctr: r.ctr ?? 0,
+    position: r.position ?? 0,
+  }));
+}
+
+/**
  * Pull GSC daily metrics for a list of tracked queries.
  *
  * Returns one row per (query, date) with clicks, impressions, CTR (0-1), avg position.
  * GSC has 16 months of history with ~2-3 day data lag. Rate limit: ~1200 queries/min.
  *
- * Strategy: chunk queries into groups of 25 (GSC dimensionFilterGroups limit per group),
- * paginate with startRow until done.
+ * Strategy: GSC Search Analytics only supports `groupType: "and"` for filter groups,
+ * so we can't OR multiple query filters in one call. Instead we pull ALL queries
+ * unfiltered (paginated, max 25k rows per page) and filter client-side to the
+ * tracked queries set. Caps at 100k rows total (safety guard).
  */
 export async function fetchGscHistoryByQuery(
   refreshToken: string,
@@ -135,6 +180,9 @@ export async function fetchGscHistoryByQuery(
   }>
 > {
   if (queries.length === 0) return [];
+
+  const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+  const wanted = new Set(queries.map(norm));
 
   const sc = await getSearchConsoleClient(refreshToken);
   const end = new Date();
@@ -154,44 +202,38 @@ export async function fetchGscHistoryByQuery(
     position: number;
   }> = [];
 
-  for (let i = 0; i < queries.length; i += 25) {
-    const chunk = queries.slice(i, i + 25);
-    const filters = chunk.map((q) => ({
-      dimension: "query",
-      operator: "equals",
-      expression: q,
-    }));
+  let startRow = 0;
+  const PAGE = 25000;
+  const MAX_ROWS = 100000; // safety stop — covers ~99% of indie sites over 90d
 
-    let startRow = 0;
-    while (true) {
-      const res = await sc.searchanalytics.query({
-        siteUrl,
-        requestBody: {
-          startDate,
-          endDate,
-          dimensions: ["query", "date"],
-          dimensionFilterGroups: [{ filters, groupType: "and" }] as any,
-          rowLimit: 25000,
-          startRow,
-        } as any,
+  while (startRow < MAX_ROWS) {
+    const res = await sc.searchanalytics.query({
+      siteUrl,
+      requestBody: {
+        startDate,
+        endDate,
+        dimensions: ["query", "date"],
+        rowLimit: PAGE,
+        startRow,
+      },
+    });
+
+    const rows = res.data.rows ?? [];
+    for (const r of rows) {
+      const q = (r.keys?.[0] ?? "").toString();
+      if (!wanted.has(norm(q))) continue;
+      all.push({
+        query: q,
+        date: (r.keys?.[1] ?? "").toString(),
+        clicks: r.clicks ?? 0,
+        impressions: r.impressions ?? 0,
+        ctr: r.ctr ?? 0,
+        position: r.position ?? 0,
       });
-
-      const rows = res.data.rows ?? [];
-      for (const r of rows) {
-        all.push({
-          query: (r.keys?.[0] ?? "").toString(),
-          date: (r.keys?.[1] ?? "").toString(),
-          clicks: r.clicks ?? 0,
-          impressions: r.impressions ?? 0,
-          ctr: r.ctr ?? 0,
-          position: r.position ?? 0,
-        });
-      }
-
-      if (rows.length < 25000) break;
-      startRow += 25000;
-      if (startRow > 100000) break;
     }
+
+    if (rows.length < PAGE) break;
+    startRow += PAGE;
   }
 
   return all;

@@ -120,6 +120,22 @@ export const competitorPositions = pgTable("competitor_positions", {
   index("competitor_positions_user_idx").on(t.userId),
 ]);
 
+// GSC daily TOTALS for the site (all queries, all pages). Used for the GSC-style
+// performance chart "All site" view. Separate from gscMetrics which is per-keyword.
+export const gscSiteMetrics = pgTable("gsc_site_metrics", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  clicks: integer("clicks").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  ctr: text("ctr").notNull().default("0"),
+  position: text("position").notNull().default("0"),
+  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("gsc_site_metrics_unique").on(t.userId, t.date),
+  index("gsc_site_metrics_date_idx").on(t.date),
+]);
+
 // GSC daily metrics per keyword. Pulled from Google Search Console searchanalytics
 // with dimensions=[query, date]. Gives us 90+ days of historical data — clicks,
 // impressions, CTR, average position — that DataForSEO SERP fetches don't cover.

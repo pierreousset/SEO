@@ -12,14 +12,28 @@ import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { computeDiagnostic } from "@/lib/diagnostics";
 import { ThreatBadge } from "@/components/threat-badge";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
+import { KeywordsFilterBar } from "@/components/keywords-filter-bar";
+import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filters";
 
 export const dynamic = "force-dynamic";
 
-export default async function KeywordsPage() {
+export default async function KeywordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = (await auth.api.getSession({ headers: await headers() }))!;
   const t = tenantDb(session.user.id);
   const keywords = await t.selectKeywords();
   const sites = await t.selectSites();
+  const sp = await searchParams;
+  // Coerce searchParams record into something that has a get(key) like URLSearchParams
+  const filters = parseFiltersFromSearchParams({
+    get: (k: string) => {
+      const v = sp[k];
+      return Array.isArray(v) ? v[0] ?? null : v ?? null;
+    },
+  });
 
   if (keywords.length === 0) {
     return (
@@ -49,7 +63,7 @@ export default async function KeywordsPage() {
   sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 30);
   const cutoff = sevenDaysAgo.toISOString().slice(0, 10);
 
-  const [positions, competitorPositions] = await Promise.all([
+  const [positions, competitorPositions, gscMetricsRows] = await Promise.all([
     db
       .select()
       .from(schema.positions)
@@ -64,7 +78,25 @@ export default async function KeywordsPage() {
         ),
       )
       .orderBy(desc(schema.competitorPositions.date)),
+    db
+      .select({
+        keywordId: schema.gscMetrics.keywordId,
+        impressions: schema.gscMetrics.impressions,
+      })
+      .from(schema.gscMetrics)
+      .where(
+        and(
+          eq(schema.gscMetrics.userId, session.user.id),
+          gte(schema.gscMetrics.date, cutoff),
+        ),
+      ),
   ]);
+
+  // Sum GSC impressions per keyword over the last 30 days
+  const gscImpByKw = new Map<string, number>();
+  for (const m of gscMetricsRows) {
+    gscImpByKw.set(m.keywordId, (gscImpByKw.get(m.keywordId) ?? 0) + m.impressions);
+  }
 
   // Build per-keyword latest + delta
   const rows = keywords
@@ -104,9 +136,12 @@ export default async function KeywordsPage() {
         bestCompDomain: best?.competitorDomain ?? null,
         bestCompThreat: bestThreat,
         compCount: ranked.length,
+        gscImpressions: gscImpByKw.get(k.id) ?? 0,
         history: kPos.slice(-30).map((p) => p.position),
       };
     });
+
+  const filteredRows = applyFilters(rows, filters);
 
   const unclassifiedCount = rows.filter((r) => r.intentStage == null).length;
 
@@ -123,7 +158,7 @@ export default async function KeywordsPage() {
             )}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {rows.length} tracked. Data lags 0-1 day.
+            {rows.length} tracked · {filteredRows.length} shown. Data lags 0-1 day.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -132,6 +167,10 @@ export default async function KeywordsPage() {
           <FetchNowButton />
         </div>
       </header>
+
+      <div className="mb-6">
+        <KeywordsFilterBar totalCount={rows.length} filteredCount={filteredRows.length} />
+      </div>
 
       <div className="border border-border rounded-md overflow-hidden bg-card">
         <table className="w-full text-sm">
@@ -143,13 +182,21 @@ export default async function KeywordsPage() {
               <th className="text-right px-4 py-2 font-medium">Position</th>
               <th className="text-right px-4 py-2 font-medium">1d Δ</th>
               <th className="text-right px-4 py-2 font-medium">7d Δ</th>
+              <th className="text-right px-4 py-2 font-medium">Impr 30d</th>
               <th className="text-right px-4 py-2 font-medium">Best comp</th>
               <th className="text-left px-4 py-2 font-medium">Country</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  No keywords match these filters. Click <strong>Reset</strong> above to clear.
+                </td>
+              </tr>
+            )}
+            {filteredRows.map((r) => (
               <tr key={r.id} className="border-t border-border hover:bg-muted/40">
                 <td className="px-4 py-2.5 truncate max-w-xs" title={r.keyword}>
                   {r.keyword}
