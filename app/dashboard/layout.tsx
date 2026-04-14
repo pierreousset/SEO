@@ -2,13 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { LayoutDashboard, ListOrdered, FileText, Settings, Briefcase, LogOut } from "lucide-react";
+import { LayoutDashboard, ListOrdered, FileText, Settings, Briefcase, Stethoscope, LogOut } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/keywords", label: "Keywords", icon: ListOrdered },
   { href: "/dashboard/brief", label: "Brief", icon: FileText },
+  { href: "/dashboard/audit", label: "Audit", icon: Stethoscope },
   { href: "/dashboard/business", label: "Business", icon: Briefcase },
   { href: "/dashboard/connect-google", label: "Connections", icon: Settings },
 ];

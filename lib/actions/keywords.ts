@@ -95,6 +95,26 @@ export async function removeKeyword(keywordId: string) {
   revalidatePath("/dashboard/keywords");
 }
 
+export async function triggerSiteAudit() {
+  const session = await requireSession();
+  const runId = randomUUID();
+
+  await db.insert(schema.auditRuns).values({
+    id: runId,
+    userId: session.user.id,
+    source: "manual",
+    status: "queued",
+  });
+
+  await inngest.send({
+    name: "audit/run",
+    data: { userId: session.user.id, runId },
+  });
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/audit");
+  return { ok: true, runId };
+}
+
 export async function triggerGscHistoryPull(days = 90) {
   const session = await requireSession();
   const runId = randomUUID();

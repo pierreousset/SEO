@@ -4,6 +4,9 @@ import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { postSerpTasks, fetchTaskResultMulti, urlToDomain } from "@/lib/dataforseo";
 import { fetchGscHistoryByQuery, fetchGscSiteTotals } from "@/lib/google-oauth";
 import { decrypt } from "@/lib/encryption";
+import { fetchPage, fetchPagesRendered, discoverUrls } from "@/lib/audit/crawler";
+import { runPageChecks, runSiteWideChecks } from "@/lib/audit/checks";
+import { synthesizeAudit } from "@/lib/llm/audit-synthesis";
 import { generateBrief } from "@/lib/llm/brief";
 import { randomUUID } from "node:crypto";
 
@@ -607,6 +610,183 @@ export const gscDailyScheduler = inngest.createFunction(
   },
 );
 
+// -------------------------------------------------------------------
+// Site audit — crawl homepage + sitemap pages, run on-page checks,
+// run site-wide checks, then ask Claude to synthesize prioritized actions.
+// -------------------------------------------------------------------
+export const siteAudit = inngest.createFunction(
+  {
+    id: "site-audit",
+    concurrency: { limit: 2 },
+    triggers: [{ event: "audit/run" }],
+  },
+  async ({ event, step }) => {
+    const userId = event.data.userId;
+    const runId = event.data.runId;
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.auditRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.auditRuns.id, runId)),
+    );
+
+    try {
+      const sites = await step.run("load-sites", () => t.selectSites());
+      const profile = await step.run("load-profile", () => t.selectBusinessProfile());
+      const keywords = await step.run("load-keywords", () => t.selectKeywords());
+
+      if (sites.length === 0) {
+        await step.run("skip", async () =>
+          db
+            .update(schema.auditRuns)
+            .set({ status: "skipped", finishedAt: new Date(), error: "no site" })
+            .where(eq(schema.auditRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      const site = sites[0];
+      const homepageUrl = site.gscPropertyUri?.startsWith("sc-domain:")
+        ? `https://${site.domain}/`
+        : site.gscPropertyUri ?? `https://${site.domain}/`;
+
+      const urls = await step.run("discover-urls", () => discoverUrls(homepageUrl, 10));
+
+      const trackedQueries = keywords.filter((k) => !k.removedAt).map((k) => k.query);
+      const allFindings: Array<ReturnType<typeof runPageChecks>[number]> = [];
+
+      // SSR pass — fast, gives us baseline + tech metrics (response time, status, bytes).
+      const ssrPages = await step.run("ssr-fetch-all", async () => {
+        const results = [];
+        for (const url of urls) {
+          try {
+            results.push(await fetchPage(url));
+          } catch (e: any) {
+            results.push({
+              url,
+              finalUrl: url,
+              status: 0,
+              responseMs: 0,
+              bytes: 0,
+              html: "",
+              rendered: false as const,
+              fetchError: String(e?.message ?? e).slice(0, 200),
+            });
+          }
+        }
+        return results;
+      });
+
+      // JS-rendered pass — slow (Playwright Chromium, ~5-10s per page) but reflects
+      // what Google sees after hydration. Catches client-side schema, dynamic content, etc.
+      const renderedPages = await step.run("js-rendered-fetch-all", () =>
+        fetchPagesRendered(urls),
+      );
+
+      // Run checks on the rendered HTML when available, fall back to SSR.
+      // This way schema/microdata injected client-side is correctly detected.
+      for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const ssr = ssrPages[i];
+        const rendered = renderedPages[i];
+        const source = rendered.html.length > 100 ? rendered : ssr;
+
+        if ((source as any).fetchError) {
+          allFindings.push({
+            url,
+            category: "tech",
+            checkKey: "fetch_failed",
+            severity: "high",
+            message: "Failed to fetch page",
+            detail: (source as any).fetchError,
+            fix: "Check that the URL is reachable and not blocked by your firewall.",
+          });
+          continue;
+        }
+
+        const findings = await step.run(`checks-${i}`, async () =>
+          runPageChecks({
+            url: source.finalUrl,
+            html: source.html,
+            // Tech metrics always come from the SSR pass (real network response, not headless)
+            status: ssr.status,
+            responseMs: ssr.responseMs,
+            bytes: ssr.bytes,
+            trackedKeywords: trackedQueries,
+          }),
+        );
+        allFindings.push(...findings);
+      }
+
+      // Site-wide checks
+      const siteFindings = await step.run("site-wide-checks", () =>
+        runSiteWideChecks(homepageUrl),
+      );
+      allFindings.push(...siteFindings);
+
+      // Persist findings
+      await step.run("save-findings", async () => {
+        for (const f of allFindings) {
+          await db.insert(schema.auditFindings).values({
+            id: randomUUID(),
+            runId,
+            userId,
+            url: f.url,
+            category: f.category,
+            checkKey: f.checkKey,
+            severity: f.severity,
+            message: f.message,
+            detail: f.detail ?? null,
+            fix: f.fix ?? null,
+          });
+        }
+      });
+
+      // AI synthesis
+      const synthesis = await step.run("synthesize", () =>
+        synthesizeAudit({
+          findings: allFindings,
+          profile,
+          pagesCrawled: urls.length,
+        }),
+      );
+
+      const high = allFindings.filter((f) => f.severity === "high").length;
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.auditRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            siteId: site.id,
+            pagesCrawled: urls.length,
+            findingsCount: allFindings.length,
+            highSeverityCount: high,
+            aiSummary: JSON.stringify(synthesis),
+          })
+          .where(eq(schema.auditRuns.id, runId)),
+      );
+
+      return { findings: allFindings.length, high, pages: urls.length };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.auditRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.auditRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
 export const functions = [
   dailyFetchScheduler,
   userDailyFetch,
@@ -614,4 +794,5 @@ export const functions = [
   weeklyBrief,
   gscHistoryPull,
   gscDailyScheduler,
+  siteAudit,
 ];

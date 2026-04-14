@@ -210,6 +210,45 @@ export const gscRuns = pgTable("gsc_runs", {
   index("gsc_runs_user_idx").on(t.userId),
 ]);
 
+// Site audit runs — track each on-page audit attempt.
+export const auditRuns = pgTable("audit_runs", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  siteId: text("site_id").references(() => sites.id, { onDelete: "set null" }),
+  source: text("source").notNull(), // 'manual'
+  status: text("status").notNull(), // queued | running | done | failed | skipped
+  queuedAt: timestamp("queued_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  pagesCrawled: integer("pages_crawled"),
+  findingsCount: integer("findings_count"),
+  highSeverityCount: integer("high_severity_count"),
+  aiSummary: text("ai_summary"),
+  error: text("error"),
+}, (t) => [
+  index("audit_runs_user_idx").on(t.userId),
+]);
+
+// One finding per (audit run × page × check). Dimensions:
+//   severity: high | medium | low | info
+//   category: title | meta | h1 | canonical | og | schema | alt | links | content | tech | site
+export const auditFindings = pgTable("audit_findings", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => auditRuns.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  category: text("category").notNull(),
+  checkKey: text("check_key").notNull(),
+  severity: text("severity").notNull(), // high | medium | low | info
+  message: text("message").notNull(),
+  detail: text("detail"),
+  fix: text("fix"), // human-readable fix instruction, may be enriched by AI
+  aiPrioritized: boolean("ai_prioritized").notNull().default(false),
+}, (t) => [
+  index("audit_findings_run_idx").on(t.runId),
+  index("audit_findings_severity_idx").on(t.severity),
+]);
+
 // Brief generation runs — same model as fetchRuns but tracking AI brief jobs.
 //   queued → running → done / failed / skipped
 export const briefRuns = pgTable("brief_runs", {
