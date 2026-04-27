@@ -72,16 +72,19 @@ export async function fetchTopQueries(
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - 28);
 
-  const res = await sc.searchanalytics.query({
-    siteUrl,
-    requestBody: {
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
-      dimensions: ["query"],
-      rowLimit: limit,
-      // GSC default ordering is by clicks descending — no orderBy field exists.
+  const res = await sc.searchanalytics.query(
+    {
+      siteUrl,
+      requestBody: {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        dimensions: ["query"],
+        rowLimit: limit,
+        // GSC default ordering is by clicks descending — no orderBy field exists.
+      },
     },
-  });
+    { signal: AbortSignal.timeout(30_000) },
+  );
 
   const rows = res.data.rows ?? [];
   return rows
@@ -134,15 +137,18 @@ export async function fetchGscSiteTotals(
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - days);
 
-  const res = await sc.searchanalytics.query({
-    siteUrl,
-    requestBody: {
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
-      dimensions: ["date"],
-      rowLimit: 1000, // 365 days max anyway
+  const res = await sc.searchanalytics.query(
+    {
+      siteUrl,
+      requestBody: {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        dimensions: ["date"],
+        rowLimit: 1000, // 365 days max anyway
+      },
     },
-  });
+    { signal: AbortSignal.timeout(30_000) },
+  );
 
   return (res.data.rows ?? []).map((r) => ({
     date: (r.keys?.[0] ?? "").toString(),
@@ -205,35 +211,220 @@ export async function fetchGscHistoryByQuery(
   let startRow = 0;
   const PAGE = 25000;
   const MAX_ROWS = 100000; // safety stop — covers ~99% of indie sites over 90d
+  const PAGE_TIMEOUT_MS = 30_000; // 30s per page. Stop after one timeout, partial data still saves.
+  const MAX_PAGES = Math.ceil(MAX_ROWS / PAGE); // hard loop cap
 
-  while (startRow < MAX_ROWS) {
-    const res = await sc.searchanalytics.query({
-      siteUrl,
-      requestBody: {
-        startDate,
-        endDate,
-        dimensions: ["query", "date"],
-        rowLimit: PAGE,
-        startRow,
-      },
-    });
+  let pages = 0;
+  while (startRow < MAX_ROWS && pages < MAX_PAGES) {
+    pages++;
+    try {
+      const res = await sc.searchanalytics.query(
+        {
+          siteUrl,
+          requestBody: {
+            startDate,
+            endDate,
+            dimensions: ["query", "date"],
+            rowLimit: PAGE,
+            startRow,
+          },
+        },
+        { signal: AbortSignal.timeout(PAGE_TIMEOUT_MS) },
+      );
 
-    const rows = res.data.rows ?? [];
-    for (const r of rows) {
-      const q = (r.keys?.[0] ?? "").toString();
-      if (!wanted.has(norm(q))) continue;
-      all.push({
-        query: q,
-        date: (r.keys?.[1] ?? "").toString(),
-        clicks: r.clicks ?? 0,
-        impressions: r.impressions ?? 0,
-        ctr: r.ctr ?? 0,
-        position: r.position ?? 0,
-      });
+      const rows = res.data.rows ?? [];
+      for (const r of rows) {
+        const q = (r.keys?.[0] ?? "").toString();
+        if (!wanted.has(norm(q))) continue;
+        all.push({
+          query: q,
+          date: (r.keys?.[1] ?? "").toString(),
+          clicks: r.clicks ?? 0,
+          impressions: r.impressions ?? 0,
+          ctr: r.ctr ?? 0,
+          position: r.position ?? 0,
+        });
+      }
+
+      if (rows.length < PAGE) break;
+      startRow += PAGE;
+    } catch (err: any) {
+      // Partial data is better than zero. Log and break instead of hanging forever.
+      console.warn(
+        `[fetchGscHistoryByQuery] page ${pages} failed at startRow=${startRow}:`,
+        err?.message ?? err,
+      );
+      break;
     }
+  }
 
-    if (rows.length < PAGE) break;
-    startRow += PAGE;
+  return all;
+}
+
+/**
+ * GSC page × date breakdown for the last N days. One row per (url, date).
+ * Feeds the "Indexed pages" view + the "Content refresh radar" trend analyser.
+ * A URL here means "appeared in Google search for this user's site at least once"
+ * — a good proxy for "indexed" without hitting the rate-limited urlInspection API.
+ */
+export async function fetchGscPagesByDate(
+  refreshToken: string,
+  siteUrl: string,
+  days = 90,
+): Promise<
+  Array<{
+    url: string;
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>
+> {
+  const sc = await getSearchConsoleClient(refreshToken);
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - days);
+  const startDate = start.toISOString().slice(0, 10);
+  const endDate = end.toISOString().slice(0, 10);
+
+  const all: Array<{
+    url: string;
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }> = [];
+
+  let startRow = 0;
+  const PAGE = 25000;
+  const MAX_ROWS = 250000;
+  const MAX_PAGES = Math.ceil(MAX_ROWS / PAGE);
+
+  let pages = 0;
+  while (startRow < MAX_ROWS && pages < MAX_PAGES) {
+    pages++;
+    try {
+      const res = await sc.searchanalytics.query(
+        {
+          siteUrl,
+          requestBody: {
+            startDate,
+            endDate,
+            dimensions: ["page", "date"],
+            rowLimit: PAGE,
+            startRow,
+          },
+        },
+        { signal: AbortSignal.timeout(30_000) },
+      );
+
+      const rows = res.data.rows ?? [];
+      for (const r of rows) {
+        all.push({
+          url: (r.keys?.[0] ?? "").toString(),
+          date: (r.keys?.[1] ?? "").toString(),
+          clicks: r.clicks ?? 0,
+          impressions: r.impressions ?? 0,
+          ctr: r.ctr ?? 0,
+          position: r.position ?? 0,
+        });
+      }
+
+      if (rows.length < PAGE) break;
+      startRow += PAGE;
+    } catch (err: any) {
+      console.warn(`[fetchGscPagesByDate] page ${pages} failed:`, err?.message ?? err);
+      break;
+    }
+  }
+
+  return all;
+}
+
+/**
+ * GSC query × page breakdown for the last N days (default 28 — GSC's default
+ * dashboard window). Aggregated across dates — one row per (query, page).
+ * This is what feeds the cannibalization detector: multiple rows with the
+ * same query but different pages = your site competing against itself.
+ */
+export async function fetchGscQueryPageBreakdown(
+  refreshToken: string,
+  siteUrl: string,
+  days = 28,
+): Promise<
+  Array<{
+    query: string;
+    page: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>
+> {
+  const sc = await getSearchConsoleClient(refreshToken);
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - days);
+  const startDate = start.toISOString().slice(0, 10);
+  const endDate = end.toISOString().slice(0, 10);
+
+  const all: Array<{
+    query: string;
+    page: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }> = [];
+
+  let startRow = 0;
+  const PAGE = 25000;
+  const MAX_ROWS = 250000;
+  const MAX_PAGES = Math.ceil(MAX_ROWS / PAGE);
+
+  let pages = 0;
+  while (startRow < MAX_ROWS && pages < MAX_PAGES) {
+    pages++;
+    try {
+      const res = await sc.searchanalytics.query(
+        {
+          siteUrl,
+          requestBody: {
+            startDate,
+            endDate,
+            dimensions: ["query", "page"],
+            rowLimit: PAGE,
+            startRow,
+          },
+        },
+        { signal: AbortSignal.timeout(30_000) },
+      );
+
+      const rows = res.data.rows ?? [];
+      for (const r of rows) {
+        all.push({
+          query: (r.keys?.[0] ?? "").toString(),
+          page: (r.keys?.[1] ?? "").toString(),
+          clicks: r.clicks ?? 0,
+          impressions: r.impressions ?? 0,
+          ctr: r.ctr ?? 0,
+          position: r.position ?? 0,
+        });
+      }
+
+      if (rows.length < PAGE) break;
+      startRow += PAGE;
+    } catch (err: any) {
+      console.warn(
+        `[fetchGscQueryPageBreakdown] page ${pages} failed:`,
+        err?.message ?? err,
+      );
+      break;
+    }
   }
 
   return all;

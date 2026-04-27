@@ -1,51 +1,60 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
-import { LayoutDashboard, ListOrdered, FileText, Settings, Briefcase, Stethoscope, LogOut } from "lucide-react";
-import { SignOutButton } from "@/components/sign-out-button";
+import { resolveAccountContext } from "@/lib/account-context";
+import { CreditsDisplay } from "@/components/credits-display";
+import { ActiveJobsIndicator } from "@/components/active-jobs-indicator";
+import { AccountSwitcher } from "@/components/account-switcher";
+import { ExpandableSidebar } from "@/components/expandable-sidebar";
 
 const NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/keywords", label: "Keywords", icon: ListOrdered },
-  { href: "/dashboard/brief", label: "Brief", icon: FileText },
-  { href: "/dashboard/audit", label: "Audit", icon: Stethoscope },
-  { href: "/dashboard/business", label: "Business", icon: Briefcase },
-  { href: "/dashboard/connect-google", label: "Connections", icon: Settings },
+  { href: "/dashboard", label: "Overview", iconName: "layout-dashboard" as const },
+  { href: "/dashboard/chat", label: "Chat", iconName: "message-square" as const },
+  { href: "/dashboard/keywords", label: "Keywords", iconName: "list-ordered" as const },
+  { href: "/dashboard/pages", label: "Pages", iconName: "file-stack" as const },
+  { href: "/dashboard/brief", label: "Brief", iconName: "file-text" as const },
+  { href: "/dashboard/aeo", label: "AEO", iconName: "sparkles" as const },
+  { href: "/dashboard/audit", label: "Audit", iconName: "stethoscope" as const },
+  { href: "/dashboard/audit/metas", label: "Metas", iconName: "tags" as const },
+  { href: "/dashboard/cannibalization", label: "Cannibalization", iconName: "split" as const },
+  { href: "/dashboard/gap", label: "Gap", iconName: "crosshair" as const },
+  { href: "/dashboard/business", label: "Business", iconName: "briefcase" as const },
+  { href: "/dashboard/team", label: "Team", iconName: "users" as const },
+  { href: "/dashboard/billing", label: "Billing", iconName: "credit-card" as const, ownerOnly: true as const },
+  { href: "/dashboard/connect-google", label: "Connections", iconName: "settings" as const },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/");
+  let ctx: Awaited<ReturnType<typeof resolveAccountContext>>;
+  try {
+    ctx = await resolveAccountContext();
+  } catch {
+    redirect("/");
+  }
+
+  const nav = NAV.filter((item) => {
+    if ("ownerOnly" in item && item.ownerOnly && !ctx.isOwner) return false;
+    return true;
+  });
 
   return (
     <div className="flex-1 flex">
-      <aside className="w-64 shrink-0 border-r border-border bg-background flex flex-col">
-        <div className="px-6 py-6">
-          <span className="font-display text-xl">SEO Dashboard</span>
+      <ExpandableSidebar
+        nav={nav}
+        email={ctx.sessionUserEmail}
+        isOwner={ctx.isOwner}
+        accountSwitcherSlot={
+          ctx.accounts.length > 1 ? (
+            <AccountSwitcher accounts={ctx.accounts} activeOwnerId={ctx.ownerId} />
+          ) : null
+        }
+      />
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top bar — credits + jobs indicator, fixed top-right */}
+        <div className="sticky top-0 z-30 flex items-center justify-end gap-3 px-6 py-3 bg-background/80 backdrop-blur-sm">
+          <ActiveJobsIndicator />
+          <CreditsDisplay userId={ctx.ownerId} />
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <item.icon className="h-4 w-4" strokeWidth={1.5} />
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="p-4">
-          <div className="rounded-[20px] bg-secondary p-4">
-            <div className="mb-3 text-xs text-muted-foreground truncate" title={session.user.email}>
-              {session.user.email}
-            </div>
-            <SignOutButton />
-          </div>
-        </div>
-      </aside>
-      <main className="flex-1 min-w-0">{children}</main>
+        <main className="flex-1 min-w-0">{children}</main>
+      </div>
     </div>
   );
 }

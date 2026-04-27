@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, X } from "lucide-react";
+import { cancelStuckRun } from "@/lib/actions/keywords";
+import { toast } from "sonner";
 
 type Run = {
   id: string;
@@ -26,9 +28,13 @@ function elapsed(fromIso: string): string {
 
 export function FetchStatusBanner({ run }: { run: Run | null }) {
   const router = useRouter();
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
+  const [cancelling, startCancel] = useTransition();
 
-  // Force re-render every second so the elapsed timer updates live
+  const startedAtIso = run?.startedAt ?? run?.queuedAt ?? null;
+  const elapsedMs = startedAtIso ? Date.now() - new Date(startedAtIso).getTime() : 0;
+  const isStale = elapsedMs > 10 * 60_000;
+
   useEffect(() => {
     if (!run) return;
     if (run.status !== "queued" && run.status !== "running") return;
@@ -36,13 +42,26 @@ export function FetchStatusBanner({ run }: { run: Run | null }) {
     return () => clearInterval(i);
   }, [run]);
 
-  // Auto-refresh server data every 10s while a run is active
   useEffect(() => {
     if (!run) return;
     if (run.status !== "queued" && run.status !== "running") return;
+    if (isStale) return;
     const i = setInterval(() => router.refresh(), 10_000);
     return () => clearInterval(i);
-  }, [run, router]);
+  }, [run, router, isStale]);
+
+  function onCancel() {
+    if (!run) return;
+    startCancel(async () => {
+      try {
+        await cancelStuckRun("fetch", run.id);
+        toast.success("Run marked as failed.");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Couldn't cancel");
+      }
+    });
+  }
 
   if (!run) return null;
 
@@ -54,8 +73,31 @@ export function FetchStatusBanner({ run }: { run: Run | null }) {
 
   if (run.status === "queued") {
     return (
-      <Banner tone="info" icon={<Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}>
-        <strong>Queued</strong> · waiting for Inngest worker to pick it up · {elapsed(run.queuedAt)}
+      <Banner
+        tone={isStale ? "warn" : "info"}
+        icon={
+          isStale ? (
+            <AlertTriangle className="h-4 w-4" strokeWidth={2} />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+          )
+        }
+      >
+        <span>
+          {isStale ? (
+            <><strong>Queued {elapsed(run.queuedAt)} — worker likely crashed.</strong></>
+          ) : (
+            <><strong>Queued</strong> · waiting for worker · {elapsed(run.queuedAt)}</>
+          )}
+        </span>
+        <button
+          onClick={onCancel}
+          disabled={cancelling}
+          className="ml-3 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border border-current/30 hover:bg-current/10 disabled:opacity-50"
+        >
+          <X className="h-3 w-3" strokeWidth={2} />
+          {cancelling ? "Cancelling…" : "Cancel"}
+        </button>
       </Banner>
     );
   }
@@ -64,14 +106,39 @@ export function FetchStatusBanner({ run }: { run: Run | null }) {
     const ranked = run.resultCount ?? 0;
     const total = run.taskCount ?? 0;
     return (
-      <Banner tone="info" icon={<Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}>
-        <strong>Fetching positions</strong>
-        {total > 0 ? (
-          <> · {ranked}/{total} processed</>
-        ) : (
-          <> · posting tasks to DataForSEO</>
-        )}{" "}
-        · {elapsed(run.startedAt ?? run.queuedAt)}
+      <Banner
+        tone={isStale ? "warn" : "info"}
+        icon={
+          isStale ? (
+            <AlertTriangle className="h-4 w-4" strokeWidth={2} />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+          )
+        }
+      >
+        <span>
+          {isStale ? (
+            <><strong>Fetch stuck</strong> · running {elapsed(run.startedAt ?? run.queuedAt)} — worker died</>
+          ) : (
+            <>
+              <strong>Fetching positions</strong>
+              {total > 0 ? (
+                <> · {ranked}/{total} processed</>
+              ) : (
+                <> · posting tasks to DataForSEO</>
+              )}{" "}
+              · {elapsed(run.startedAt ?? run.queuedAt)}
+            </>
+          )}
+        </span>
+        <button
+          onClick={onCancel}
+          disabled={cancelling}
+          className="ml-3 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border border-current/30 hover:bg-current/10 disabled:opacity-50"
+        >
+          <X className="h-3 w-3" strokeWidth={2} />
+          {cancelling ? "Cancelling…" : "Cancel"}
+        </button>
       </Banner>
     );
   }

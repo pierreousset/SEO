@@ -12,6 +12,56 @@ export type Finding = {
   fix?: string;
 };
 
+/** Extracted meta data for a single page (complete, not just issues). */
+export type PageMeta = {
+  url: string;
+  title: string | null;
+  titleLength: number;
+  metaDescription: string | null;
+  metaDescriptionLength: number;
+  h1: string | null;
+  canonical: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImage: string | null;
+  wordCount: number;
+  indexable: boolean;
+};
+
+/** Extract all meta data from a page — stored for every page regardless of issues. */
+export function extractPageMeta(url: string, html: string): PageMeta {
+  const $ = cheerio.load(html);
+  const title = $("head > title").first().text().trim() || null;
+  const metaDesc = $('meta[name="description"]').attr("content")?.trim() || null;
+  const h1s = $("h1").toArray();
+  const h1 = h1s.length > 0 ? $(h1s[0]).text().trim() || null : null;
+  const canonical = $('link[rel="canonical"]').attr("href")?.trim() || null;
+  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim() || null;
+  const ogDesc = $('meta[property="og:description"]').attr("content")?.trim() || null;
+  const ogImg = $('meta[property="og:image"]').attr("content")?.trim() || null;
+  const robotsMeta = $('meta[name="robots"]').attr("content")?.toLowerCase() ?? "";
+  const indexable = !robotsMeta.includes("noindex");
+
+  $("script, style, noscript").remove();
+  const text = $("body").text().replace(/\s+/g, " ").trim();
+  const wordCount = text ? text.split(" ").length : 0;
+
+  return {
+    url,
+    title,
+    titleLength: title?.length ?? 0,
+    metaDescription: metaDesc,
+    metaDescriptionLength: metaDesc?.length ?? 0,
+    h1,
+    canonical,
+    ogTitle,
+    ogDescription: ogDesc,
+    ogImage: ogImg,
+    wordCount,
+    indexable,
+  };
+}
+
 /**
  * Run all per-page checks against a fetched HTML document.
  * Returns a list of findings (only failures + warnings — passing checks are silent).

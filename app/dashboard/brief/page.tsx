@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
@@ -9,20 +8,20 @@ import { BriefStatusBanner } from "@/components/brief-status-banner";
 export const dynamic = "force-dynamic";
 
 export default async function BriefPage() {
-  const session = (await auth.api.getSession({ headers: await headers() }))!;
-  const t = tenantDb(session.user.id);
+  const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
   const [latest] = await t.selectLatestBrief();
   const positionsCount = await db
     .select({ c: schema.positions.id })
     .from(schema.positions)
-    .where(eq(schema.positions.userId, session.user.id))
+    .where(eq(schema.positions.userId, ctx.ownerId))
     .limit(1);
   const hasData = positionsCount.length > 0;
 
   const [latestBriefRun] = await db
     .select()
     .from(schema.briefRuns)
-    .where(eq(schema.briefRuns.userId, session.user.id))
+    .where(eq(schema.briefRuns.userId, ctx.ownerId))
     .orderBy(desc(schema.briefRuns.queuedAt))
     .limit(1);
 
@@ -48,10 +47,10 @@ export default async function BriefPage() {
       <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
         <BriefStatusBanner run={briefRunBanner} />
         <header>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Weekly</p>
-          <h1 className="font-display text-5xl md:text-6xl mt-3">Brief</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Weekly</p>
+          <h1 className="font-display text-[40px] mt-3">Brief</h1>
         </header>
-        <div className="rounded-[20px] bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
           <p className="text-lg text-muted-foreground">
             {hasData
               ? "You have data — generate the first brief now, or wait for Monday 09:00 UTC."
@@ -59,7 +58,10 @@ export default async function BriefPage() {
           </p>
           {hasData && (
             <div className="mt-6">
-              <GenerateBriefButton variant="default" />
+              <GenerateBriefButton
+                variant="default"
+                activeStatus={(latestBriefRun?.status as any) ?? null}
+              />
             </div>
           )}
         </div>
@@ -91,16 +93,19 @@ export default async function BriefPage() {
       {/* Hero header */}
       <header className="flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono tabular">
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground font-mono tabular">
             Week of {latest.periodStart} → {latest.periodEnd}
           </p>
-          <h1 className="font-display text-5xl md:text-6xl mt-3">Weekly brief</h1>
+          <h1 className="font-display text-[40px] mt-3">Weekly brief</h1>
           <p className="mt-6 text-lg md:text-xl leading-relaxed text-muted-foreground">
             {latest.summary}
           </p>
         </div>
         <div className="shrink-0">
-          <GenerateBriefButton label="Regenerate" />
+          <GenerateBriefButton
+            label="Regenerate"
+            activeStatus={(latestBriefRun?.status as any) ?? null}
+          />
         </div>
       </header>
 
@@ -119,7 +124,7 @@ export default async function BriefPage() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Actions — primary column */}
         <div className="lg:col-span-2">
-          <div className="rounded-[20px] bg-secondary p-6 md:p-8">
+          <div className="rounded-2xl bg-secondary p-6 md:p-8">
             <div className="mb-6">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 This week
@@ -160,7 +165,7 @@ export default async function BriefPage() {
 
         {/* Movers — side column */}
         <div className="space-y-6">
-          <div className="rounded-[20px] bg-secondary p-6 md:p-8">
+          <div className="rounded-2xl bg-secondary p-6 md:p-8">
             <div className="mb-6">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 This week
@@ -203,7 +208,7 @@ export default async function BriefPage() {
           </div>
 
           {warnings.length > 0 && (
-            <div className="rounded-[20px] border border-[var(--down)]/30 bg-[var(--down)]/5 p-6">
+            <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6">
               <h2 className="text-xs uppercase tracking-wider text-[var(--down)] mb-3">
                 Warnings
               </h2>
@@ -222,7 +227,7 @@ export default async function BriefPage() {
 
 function StatTile({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="rounded-[20px] bg-secondary p-6">
+    <div className="rounded-2xl bg-secondary p-6">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div
         className={`mt-4 font-display text-4xl md:text-5xl ${

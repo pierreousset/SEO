@@ -54,3 +54,4 @@ Thumbs.db
 
 # inngest
 .inngest/
+.gstack/

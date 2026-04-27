@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb } from "@/db/client";
 import { getAuthUrl } from "@/lib/google-oauth";
 import { randomBytes } from "node:crypto";
@@ -12,8 +11,8 @@ export default async function ConnectGooglePage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const session = (await auth.api.getSession({ headers: await headers() }))!;
-  const t = tenantDb(session.user.id);
+  const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
   const [gsc] = await t.selectGscToken();
   const error = (await searchParams).error;
 

@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { RankDelta } from "@/components/rank-delta";
@@ -12,6 +11,8 @@ import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { computeDiagnostic } from "@/lib/diagnostics";
 import { ThreatBadge } from "@/components/threat-badge";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
+import Link from "next/link";
+import { Search } from "lucide-react";
 import { KeywordsFilterBar } from "@/components/keywords-filter-bar";
 import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filters";
 
@@ -22,8 +23,8 @@ export default async function KeywordsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = (await auth.api.getSession({ headers: await headers() }))!;
-  const t = tenantDb(session.user.id);
+  const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
   const keywords = await t.selectKeywords();
   const sites = await t.selectSites();
   const sp = await searchParams;
@@ -67,13 +68,13 @@ export default async function KeywordsPage({
     db
       .select()
       .from(schema.positions)
-      .where(and(eq(schema.positions.userId, session.user.id), gte(schema.positions.date, cutoff))),
+      .where(and(eq(schema.positions.userId, ctx.ownerId), gte(schema.positions.date, cutoff))),
     db
       .select()
       .from(schema.competitorPositions)
       .where(
         and(
-          eq(schema.competitorPositions.userId, session.user.id),
+          eq(schema.competitorPositions.userId, ctx.ownerId),
           gte(schema.competitorPositions.date, cutoff),
         ),
       )
@@ -86,7 +87,7 @@ export default async function KeywordsPage({
       .from(schema.gscMetrics)
       .where(
         and(
-          eq(schema.gscMetrics.userId, session.user.id),
+          eq(schema.gscMetrics.userId, ctx.ownerId),
           gte(schema.gscMetrics.date, cutoff),
         ),
       ),
@@ -161,7 +162,14 @@ export default async function KeywordsPage({
             {rows.length} tracked · {filteredRows.length} shown. Data lags 0-1 day.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/dashboard/keywords/discover"
+            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-background hover:bg-muted/40"
+          >
+            <Search className="h-3 w-3" strokeWidth={1.5} />
+            Discover keywords
+          </Link>
           <AddKeywordForm />
           {unclassifiedCount > 0 && <ClassifyAllButton />}
           <FetchNowButton />
@@ -199,7 +207,12 @@ export default async function KeywordsPage({
             {filteredRows.map((r) => (
               <tr key={r.id} className="border-t border-border hover:bg-muted/40">
                 <td className="px-4 py-2.5 truncate max-w-xs" title={r.keyword}>
-                  {r.keyword}
+                  <Link
+                    href={`/dashboard/keywords/${r.id}`}
+                    className="hover:underline"
+                  >
+                    {r.keyword}
+                  </Link>
                 </td>
                 <td className="px-3 py-2.5">
                   <IntentStageBadge stage={r.intentStage} />

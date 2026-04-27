@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Download, XCircle, AlertTriangle } from "lucide-react";
+import { Loader2, Download, XCircle, AlertTriangle, X } from "lucide-react";
+import { cancelStuckRun } from "@/lib/actions/keywords";
+import { toast } from "sonner";
 
 type Run = {
   id: string;
@@ -27,6 +29,12 @@ function elapsed(fromIso: string): string {
 export function GscStatusBanner({ run }: { run: Run | null }) {
   const router = useRouter();
   const [, setTick] = useState(0);
+  const [cancelling, startCancel] = useTransition();
+
+  // Compute elapsed seconds since the run started/queued — used to detect stale orphans.
+  const startedAtIso = run?.startedAt ?? run?.queuedAt ?? null;
+  const elapsedMs = startedAtIso ? Date.now() - new Date(startedAtIso).getTime() : 0;
+  const isStale = elapsedMs > 10 * 60_000; // > 10 min = the worker almost certainly died
 
   useEffect(() => {
     if (!run) return;
@@ -38,9 +46,24 @@ export function GscStatusBanner({ run }: { run: Run | null }) {
   useEffect(() => {
     if (!run) return;
     if (run.status !== "queued" && run.status !== "running") return;
+    // Don't keep hammering router.refresh() on stale orphans — it won't change
+    if (isStale) return;
     const i = setInterval(() => router.refresh(), 5000);
     return () => clearInterval(i);
-  }, [run, router]);
+  }, [run, router, isStale]);
+
+  function onCancel() {
+    if (!run) return;
+    startCancel(async () => {
+      try {
+        await cancelStuckRun("gsc", run.id);
+        toast.success("Run marked as failed. You can trigger a new one.");
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Couldn't cancel");
+      }
+    });
+  }
 
   if (!run) return null;
 
@@ -49,19 +72,44 @@ export function GscStatusBanner({ run }: { run: Run | null }) {
     run.finishedAt &&
     Date.now() - new Date(run.finishedAt).getTime() < 30_000;
 
-  if (run.status === "queued") {
-    return (
-      <Banner tone="info" icon={<Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}>
-        <strong>GSC pull queued</strong> · {elapsed(run.queuedAt)}
-      </Banner>
+  if (run.status === "queued" || run.status === "running") {
+    const isRunning = run.status === "running";
+    const icon = isStale ? (
+      <AlertTriangle className="h-4 w-4" strokeWidth={2} />
+    ) : isRunning ? (
+      <Download className="h-4 w-4 animate-pulse" strokeWidth={2} />
+    ) : (
+      <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
     );
-  }
+    const tone = isStale ? ("warn" as const) : ("info" as const);
 
-  if (run.status === "running") {
     return (
-      <Banner tone="info" icon={<Download className="h-4 w-4 animate-pulse" strokeWidth={2} />}>
-        <strong>Pulling {run.daysRequested ?? 90}d of GSC history</strong> · this can take 30-90s ·{" "}
-        {elapsed(run.startedAt ?? run.queuedAt)}
+      <Banner tone={tone} icon={icon}>
+        <span>
+          {isStale ? (
+            <>
+              <strong>GSC pull stuck</strong> · running for {elapsed(run.startedAt ?? run.queuedAt)} —
+              the worker likely crashed. Cancel and retry.
+            </>
+          ) : isRunning ? (
+            <>
+              <strong>Pulling {run.daysRequested ?? 90}d of GSC history</strong> · 30-90s ·{" "}
+              {elapsed(run.startedAt ?? run.queuedAt)}
+            </>
+          ) : (
+            <>
+              <strong>GSC pull queued</strong> · {elapsed(run.queuedAt)}
+            </>
+          )}
+        </span>
+        <button
+          onClick={onCancel}
+          disabled={cancelling}
+          className="ml-3 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border border-current/30 hover:bg-current/10 disabled:opacity-50"
+        >
+          <X className="h-3 w-3" strokeWidth={2} />
+          {cancelling ? "Cancelling…" : "Cancel"}
+        </button>
       </Banner>
     );
   }

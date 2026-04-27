@@ -43,7 +43,7 @@ export default function LandingPage() {
       </div>
 
       <div className="w-full max-w-md lg:justify-self-end">
-        <div className="rounded-[20px] bg-secondary p-8 md:p-10">
+        <div className="rounded-2xl bg-secondary p-8 md:p-10">
           <h2 className="font-display text-3xl md:text-4xl leading-none">Sign in</h2>
           <p className="mt-3 text-sm text-muted-foreground">
             We send a 6-digit code to your email. No password.

@@ -103,7 +103,7 @@ export function KeywordsFilterBar({ totalCount, filteredCount }: { totalCount: n
   }
 
   return (
-    <div className="rounded-[20px] bg-secondary/40 border border-border">
+    <div className="rounded-2xl bg-secondary/40 border border-border">
       <div className="flex items-center gap-3 p-4 flex-wrap">
         <button
           onClick={() => setOpen((o) => !o)}

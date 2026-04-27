@@ -36,9 +36,11 @@ const config = {
 export function GscPerformanceChart({
   trackedData,
   siteData,
+  compact = false,
 }: {
   trackedData: DailyPoint[];
   siteData: DailyPoint[];
+  compact?: boolean;
 }) {
   const [range, setRange] = useState<(typeof RANGES)[number]["days"]>(28);
   const [scope, setScope] = useState<(typeof SCOPES)[number]["value"]>(
@@ -71,14 +73,114 @@ export function GscPerformanceChart({
 
   if (trackedData.length === 0 && siteData.length === 0) {
     return (
-      <div className="rounded-[20px] bg-secondary p-8 text-sm text-muted-foreground">
+      <div className="rounded-2xl bg-secondary p-8 text-sm text-muted-foreground">
         No GSC data yet. Click <strong>Pull GSC history</strong> above to fetch up to 90 days.
       </div>
     );
   }
 
+  if (compact) {
+    return (
+      <div className="h-full w-full flex flex-col">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="inline-flex rounded-lg bg-background p-0.5">
+            {SCOPES.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => setScope(s.value)}
+                disabled={s.value === "site" ? siteData.length === 0 : trackedData.length === 0}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                  scope === s.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="inline-flex rounded-lg bg-background p-0.5">
+            {RANGES.map((r) => (
+              <button
+                key={r.days}
+                onClick={() => setRange(r.days)}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors ${
+                  range === r.days
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 ml-auto">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+              <span className="font-mono text-[10px] text-muted-foreground">clicks</span>
+              <span className="font-mono text-xs font-semibold">{totals.clicks.toLocaleString()}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+              <span className="font-mono text-[10px] text-muted-foreground">impressions</span>
+              <span className="font-mono text-xs font-semibold">{totals.impressions.toLocaleString()}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="font-mono text-[10px] text-muted-foreground">ctr</span>
+              <span className="font-mono text-xs font-semibold">{totals.ctr.toFixed(1)}%</span>
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
+          <ChartContainer config={config} className="h-full w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sliced} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="fillClicksC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-clicks)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--color-clicks)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v);
+                    return `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
+                  }}
+                />
+                <YAxis hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area
+                  type="monotone"
+                  dataKey="clicks"
+                  stroke="var(--color-clicks)"
+                  strokeWidth={2}
+                  fill="url(#fillClicksC)"
+                  dot={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="impressions"
+                  stroke="var(--color-impressions)"
+                  strokeWidth={1}
+                  fill="none"
+                  dot={false}
+                  strokeDasharray="4 4"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-[20px] bg-secondary p-6 md:p-8">
+    <div className="rounded-2xl bg-secondary p-6 md:p-8">
       <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">

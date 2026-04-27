@@ -17,6 +17,8 @@ type Initial = {
   competitorUrls: string;
   biggestSeoProblem: string;
   preferredLanguage: string;
+  weeklyEmailEnabled: boolean;
+  weeklyEmailRecipient: string;
 };
 
 export function BusinessProfileForm({ initial }: { initial: Initial }) {
@@ -28,10 +30,21 @@ export function BusinessProfileForm({ initial }: { initial: Initial }) {
       setV((prev) => ({ ...prev, [k]: e.target.value }));
   }
 
+  function toggleEmail(checked: boolean) {
+    setV((prev) => ({ ...prev, weeklyEmailEnabled: checked }));
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const fd = new FormData();
-    Object.entries(v).forEach(([k, val]) => fd.set(k, String(val ?? "")));
+    Object.entries(v).forEach(([k, val]) => {
+      if (typeof val === "boolean") {
+        if (val) fd.set(k, "on");
+        // unchecked boolean: omit so "!== 'on'" evaluates false
+      } else {
+        fd.set(k, String(val ?? ""));
+      }
+    });
     start(async () => {
       const res = await saveBusinessProfile(fd);
       if ("error" in res && res.error) {
@@ -109,7 +122,7 @@ export function BusinessProfileForm({ initial }: { initial: Initial }) {
       </Section>
 
       <Section title="Competitive landscape">
-        <Field label="Top 3 competitor URLs" hint="One per line, max 3">
+        <Field label="Competitor URLs" hint="One per line, max 5. Powers Gap, AEO showdown, Backlinks gap.">
           <textarea
             value={v.competitorUrls}
             onChange={on("competitorUrls")}
@@ -128,6 +141,38 @@ export function BusinessProfileForm({ initial }: { initial: Initial }) {
             placeholder="Mes pages produit sont en page 2 depuis 3 mois"
           />
         </Field>
+      </Section>
+
+      <Section title="Weekly email">
+        <div>
+          <label className="inline-flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={v.weeklyEmailEnabled}
+              onChange={(e) => toggleEmail(e.target.checked)}
+              className="mt-1 accent-foreground h-4 w-4"
+            />
+            <div>
+              <div className="text-sm font-medium">Send weekly brief by email</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Every Monday at 09:00 UTC. You can regenerate manually from the dashboard anytime.
+              </p>
+            </div>
+          </label>
+        </div>
+        {v.weeklyEmailEnabled && (
+          <Field
+            label="Alternate recipient (optional)"
+            hint="Leave empty to send to your login email"
+          >
+            <Input
+              type="email"
+              value={v.weeklyEmailRecipient}
+              onChange={on("weeklyEmailRecipient")}
+              placeholder="seo-team@yourdomain.com"
+            />
+          </Field>
+        )}
       </Section>
 
       <div className="flex justify-end pt-4 border-t border-border">

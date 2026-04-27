@@ -1,12 +1,16 @@
 import { inngest } from "./client";
 import { db, tenantDb, schema } from "@/db/client";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import { postSerpTasks, fetchTaskResultMulti, urlToDomain } from "@/lib/dataforseo";
-import { fetchGscHistoryByQuery, fetchGscSiteTotals } from "@/lib/google-oauth";
+import { fetchGscHistoryByQuery, fetchGscSiteTotals, fetchGscPagesByDate } from "@/lib/google-oauth";
 import { decrypt } from "@/lib/encryption";
 import { fetchPage, fetchPagesRendered, discoverUrls } from "@/lib/audit/crawler";
 import { runPageChecks, runSiteWideChecks } from "@/lib/audit/checks";
 import { synthesizeAudit } from "@/lib/llm/audit-synthesis";
+import { sendWeeklyBriefEmail } from "@/lib/email/weekly-brief";
+import { getUserPlan } from "@/lib/billing-helpers";
+import { getCreditsBalance, debitCredits } from "@/lib/credits";
+import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { generateBrief } from "@/lib/llm/brief";
 import { randomUUID } from "node:crypto";
 
@@ -16,6 +20,9 @@ import { randomUUID } from "node:crypto";
 export const dailyFetchScheduler = inngest.createFunction(
   { id: "serp-daily-scheduler", triggers: [{ cron: "0 6 * * *" }] },
   async ({ step }) => {
+    if (process.env.INNGEST_DEV === "1" || process.env.NODE_ENV !== "production") {
+      return { skipped: "dev_mode" };
+    }
     const users = await step.run("list-active-users", async () =>
       db.selectDistinct({ userId: schema.keywords.userId }).from(schema.keywords),
     );
@@ -391,7 +398,43 @@ export const weeklyBrief = inngest.createFunction(
           .where(eq(schema.briefRuns.id, runId!)),
       );
 
-      // TODO: send email via Resend with the brief
+      // Send weekly brief email (opt-out via business profile).
+      await step.run("send-email", async () => {
+        if (!profile?.weeklyEmailEnabled) return { skipped: "opt_out" };
+
+        // Resolve recipient: profile override first, fall back to login email.
+        let recipient = profile?.weeklyEmailRecipient ?? null;
+        if (!recipient) {
+          const [userRow] = await db
+            .select({ email: schema.users.email })
+            .from(schema.users)
+            .where(eq(schema.users.id, userId))
+            .limit(1);
+          recipient = userRow?.email ?? null;
+        }
+        if (!recipient) return { skipped: "no_recipient" };
+
+        const dashboardUrl =
+          process.env.BETTER_AUTH_URL ?? "http://localhost:3100";
+        const lang = (profile?.preferredLanguage === "en" ? "en" : "fr") as
+          | "fr"
+          | "en";
+
+        const res = await sendWeeklyBriefEmail({
+          to: recipient,
+          businessName: profile?.businessName ?? null,
+          periodStart: ps,
+          periodEnd: pe,
+          summary: brief.summary,
+          topMovers: brief.top_movers,
+          tickets: brief.tickets,
+          warnings: brief.warnings,
+          dashboardUrl: `${dashboardUrl}/dashboard`,
+          language: lang,
+        });
+        return res;
+      });
+
       return { saved: true, periodStart: ps };
     } catch (err: any) {
       await step.run("mark-failed", async () =>
@@ -418,6 +461,8 @@ export const gscHistoryPull = inngest.createFunction(
     id: "gsc-history-pull",
     concurrency: { limit: 2 },
     triggers: [{ event: "gsc/history.pull" }],
+    // Hard cap the whole run. Past this Inngest marks as failed instead of hanging.
+    timeouts: { start: "1m", finish: "4m" },
   },
   async ({ event, step }) => {
     const userId = event.data.userId;
@@ -498,30 +543,72 @@ export const gscHistoryPull = inngest.createFunction(
       );
 
       await step.run("upsert-site-totals", async () => {
-        for (const r of siteTotals) {
+        if (siteTotals.length === 0) return;
+        const siteValues = siteTotals.map((r) => ({
+          id: randomUUID(),
+          userId,
+          date: r.date,
+          clicks: r.clicks,
+          impressions: r.impressions,
+          ctr: r.ctr.toString(),
+          position: r.position.toString(),
+        }));
+        await db
+          .insert(schema.gscSiteMetrics)
+          .values(siteValues)
+          .onConflictDoUpdate({
+            target: [schema.gscSiteMetrics.userId, schema.gscSiteMetrics.date],
+            set: {
+              clicks: sql`excluded.clicks`,
+              impressions: sql`excluded.impressions`,
+              ctr: sql`excluded.ctr`,
+              position: sql`excluded.position`,
+              fetchedAt: new Date(),
+            },
+          });
+      });
+
+      // Pull page × date breakdown — feeds /dashboard/pages (indexed pages) +
+      // /dashboard/refresh (content refresh radar). One extra API call per pull,
+      // batched upsert. Pages = any URL with >=1 impression in the window.
+      const pageRows = await step.run("fetch-gsc-pages", () =>
+        fetchGscPagesByDate(refreshToken, site.gscPropertyUri!, days),
+      );
+
+      const PAGE_BATCH = 500;
+      for (let i = 0; i < pageRows.length; i += PAGE_BATCH) {
+        const chunk = pageRows.slice(i, i + PAGE_BATCH);
+        await step.run(`upsert-pages-${i}`, async () => {
+          if (chunk.length === 0) return;
+          const values = chunk.map((r) => ({
+            id: randomUUID(),
+            userId,
+            url: r.url,
+            date: r.date,
+            clicks: r.clicks,
+            impressions: r.impressions,
+            ctr: r.ctr.toString(),
+            position: r.position.toString(),
+          }));
           await db
-            .insert(schema.gscSiteMetrics)
-            .values({
-              id: randomUUID(),
-              userId,
-              date: r.date,
-              clicks: r.clicks,
-              impressions: r.impressions,
-              ctr: r.ctr.toString(),
-              position: r.position.toString(),
-            })
+            .insert(schema.gscPageMetrics)
+            .values(values)
             .onConflictDoUpdate({
-              target: [schema.gscSiteMetrics.userId, schema.gscSiteMetrics.date],
+              target: [
+                schema.gscPageMetrics.userId,
+                schema.gscPageMetrics.url,
+                schema.gscPageMetrics.date,
+              ],
               set: {
-                clicks: r.clicks,
-                impressions: r.impressions,
-                ctr: r.ctr.toString(),
-                position: r.position.toString(),
+                clicks: sql`excluded.clicks`,
+                impressions: sql`excluded.impressions`,
+                ctr: sql`excluded.ctr`,
+                position: sql`excluded.position`,
                 fetchedAt: new Date(),
               },
             });
-        }
-      });
+        });
+      }
 
       // Build query → keywordId lookup. Normalize on both sides (lowercase + trim +
       // collapse whitespace) so casing/spacing differences don't lose matches.
@@ -529,38 +616,46 @@ export const gscHistoryPull = inngest.createFunction(
         s.toLowerCase().trim().replace(/\s+/g, " ");
       const byQuery = new Map(activeKeywords.map((k) => [norm(k.query), k.id]));
 
+      // Pre-map rows → values in one pass. Skip rows without a matching tracked keyword.
+      const values = rows
+        .map((r) => {
+          const keywordId = byQuery.get(norm(r.query));
+          if (!keywordId) return null;
+          return {
+            id: randomUUID(),
+            userId,
+            keywordId,
+            date: r.date,
+            clicks: r.clicks,
+            impressions: r.impressions,
+            ctr: r.ctr.toString(),
+            gscPosition: r.position.toString(),
+          };
+        })
+        .filter((v): v is NonNullable<typeof v> => v !== null);
+
+      // Batch insert with ON CONFLICT DO UPDATE — ~50x faster than per-row upserts.
+      // Postgres accepts ~1000 rows per INSERT comfortably; stay at 500 for margin.
+      const BATCH = 500;
       let upserted = 0;
-      // Batch upserts — can be large with 90d * many keywords
-      for (let i = 0; i < rows.length; i += 200) {
-        const batch = rows.slice(i, i + 200);
+      for (let i = 0; i < values.length; i += BATCH) {
+        const chunk = values.slice(i, i + BATCH);
         await step.run(`upsert-batch-${i}`, async () => {
-          for (const r of batch) {
-            const keywordId = byQuery.get(norm(r.query));
-            if (!keywordId) continue;
-            await db
-              .insert(schema.gscMetrics)
-              .values({
-                id: randomUUID(),
-                userId,
-                keywordId,
-                date: r.date,
-                clicks: r.clicks,
-                impressions: r.impressions,
-                ctr: r.ctr.toString(),
-                gscPosition: r.position.toString(),
-              })
-              .onConflictDoUpdate({
-                target: [schema.gscMetrics.keywordId, schema.gscMetrics.date],
-                set: {
-                  clicks: r.clicks,
-                  impressions: r.impressions,
-                  ctr: r.ctr.toString(),
-                  gscPosition: r.position.toString(),
-                  fetchedAt: new Date(),
-                },
-              });
-            upserted++;
-          }
+          if (chunk.length === 0) return;
+          await db
+            .insert(schema.gscMetrics)
+            .values(chunk)
+            .onConflictDoUpdate({
+              target: [schema.gscMetrics.keywordId, schema.gscMetrics.date],
+              set: {
+                clicks: sql`excluded.clicks`,
+                impressions: sql`excluded.impressions`,
+                ctr: sql`excluded.ctr`,
+                gscPosition: sql`excluded.gsc_position`,
+                fetchedAt: new Date(),
+              },
+            });
+          upserted += chunk.length;
         });
       }
 
@@ -594,16 +689,20 @@ export const gscHistoryPull = inngest.createFunction(
 );
 
 // Daily incremental GSC pull — runs at 04:00 UTC for all users with GSC connected.
+// Skip in dev mode so local experimentation doesn't trigger automatic pulls overnight.
 export const gscDailyScheduler = inngest.createFunction(
   { id: "gsc-daily-scheduler", triggers: [{ cron: "0 4 * * *" }] },
   async ({ step }) => {
+    if (process.env.INNGEST_DEV === "1" || process.env.NODE_ENV !== "production") {
+      return { skipped: "dev_mode" };
+    }
     const users = await step.run("list", async () =>
       db.selectDistinct({ userId: schema.gscTokens.userId }).from(schema.gscTokens),
     );
     for (const u of users) {
       await step.sendEvent("fanout", {
         name: "gsc/history.pull",
-        data: { userId: u.userId, days: 7 }, // daily incremental — only last week
+        data: { userId: u.userId, days: 7 },
       });
     }
     return { fannedOut: users.length };
@@ -744,14 +843,37 @@ export const siteAudit = inngest.createFunction(
         }
       });
 
-      // AI synthesis
-      const synthesis = await step.run("synthesize", () =>
-        synthesizeAudit({
-          findings: allFindings,
-          profile,
-          pagesCrawled: urls.length,
-        }),
-      );
+      // AI synthesis is opt-in: fires for anyone holding enough credits,
+      // regardless of current plan (credits are stored value — a cancelled
+      // Pro should still burn their balance). Free users without credits
+      // just get the raw findings.
+      let synthesis: Awaited<ReturnType<typeof synthesizeAudit>> | null = null;
+      const synthesisDecision = await step.run("synthesis-eligibility", async () => {
+        const balance = await getCreditsBalance(userId);
+        if (balance < CREDIT_COSTS.audit) return { run: false, reason: "insufficient_credits", balance };
+        // Debit upfront — atomic guard
+        try {
+          await debitCredits({
+            userId,
+            amount: CREDIT_COSTS.audit,
+            reason: "audit_synthesis",
+            metadata: { runId },
+          });
+        } catch {
+          return { run: false, reason: "debit_failed" };
+        }
+        return { run: true, reason: "ok" };
+      });
+
+      if (synthesisDecision.run) {
+        synthesis = await step.run("synthesize", () =>
+          synthesizeAudit({
+            findings: allFindings,
+            profile,
+            pagesCrawled: urls.length,
+          }),
+        );
+      }
 
       const high = allFindings.filter((f) => f.severity === "high").length;
 
@@ -765,12 +887,20 @@ export const siteAudit = inngest.createFunction(
             pagesCrawled: urls.length,
             findingsCount: allFindings.length,
             highSeverityCount: high,
-            aiSummary: JSON.stringify(synthesis),
+            aiSummary: synthesis ? JSON.stringify(synthesis) : null,
+            error: synthesis
+              ? null
+              : `synthesis_skipped:${(synthesisDecision as any).reason}`,
           })
           .where(eq(schema.auditRuns.id, runId)),
       );
 
-      return { findings: allFindings.length, high, pages: urls.length };
+      return {
+        findings: allFindings.length,
+        high,
+        pages: urls.length,
+        synthesisRan: !!synthesis,
+      };
     } catch (err: any) {
       await step.run("mark-failed", async () =>
         db
@@ -787,6 +917,913 @@ export const siteAudit = inngest.createFunction(
   },
 );
 
+// -------------------------------------------------------------------
+// AEO / LLM visibility check — manual trigger per user.
+// Checks each keyword against enabled LLM engines (Perplexity / Claude / OpenAI)
+// and records whether the user's domain appears in the citations.
+// -------------------------------------------------------------------
+export const llmVisibilityCheck = inngest.createFunction(
+  {
+    id: "llm-visibility-check",
+    concurrency: { limit: 3 },
+    triggers: [{ event: "aeo/visibility.check" }],
+  },
+  async ({ event, step }) => {
+    const { userId, runId, engines, keywordIds } = event.data as {
+      userId: string;
+      runId: string;
+      engines: Array<"perplexity" | "claude" | "openai">;
+      keywordIds?: string[];
+    };
+    if (!userId || !runId) throw new Error("userId and runId required");
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.llmVisibilityRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.llmVisibilityRuns.id, runId)),
+    );
+
+    try {
+      const [sites, allKeywords] = await Promise.all([
+        step.run("load-sites", () => t.selectSites()),
+        step.run("load-keywords", () => t.selectKeywords()),
+      ]);
+
+      const site = sites[0];
+      if (!site) {
+        await step.run("mark-skipped", async () =>
+          db
+            .update(schema.llmVisibilityRuns)
+            .set({ status: "skipped", finishedAt: new Date(), error: "no site registered" })
+            .where(eq(schema.llmVisibilityRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      const userDomain = site.domain;
+      const targetKeywords = (keywordIds && keywordIds.length > 0
+        ? allKeywords.filter((k) => keywordIds.includes(k.id))
+        : allKeywords.filter((k) => !k.removedAt)
+      ).slice(0, 50); // hard cap to keep cost predictable
+
+      if (targetKeywords.length === 0) {
+        await step.run("mark-skipped", async () =>
+          db
+            .update(schema.llmVisibilityRuns)
+            .set({ status: "skipped", finishedAt: new Date(), error: "no keywords" })
+            .where(eq(schema.llmVisibilityRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      // Dynamic import — keeps Inngest cold start lean if the engines module grows.
+      const { checkAllEngines } = await import("@/lib/llm-visibility/engines");
+
+      let mentionedCount = 0;
+      let totalCost = 0;
+      let checkCount = 0;
+
+      // Check one keyword at a time, all engines in parallel per keyword.
+      // Each keyword is its own Inngest step so retries/resumes are granular.
+      for (const kw of targetKeywords) {
+        const results = await step.run(`check-${kw.id}`, async () => {
+          return checkAllEngines(kw.query, userDomain, engines);
+        });
+
+        await step.run(`persist-${kw.id}`, async () => {
+          for (const r of results) {
+            await db.insert(schema.llmVisibilityResults).values({
+              id: randomUUID(),
+              runId,
+              userId,
+              keywordId: kw.id,
+              engine: r.engine,
+              mentioned: r.mentioned,
+              position: r.position,
+              citedUrls: r.citedUrls,
+              competitorMentions: r.competitorMentions,
+              answerSnippet: r.answerSnippet,
+              costUsd: r.costUsd.toFixed(6),
+              error: r.error,
+            });
+          }
+        });
+
+        for (const r of results) {
+          checkCount += 1;
+          totalCost += r.costUsd;
+          if (r.mentioned) mentionedCount += 1;
+        }
+      }
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.llmVisibilityRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            keywordCount: targetKeywords.length,
+            checkCount,
+            mentionedCount,
+            costUsd: totalCost.toFixed(4),
+          })
+          .where(eq(schema.llmVisibilityRuns.id, runId)),
+      );
+
+      return { checks: checkCount, mentioned: mentionedCount, cost: totalCost };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.llmVisibilityRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.llmVisibilityRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
+// -------------------------------------------------------------------
+// Cannibalization scan — pulls GSC [query × page] for the window and
+// stores findings inline on the run row.
+// -------------------------------------------------------------------
+export const cannibalizationScan = inngest.createFunction(
+  {
+    id: "cannibalization-scan",
+    concurrency: { limit: 3 },
+    triggers: [{ event: "cannibalization/scan" }],
+  },
+  async ({ event, step }) => {
+    const { userId, runId, daysWindow } = event.data as {
+      userId: string;
+      runId: string;
+      daysWindow: number;
+    };
+    if (!userId || !runId) throw new Error("userId and runId required");
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.cannibalizationRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.cannibalizationRuns.id, runId)),
+    );
+
+    try {
+      const [sites, gscToken, keywords] = await Promise.all([
+        step.run("load-sites", () => t.selectSites()),
+        step.run("load-token", () => t.selectGscToken()),
+        step.run("load-keywords", () => t.selectKeywords()),
+      ]);
+
+      const site = sites[0];
+      if (!site || !site.gscPropertyUri || gscToken.length === 0) {
+        await step.run("mark-skipped", async () =>
+          db
+            .update(schema.cannibalizationRuns)
+            .set({
+              status: "skipped",
+              finishedAt: new Date(),
+              error: "GSC not connected",
+            })
+            .where(eq(schema.cannibalizationRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      const refreshToken = decrypt(gscToken[0].encryptedRefreshToken);
+
+      const rows = await step.run("fetch-gsc-query-page", async () => {
+        const { fetchGscQueryPageBreakdown } = await import("@/lib/google-oauth");
+        return fetchGscQueryPageBreakdown(refreshToken, site.gscPropertyUri!, daysWindow);
+      });
+
+      const findings = await step.run("detect", async () => {
+        const { detectCannibalization } = await import("@/lib/cannibalization");
+        return detectCannibalization(
+          rows,
+          keywords.filter((k) => !k.removedAt).map((k) => ({ id: k.id, query: k.query })),
+        );
+      });
+
+      // Count distinct queries we actually looked at (for UI context).
+      const queriesScanned = new Set(rows.map((r) => r.query)).size;
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.cannibalizationRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            queriesScanned,
+            findingsCount: findings.length,
+            findings,
+          })
+          .where(eq(schema.cannibalizationRuns.id, runId)),
+      );
+
+      return { findings: findings.length, queries: queriesScanned };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.cannibalizationRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.cannibalizationRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
+// -------------------------------------------------------------------
+// Content brief generation — one per keyword, on demand.
+// Pulls the keyword's SERP neighbours + GSC data + business profile,
+// asks Claude for a structured writer brief, stores on contentBriefs row.
+// -------------------------------------------------------------------
+export const contentBriefGenerate = inngest.createFunction(
+  {
+    id: "content-brief-generate",
+    concurrency: { limit: 5 },
+    triggers: [{ event: "content-brief/generate" }],
+  },
+  async ({ event, step }) => {
+    const { userId, briefId, keywordId } = event.data as {
+      userId: string;
+      briefId: string;
+      keywordId: string;
+    };
+    if (!userId || !briefId || !keywordId) {
+      throw new Error("userId, briefId and keywordId required");
+    }
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.contentBriefs)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.contentBriefs.id, briefId)),
+    );
+
+    try {
+      const [keyword] = await step.run("load-keyword", async () =>
+        db
+          .select()
+          .from(schema.keywords)
+          .where(
+            and(eq(schema.keywords.id, keywordId), eq(schema.keywords.userId, userId)),
+          )
+          .limit(1),
+      );
+      if (!keyword) throw new Error("keyword not found");
+
+      const profile = await step.run("load-profile", () => t.selectBusinessProfile());
+
+      const [latestPosition] = await step.run("load-latest-pos", async () =>
+        db
+          .select()
+          .from(schema.positions)
+          .where(
+            and(
+              eq(schema.positions.userId, userId),
+              eq(schema.positions.keywordId, keywordId),
+            ),
+          )
+          .orderBy(desc(schema.positions.date))
+          .limit(1),
+      );
+
+      const serpDate = latestPosition?.date;
+      const topSerp = serpDate
+        ? await step.run("load-serp", async () => {
+            const rows = await db
+              .select()
+              .from(schema.competitorPositions)
+              .where(
+                and(
+                  eq(schema.competitorPositions.userId, userId),
+                  eq(schema.competitorPositions.keywordId, keywordId),
+                  eq(schema.competitorPositions.date, serpDate),
+                ),
+              )
+              .orderBy(schema.competitorPositions.position)
+              .limit(10);
+            return rows
+              .filter((r) => r.position !== null && r.url)
+              .map((r) => ({
+                position: r.position as number,
+                url: r.url as string,
+                domain: r.competitorDomain,
+              }));
+          })
+        : [];
+
+      const gscAgg = await step.run("load-gsc", async () => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 28);
+        const cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
+        const rows = await db
+          .select()
+          .from(schema.gscMetrics)
+          .where(
+            and(
+              eq(schema.gscMetrics.userId, userId),
+              eq(schema.gscMetrics.keywordId, keywordId),
+              gte(schema.gscMetrics.date, cutoff),
+            ),
+          );
+        if (rows.length === 0) return null;
+        const clicks = rows.reduce((s, r) => s + r.clicks, 0);
+        const impressions = rows.reduce((s, r) => s + r.impressions, 0);
+        const avgPosition =
+          rows.reduce((s, r) => s + Number(r.gscPosition), 0) / rows.length;
+        return {
+          clicks,
+          impressions,
+          ctr: impressions > 0 ? clicks / impressions : 0,
+          avgPosition,
+        };
+      });
+
+      const { content, model, costUsd } = await step.run("llm-generate", async () => {
+        const { generateContentBrief } = await import("@/lib/llm/content-brief");
+        return generateContentBrief({
+          keyword: keyword.query,
+          intentStage: keyword.intentStage,
+          country: keyword.country,
+          currentPosition: latestPosition?.position ?? null,
+          currentUrl: latestPosition?.url ?? null,
+          topSerp,
+          gscMetrics: gscAgg,
+          profile: profile
+            ? {
+                businessName: profile.businessName,
+                primaryService: profile.primaryService,
+                secondaryServices: profile.secondaryServices,
+                targetCities: profile.targetCities,
+                targetCustomer: profile.targetCustomer,
+                averageCustomerValueEur: profile.averageCustomerValueEur,
+                competitorUrls: profile.competitorUrls,
+                biggestSeoProblem: profile.biggestSeoProblem,
+                preferredLanguage: profile.preferredLanguage,
+              }
+            : null,
+        });
+      });
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.contentBriefs)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            content,
+            llmModel: model,
+            costUsd: costUsd.toFixed(6),
+          })
+          .where(eq(schema.contentBriefs.id, briefId)),
+      );
+
+      return { done: true, cost: costUsd };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.contentBriefs)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.contentBriefs.id, briefId)),
+      );
+      throw err;
+    }
+  },
+);
+
+// -------------------------------------------------------------------
+// Competitor keyword gap scan — pulls ranked keywords per declared
+// competitor, diffs against user's tracked + GSC queries, stores gaps.
+// -------------------------------------------------------------------
+export const competitorGapScan = inngest.createFunction(
+  {
+    id: "competitor-gap-scan",
+    concurrency: { limit: 2 },
+    triggers: [{ event: "competitor-gap/scan" }],
+  },
+  async ({ event, step }) => {
+    const { userId, runId } = event.data as { userId: string; runId: string };
+    if (!userId || !runId) throw new Error("userId and runId required");
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.competitorGapRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.competitorGapRuns.id, runId)),
+    );
+
+    try {
+      const [profile, keywords, sites] = await Promise.all([
+        step.run("load-profile", () => t.selectBusinessProfile()),
+        step.run("load-keywords", () => t.selectKeywords()),
+        step.run("load-sites", () => t.selectSites()),
+      ]);
+
+      const competitorDomains = (profile?.competitorUrls ?? [])
+        .map((u) => {
+          try {
+            return new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+          } catch {
+            return u.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+          }
+        })
+        .filter(Boolean);
+
+      if (competitorDomains.length === 0) {
+        await step.run("mark-skipped", async () =>
+          db
+            .update(schema.competitorGapRuns)
+            .set({
+              status: "skipped",
+              finishedAt: new Date(),
+              error: "No competitors declared in business profile.",
+            })
+            .where(eq(schema.competitorGapRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      // Build "already covered" set — queries we track OR that show up in GSC.
+      const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+      const covered = new Set<string>();
+      for (const k of keywords) {
+        if (!k.removedAt) covered.add(norm(k.query));
+      }
+      await step.run("load-gsc-queries", async () => {
+        const rows = await db
+          .select({ q: schema.gscMetrics.keywordId })
+          .from(schema.gscMetrics)
+          .where(eq(schema.gscMetrics.userId, userId))
+          .limit(5000);
+        return rows.length;
+      });
+
+      const profileCities = profile?.targetCities ?? [];
+
+      // Pull ranked keywords per competitor (sequential to stay under rate limits)
+      type Row = {
+        keyword: string;
+        competitorDomain: string;
+        competitorPosition: number;
+        competitorUrl: string | null;
+        searchVolume: number | null;
+        cpc: number | null;
+        keywordDifficulty: number | null;
+      };
+      const allRows: Row[] = [];
+
+      for (const comp of competitorDomains) {
+        const rows = await step.run(`pull-${comp}`, async () => {
+          const { fetchCompetitorRankedKeywords } = await import("@/lib/dataforseo");
+          const items = await fetchCompetitorRankedKeywords(comp, { limit: 500 });
+          return items
+            .filter((x) => x.keyword && x.competitorPosition !== null)
+            .map((x) => ({
+              keyword: x.keyword,
+              competitorDomain: comp,
+              competitorPosition: x.competitorPosition as number,
+              competitorUrl: x.competitorUrl,
+              searchVolume: x.searchVolume,
+              cpc: x.cpc,
+              keywordDifficulty: x.keywordDifficulty,
+            }));
+        });
+        allRows.push(...rows);
+      }
+
+      // Aggregate: one row per unique keyword. Pick the best competitor position;
+      // also track the other competitor domains that rank (alsoOn).
+      const byKeyword = new Map<
+        string,
+        {
+          keyword: string;
+          best: Row;
+          alsoOn: Set<string>;
+          volume: number | null;
+          difficulty: number | null;
+          cpc: number | null;
+        }
+      >();
+      for (const r of allRows) {
+        const key = norm(r.keyword);
+        const existing = byKeyword.get(key);
+        if (!existing) {
+          byKeyword.set(key, {
+            keyword: r.keyword,
+            best: r,
+            alsoOn: new Set<string>(),
+            volume: r.searchVolume,
+            difficulty: r.keywordDifficulty,
+            cpc: r.cpc,
+          });
+        } else {
+          if (r.competitorPosition < existing.best.competitorPosition) {
+            existing.alsoOn.add(existing.best.competitorDomain);
+            existing.best = r;
+          } else {
+            existing.alsoOn.add(r.competitorDomain);
+          }
+        }
+      }
+
+      // Filter out already-covered queries and cap per competitor.
+      const { classifyIntentRule } = await import("@/lib/llm/intent-classifier");
+      const candidates = [...byKeyword.values()].filter((c) => !covered.has(norm(c.keyword)));
+
+      // Enrich with intent + build final finding shape.
+      type Finding = NonNullable<
+        typeof schema.competitorGapRuns.$inferSelect["findings"]
+      >[number];
+      const enriched: Finding[] = candidates.map((c) => ({
+        keyword: c.keyword,
+        competitorDomain: c.best.competitorDomain,
+        competitorPosition: c.best.competitorPosition,
+        competitorUrl: c.best.competitorUrl,
+        searchVolume: c.volume,
+        cpc: c.cpc,
+        keywordDifficulty: c.difficulty,
+        intentStage: classifyIntentRule(c.keyword, profileCities),
+        alsoOn: [...c.alsoOn],
+      }));
+
+      // Ranking score: prioritise commercial intent + volume, penalise difficulty.
+      function score(f: Finding): number {
+        const vol = f.searchVolume ?? 10;
+        const diff = f.keywordDifficulty ?? 40;
+        const stage = f.intentStage ?? 2;
+        return Math.log(vol + 10) * (stage + 1) - diff / 20;
+      }
+      enriched.sort((a, b) => score(b) - score(a));
+
+      // Cap: 200 per competitor-declared × number of competitors (realistic ceiling).
+      const CAP = 200 * competitorDomains.length;
+      const findings = enriched.slice(0, CAP);
+
+      // Rough cost: ~$0.01 per ranked_keywords call. 3 competitors ≈ $0.03.
+      const costUsd = (competitorDomains.length * 0.01).toFixed(4);
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.competitorGapRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            competitorsScanned: competitorDomains.length,
+            keywordsInspected: allRows.length,
+            gapsFound: findings.length,
+            costUsd,
+            findings,
+          })
+          .where(eq(schema.competitorGapRuns.id, runId)),
+      );
+
+      return {
+        competitors: competitorDomains.length,
+        inspected: allRows.length,
+        gaps: findings.length,
+      };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.competitorGapRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.competitorGapRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
+// -------------------------------------------------------------------
+// Backlink pull — hits DataForSEO's 3 backlinks endpoints in parallel,
+// persists summary + top N links + top N referring domains.
+// -------------------------------------------------------------------
+export const backlinkPull = inngest.createFunction(
+  {
+    id: "backlink-pull",
+    concurrency: { limit: 2 },
+    triggers: [{ event: "backlinks/pull" }],
+  },
+  async ({ event, step }) => {
+    const { userId, runId } = event.data as { userId: string; runId: string };
+    if (!userId || !runId) throw new Error("userId and runId required");
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.backlinkRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.backlinkRuns.id, runId)),
+    );
+
+    try {
+      const sites = await step.run("load-sites", () => t.selectSites());
+      const site = sites[0];
+      if (!site) {
+        await step.run("mark-skipped", async () =>
+          db
+            .update(schema.backlinkRuns)
+            .set({
+              status: "skipped",
+              finishedAt: new Date(),
+              error: "no site registered",
+            })
+            .where(eq(schema.backlinkRuns.id, runId)),
+        );
+        return { skipped: true };
+      }
+
+      const domain = site.domain;
+
+      // Three endpoints — fire in parallel, each as its own step for retries.
+      const [summary, links, refDomains] = await Promise.all([
+        step.run("summary", async () => {
+          const { fetchBacklinkSummary } = await import("@/lib/dataforseo-backlinks");
+          return fetchBacklinkSummary(domain);
+        }),
+        step.run("backlinks", async () => {
+          const { fetchBacklinks } = await import("@/lib/dataforseo-backlinks");
+          return fetchBacklinks(domain, 100);
+        }),
+        step.run("ref-domains", async () => {
+          const { fetchReferringDomains } = await import("@/lib/dataforseo-backlinks");
+          return fetchReferringDomains(domain, 100);
+        }),
+      ]);
+
+      // Persist top backlinks.
+      await step.run("persist-backlinks", async () => {
+        if (links.length === 0) return;
+        const rows = links.map((l) => ({
+          id: randomUUID(),
+          runId,
+          userId,
+          sourceUrl: l.sourceUrl,
+          sourceDomain: l.sourceDomain,
+          targetUrl: l.targetUrl,
+          anchor: l.anchor,
+          dofollow: l.dofollow,
+          firstSeen: l.firstSeen,
+          lastSeen: l.lastSeen,
+          domainRank: l.domainRank,
+          pageRank: l.pageRank,
+          isNew: l.isNew,
+          isLost: l.isLost,
+        }));
+        // Insert in chunks to avoid single-statement size limits.
+        for (let i = 0; i < rows.length; i += 100) {
+          await db.insert(schema.backlinks).values(rows.slice(i, i + 100));
+        }
+      });
+
+      await step.run("persist-ref-domains", async () => {
+        if (refDomains.length === 0) return;
+        const rows = refDomains.map((d) => ({
+          id: randomUUID(),
+          runId,
+          userId,
+          domain: d.domain,
+          backlinks: d.backlinks,
+          dofollowBacklinks: d.dofollowBacklinks,
+          rank: d.rank,
+          firstSeen: d.firstSeen,
+          lastSeen: d.lastSeen,
+          isNew: d.isNew,
+          isLost: d.isLost,
+        }));
+        for (let i = 0; i < rows.length; i += 100) {
+          await db.insert(schema.backlinkRefDomains).values(rows.slice(i, i + 100));
+        }
+      });
+
+      // Pull competitor profiles (summary + top 30 ref domains) so the UI can
+      // show a side-by-side and surface link-gap outreach targets.
+      const profile = await step.run("load-profile", () => t.selectBusinessProfile());
+      const competitorDomains = (profile?.competitorUrls ?? [])
+        .map((u) => {
+          try {
+            return new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+          } catch {
+            return u.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+          }
+        })
+        .filter(Boolean)
+        .filter((d) => d !== domain.replace(/^www\./, "").toLowerCase());
+
+      type CompSummary = NonNullable<
+        typeof schema.backlinkRuns.$inferSelect["competitorSummaries"]
+      >[number];
+      const competitorSummaries: CompSummary[] = [];
+
+      for (const comp of competitorDomains) {
+        const compData = await step.run(`comp-${comp}`, async (): Promise<CompSummary> => {
+          try {
+            const { fetchBacklinkSummary, fetchReferringDomains } = await import(
+              "@/lib/dataforseo-backlinks"
+            );
+            const [sum, refs] = await Promise.all([
+              fetchBacklinkSummary(comp),
+              fetchReferringDomains(comp, 30),
+            ]);
+            return {
+              domain: comp,
+              totalBacklinks: sum.totalBacklinks,
+              referringDomains: sum.referringDomains,
+              dofollowBacklinks: sum.dofollowBacklinks,
+              avgRefDomainRank: sum.avgRefDomainRank,
+              topRefDomains: refs.map((r) => ({
+                domain: r.domain,
+                rank: r.rank,
+                backlinks: r.backlinks,
+              })),
+            };
+          } catch (err: any) {
+            return {
+              domain: comp,
+              totalBacklinks: 0,
+              referringDomains: 0,
+              dofollowBacklinks: 0,
+              avgRefDomainRank: null,
+              topRefDomains: [] as Array<{ domain: string; rank: number | null; backlinks: number }>,
+              error: String(err?.message ?? err).slice(0, 200),
+            };
+          }
+        });
+        competitorSummaries.push(compData as CompSummary);
+      }
+
+      // Rough cost: $0.03 for user + $0.02 per competitor profile.
+      const totalCost = 0.03 + competitorSummaries.length * 0.02;
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.backlinkRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            totalBacklinks: summary.totalBacklinks,
+            referringDomains: summary.referringDomains,
+            referringPages: summary.referringPages,
+            dofollowBacklinks: summary.dofollowBacklinks,
+            nofollowBacklinks: summary.nofollowBacklinks,
+            avgRefDomainRank: summary.avgRefDomainRank,
+            brokenBacklinks: summary.brokenBacklinks,
+            competitorSummaries,
+            costUsd: totalCost.toFixed(4),
+          })
+          .where(eq(schema.backlinkRuns.id, runId)),
+      );
+
+      return {
+        backlinks: summary.totalBacklinks,
+        refDomains: summary.referringDomains,
+        sampled: links.length,
+      };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.backlinkRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.backlinkRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
+// -------------------------------------------------------------------
+// Full-site meta crawl — parses sitemap (no limit), crawls every page,
+// extracts metas + internal links, discovers orphan pages.
+// -------------------------------------------------------------------
+export const fullMetaCrawl = inngest.createFunction(
+  {
+    id: "meta-crawl",
+    concurrency: { limit: 1 },
+    triggers: [{ event: "meta-crawl/run" }],
+  },
+  async ({ event, step }) => {
+    const { runFullMetaCrawl } = await import("@/lib/audit/meta-crawler");
+    const userId = event.data.userId;
+    const runId = event.data.runId;
+    const t = tenantDb(userId);
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.metaCrawlRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.metaCrawlRuns.id, runId)),
+    );
+
+    try {
+      const sites = await step.run("load-sites", () => t.selectSites());
+
+      if (sites.length === 0) {
+        await step.run("skip", async () =>
+          db
+            .update(schema.metaCrawlRuns)
+            .set({ status: "failed", finishedAt: new Date(), error: "No site configured." })
+            .where(eq(schema.metaCrawlRuns.id, runId)),
+        );
+        return { failed: true, reason: "no_site" };
+      }
+
+      const site = sites[0];
+      const homepageUrl = site.gscPropertyUri?.startsWith("sc-domain:")
+        ? `https://${site.domain}/`
+        : site.gscPropertyUri ?? `https://${site.domain}/`;
+
+      const result = await step.run("crawl-all", () => runFullMetaCrawl(homepageUrl));
+
+      await step.run("save-pages", async () => {
+        for (const p of result.pages) {
+          await db.insert(schema.metaCrawlPages).values({
+            id: randomUUID(),
+            runId,
+            userId,
+            url: p.url,
+            title: p.title,
+            titleLength: p.titleLength,
+            metaDescription: p.metaDescription,
+            metaDescriptionLength: p.metaDescriptionLength,
+            h1: p.h1,
+            canonical: p.canonical,
+            ogTitle: p.ogTitle,
+            ogDescription: p.ogDescription,
+            ogImage: p.ogImage,
+            wordCount: p.wordCount,
+            httpStatus: p.httpStatus,
+            responseMs: p.responseMs,
+            indexable: p.indexable,
+            inSitemap: p.inSitemap,
+            internalLinksOut: p.internalLinksOut.length,
+            linkedFrom: JSON.stringify((p as any).linkedFrom ?? []),
+          });
+        }
+      });
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.metaCrawlRuns)
+          .set({
+            status: "done",
+            finishedAt: new Date(),
+            siteId: site.id,
+            pagesCrawled: result.pages.length,
+            sitemapUrls: result.sitemapUrlCount,
+            orphanPages: result.orphanCount,
+          })
+          .where(eq(schema.metaCrawlRuns.id, runId)),
+      );
+
+      return {
+        pages: result.pages.length,
+        sitemapUrls: result.sitemapUrlCount,
+        orphans: result.orphanCount,
+      };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.metaCrawlRuns)
+          .set({
+            status: "failed",
+            finishedAt: new Date(),
+            error: String(err?.message ?? err).slice(0, 500),
+          })
+          .where(eq(schema.metaCrawlRuns.id, runId)),
+      );
+      throw err;
+    }
+  },
+);
+
 export const functions = [
   dailyFetchScheduler,
   userDailyFetch,
@@ -795,4 +1832,10 @@ export const functions = [
   gscHistoryPull,
   gscDailyScheduler,
   siteAudit,
+  fullMetaCrawl,
+  llmVisibilityCheck,
+  cannibalizationScan,
+  contentBriefGenerate,
+  competitorGapScan,
+  backlinkPull,
 ];

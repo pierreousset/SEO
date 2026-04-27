@@ -1,22 +1,75 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
-import { tenantDb } from "@/db/client";
+import { resolveAccountContext } from "@/lib/account-context";
+import { tenantDb, db, schema } from "@/db/client";
+import { and, eq, gte } from "drizzle-orm";
 import { BusinessProfileForm } from "@/components/business-profile-form";
+import { CompetitorSuggestions } from "@/components/competitor-suggestions";
+import { suggestCompetitors } from "@/lib/competitor-discovery";
 
 export const dynamic = "force-dynamic";
 
+const DISCOVERY_WINDOW_DAYS = 28;
+
 export default async function BusinessPage() {
-  const session = (await auth.api.getSession({ headers: await headers() }))!;
-  const t = tenantDb(session.user.id);
-  const profile = await t.selectBusinessProfile();
+  const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
+  const [profile, sites] = await Promise.all([t.selectBusinessProfile(), t.selectSites()]);
+
+  // Pull competitor SERP positions from the last 28 days to suggest new ones.
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - DISCOVERY_WINDOW_DAYS);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const rows = await db
+    .select({
+      keywordId: schema.competitorPositions.keywordId,
+      competitorDomain: schema.competitorPositions.competitorDomain,
+      date: schema.competitorPositions.date,
+      position: schema.competitorPositions.position,
+      url: schema.competitorPositions.url,
+    })
+    .from(schema.competitorPositions)
+    .where(
+      and(
+        eq(schema.competitorPositions.userId, ctx.ownerId),
+        gte(schema.competitorPositions.date, cutoffStr),
+      ),
+    )
+    .limit(20000);
+
+  // Exclude the user's own domain + already-declared competitors.
+  const excluded = new Set<string>();
+  const userDomain = (sites[0]?.domain ?? "").replace(/^www\./, "").toLowerCase();
+  if (userDomain) excluded.add(userDomain);
+  for (const u of profile?.competitorUrls ?? []) {
+    try {
+      excluded.add(new URL(u).hostname.replace(/^www\./, "").toLowerCase());
+    } catch {
+      excluded.add(
+        u
+          .trim()
+          .replace(/^https?:\/\//, "")
+          .replace(/^www\./, "")
+          .split("/")[0]
+          .toLowerCase(),
+      );
+    }
+  }
+
+  const suggestions = suggestCompetitors(rows, excluded, 8);
+  const currentCount = (profile?.competitorUrls ?? []).length;
+  const remainingSlots = Math.max(0, 5 - currentCount);
 
   return (
-    <div className="px-8 py-6 max-w-3xl">
-      <header className="mb-6">
-        <h1 className="text-xl font-semibold tracking-tight">Business context</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+    <div className="px-8 lg:px-12 py-10 max-w-[1100px] mx-auto space-y-8">
+      <header>
+        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          Business context
+        </p>
+        <h1 className="font-display text-[40px] mt-3">Business</h1>
+        <p className="mt-4 text-base text-muted-foreground max-w-2xl">
           Fill this once. Every AI brief uses it as system context, so recommendations are
-          specific to your business instead of generic SEO advice.
+          specific to your business instead of generic SEO advice. Declared competitors also
+          power Gap, AEO showdown, and Backlinks link-gap.
         </p>
       </header>
 
@@ -33,6 +86,8 @@ export default async function BusinessPage() {
                 competitorUrls: profile.competitorUrls.join("\n"),
                 biggestSeoProblem: profile.biggestSeoProblem ?? "",
                 preferredLanguage: profile.preferredLanguage ?? "fr",
+                weeklyEmailEnabled: profile.weeklyEmailEnabled,
+                weeklyEmailRecipient: profile.weeklyEmailRecipient ?? "",
               }
             : {
                 businessName: "",
@@ -44,9 +99,23 @@ export default async function BusinessPage() {
                 competitorUrls: "",
                 biggestSeoProblem: "",
                 preferredLanguage: "fr",
+                weeklyEmailEnabled: true,
+                weeklyEmailRecipient: "",
               }
         }
       />
+
+      {suggestions.length > 0 && (
+        <CompetitorSuggestions
+          suggestions={suggestions.map((s) => ({
+            domain: s.domain,
+            keywordCount: s.keywordCount,
+            avgPosition: s.avgPosition,
+            bestPosition: s.bestPosition,
+          }))}
+          remainingSlots={remainingSlots}
+        />
+      )}
     </div>
   );
 }

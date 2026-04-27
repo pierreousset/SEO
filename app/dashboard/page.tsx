@@ -1,9 +1,8 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, and, gte, desc, sql } from "drizzle-orm";
 import Link from "next/link";
-import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target, ListOrdered, MousePointerClick, Eye } from "lucide-react";
 import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
@@ -61,8 +60,8 @@ function formatUntil(iso: string): string {
 }
 
 export default async function DashboardHome() {
-  const session = (await auth.api.getSession({ headers: await headers() }))!;
-  const t = tenantDb(session.user.id);
+  const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
 
   // 30-day window for distribution + delta computation
   const thirtyDaysAgo = new Date();
@@ -89,7 +88,7 @@ export default async function DashboardHome() {
         .from(schema.positions)
         .where(
           and(
-            eq(schema.positions.userId, session.user.id),
+            eq(schema.positions.userId, ctx.ownerId),
             gte(schema.positions.date, cutoff),
           ),
         )
@@ -98,19 +97,19 @@ export default async function DashboardHome() {
       db
         .select()
         .from(schema.fetchRuns)
-        .where(eq(schema.fetchRuns.userId, session.user.id))
+        .where(eq(schema.fetchRuns.userId, ctx.ownerId))
         .orderBy(desc(schema.fetchRuns.queuedAt))
         .limit(5),
       db
         .select()
         .from(schema.briefRuns)
-        .where(eq(schema.briefRuns.userId, session.user.id))
+        .where(eq(schema.briefRuns.userId, ctx.ownerId))
         .orderBy(desc(schema.briefRuns.queuedAt))
         .limit(1),
       db
         .select()
         .from(schema.gscRuns)
-        .where(eq(schema.gscRuns.userId, session.user.id))
+        .where(eq(schema.gscRuns.userId, ctx.ownerId))
         .orderBy(desc(schema.gscRuns.queuedAt))
         .limit(1),
       db
@@ -122,11 +121,11 @@ export default async function DashboardHome() {
           position: schema.gscMetrics.gscPosition,
         })
         .from(schema.gscMetrics)
-        .where(eq(schema.gscMetrics.userId, session.user.id)),
+        .where(eq(schema.gscMetrics.userId, ctx.ownerId)),
       db
         .select()
         .from(schema.gscSiteMetrics)
-        .where(eq(schema.gscSiteMetrics.userId, session.user.id)),
+        .where(eq(schema.gscSiteMetrics.userId, ctx.ownerId)),
     ]);
 
   // Aggregate GSC metrics by date — sum clicks/impressions, weight CTR by impressions,
@@ -299,6 +298,33 @@ export default async function DashboardHome() {
   const setupComplete =
     connected && sites.length > 0 && activeKeywords.length > 0 && totalPositions > 0;
 
+  // 28-day GSC aggregate for mini KPI cards
+  const twentyEightDaysAgo = new Date();
+  twentyEightDaysAgo.setUTCDate(twentyEightDaysAgo.getUTCDate() - 28);
+  const cutoff28d = twentyEightDaysAgo.toISOString().slice(0, 10);
+  const recent28d = gscChartData.filter((d) => d.date >= cutoff28d);
+  const clicks28d = recent28d.reduce((s, d) => s + d.clicks, 0);
+  const impressions28d = recent28d.reduce((s, d) => s + d.impressions, 0);
+
+  // Average position delta (compare last 7d avg vs prior 7d avg)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
+  const cutoff7d = sevenDaysAgo.toISOString().slice(0, 10);
+  const cutoff14d = fourteenDaysAgo.toISOString().slice(0, 10);
+  const recentPositions = ranked.filter((s) => s.latest !== null).map((s) => s.latest!);
+  const prevPositions = ranked.filter((s) => s.prev !== null).map((s) => s.prev!);
+  const avgPrev = prevPositions.length > 0
+    ? prevPositions.reduce((s, p) => s + p, 0) / prevPositions.length
+    : null;
+  const avgCurrent = recentPositions.length > 0
+    ? recentPositions.reduce((s, p) => s + p, 0) / recentPositions.length
+    : null;
+  const avgPosDelta = avgPrev !== null && avgCurrent !== null
+    ? (avgPrev - avgCurrent).toFixed(1)
+    : null;
+
   // Pipeline state: each step is done/pending/blocked.
   // `action` can be a Link (href + label) or a "fetch-now" sentinel for the inline button.
   type Step = {
@@ -316,7 +342,7 @@ export default async function DashboardHome() {
     {
       label: "Sign in",
       done: true,
-      hint: session.user.email,
+      hint: ctx.sessionUserEmail,
     },
     {
       label: "Connect Google Search Console",
@@ -368,299 +394,331 @@ export default async function DashboardHome() {
   ];
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
-      <header className="flex items-end justify-between gap-6 flex-wrap">
+    <div className="py-7 px-9 max-w-[1400px] mx-auto space-y-3">
+      {/* Header */}
+      <header className="flex items-end justify-between gap-6 flex-wrap mb-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            {session.user.email}
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {ctx.sessionUserEmail}
           </p>
-          <h1 className="font-display text-5xl md:text-6xl mt-3">Overview</h1>
+          <h1 className="text-[36px] font-semibold leading-tight">Overview</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {connected && <SyncGscButton days={90} label="Pull GSC history" />}
-          {canGenerateBrief && <GenerateBriefButton label={latestBrief.length > 0 ? "Regenerate brief" : "Generate brief"} />}
-          <FetchNowButton />
+          {connected && (
+            <SyncGscButton
+              days={90}
+              label="Pull GSC"
+              activeStatus={(latestGscRun?.status as any) ?? null}
+            />
+          )}
+          <FetchNowButton activeStatus={(latestRun?.status as any) ?? null} />
         </div>
       </header>
 
+      {/* Status banners */}
       <FetchStatusBanner run={runForBanner} />
       <BriefStatusBanner run={briefRunForBanner} />
       <GscStatusBanner run={gscRunForBanner} />
 
-      {/* GSC Performance chart — Search Console-style time series */}
-      {connected && (
-        <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} />
+      {/* Bento Row 1: Hero KPI + Mini KPI Stack */}
+      <div className="flex gap-3 items-stretch">
+        {/* Hero KPI tile */}
+        <div className="flex-1 min-h-[200px] bg-card rounded-2xl p-7 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] text-muted-foreground">avg position</span>
+            {avgPosDelta !== null && parseFloat(avgPosDelta) !== 0 && (
+              <span
+                className={`font-mono text-[11px] font-medium rounded-full px-2.5 py-1 ${
+                  parseFloat(avgPosDelta) > 0
+                    ? "bg-[var(--up)]/15 text-[var(--up)]"
+                    : "bg-[var(--down)]/15 text-[var(--down)]"
+                }`}
+              >
+                {parseFloat(avgPosDelta) > 0 ? "↑" : "↓"} {Math.abs(parseFloat(avgPosDelta))}
+              </span>
+            )}
+          </div>
+          <div>
+            <div className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums">
+              {avgPosition ?? "—"}
+            </div>
+            <div className="font-mono text-sm text-muted-foreground mt-2">
+              across {ranked.length} ranked keyword{ranked.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+        </div>
+
+        {/* Mini KPI Stack */}
+        <div className="w-[280px] flex flex-col gap-3">
+          <StatTile
+            label="keywords"
+            value={activeKeywords.length.toLocaleString()}
+            icon={<ListOrdered className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
+          />
+          <StatTile
+            label="clicks (28d)"
+            value={clicks28d.toLocaleString()}
+            icon={<MousePointerClick className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
+          />
+          <StatTile
+            label="impressions"
+            value={impressions28d.toLocaleString()}
+            icon={<Eye className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
+          />
+        </div>
+      </div>
+
+      {/* Bento Row 2: Chart + Gap Zone */}
+      <div className="flex gap-3">
+        {/* Chart tile */}
+        <div className="flex-1 h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
+          <div className="mb-3">
+            <span className="font-mono text-[10px] text-muted-foreground">performance</span>
+            <h2 className="text-xl font-semibold">Search Console</h2>
+          </div>
+          <div className="flex-1 min-h-0">
+            {connected ? (
+              <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} compact />
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                Connect GSC to see performance data
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Gap Zone tile */}
+        <div className="w-[400px] h-[280px] bg-card rounded-2xl overflow-hidden flex flex-col">
+          <div className="px-6 pt-5 pb-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+              <span className="font-mono text-[10px] text-muted-foreground">gap zone</span>
+            </div>
+            <h2 className="text-lg font-semibold">Highest ROI</h2>
+          </div>
+          <div className="flex-1 overflow-auto">
+            {gapZone.length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-medium">keyword</th>
+                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-medium">pos</th>
+                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-medium">7d</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gapZone.map((g) => {
+                    const delta7d =
+                      g.weekAgo != null && g.latest != null ? g.weekAgo - g.latest : null;
+                    return (
+                      <tr key={g.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2 text-xs truncate max-w-[200px]" title={g.keyword}>
+                          {g.keyword}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{g.latest}</td>
+                        <td className="px-4 py-2 text-right">
+                          <RankDelta value={delta7d} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-6">
+                Keywords in positions 5-20 will appear here
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Setup pipeline — only when incomplete */}
+      {!setupComplete && (
+        <div className="rounded-2xl bg-card overflow-hidden">
+          <div className="px-6 py-5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold">Setup</h2>
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {steps.filter((s) => s.done).length}/{steps.length}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                What&apos;s actually happening.
+              </p>
+            </div>
+          </div>
+          <ul className="px-2 pb-2">
+            {steps.map((step, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 px-4 py-3 rounded-2xl hover:bg-background/60"
+              >
+                <div className="mt-0.5 shrink-0">
+                  {step.done ? (
+                    <CheckCircle2 className="h-4 w-4 text-[var(--up)]" strokeWidth={2} />
+                  ) : (
+                    <Circle className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">{step.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 break-words">
+                    {step.hint}
+                  </div>
+                </div>
+                {step.action && "kind" in step.action ? (
+                  <div className="shrink-0">
+                    {step.action.kind === "fetch-now" ? (
+                      <FetchNowButton activeStatus={(latestRun?.status as any) ?? null} />
+                    ) : (
+                      <GenerateBriefButton
+                        activeStatus={(latestBriefRun?.status as any) ?? null}
+                      />
+                    )}
+                  </div>
+                ) : step.action ? (
+                  <Link
+                    href={step.action.href}
+                    className="shrink-0 text-xs font-medium hover:underline"
+                  >
+                    {step.action.label} →
+                  </Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {/* Hero KPIs */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatTile label="Keywords tracked" value={activeKeywords.length.toString()} />
-        <StatTile
-          label="Avg position (top 100)"
-          value={avgPosition ?? "—"}
-          muted={avgPosition === null}
-        />
-        <StatTile
-          label="Last fetch"
-          value={lastFetch ? formatRelative(lastFetch) : "never"}
-          muted={!lastFetch}
-        />
-      </section>
-
-      {/* Main grid: 2/3 primary column + 1/3 side column */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Primary column */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Gap Zone — highest ROI */}
-          {gapZone.length > 0 && (
-            <div className="rounded-[20px] bg-secondary p-6 md:p-8">
-              <div className="flex items-end justify-between mb-5 gap-4 flex-wrap">
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Target className="h-3 w-3" strokeWidth={1.5} />
-                    Gap Zone
-                  </div>
-                  <h2 className="font-display text-2xl md:text-3xl mt-2">
-                    Your highest ROI this week
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Keywords ranking 5-20 — page 1 within reach with one focused fix.
-                  </p>
-                </div>
-                <Link
-                  href="/dashboard/keywords"
-                  className="text-sm font-medium hover:underline"
-                >
-                  See all →
-                </Link>
-              </div>
-              <div className="rounded-[12px] bg-background overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-4 py-3 font-medium">Keyword</th>
-                      <th className="text-left px-2 py-3 font-medium w-12">Intent</th>
-                      <th className="text-right px-3 py-3 font-medium">Position</th>
-                      <th className="text-right px-3 py-3 font-medium">7d Δ</th>
-                      <th className="text-left px-4 py-3 font-medium">Why fix it</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gapZone.map((g) => {
-                      const delta7d =
-                        g.weekAgo != null && g.latest != null ? g.weekAgo - g.latest : null;
-                      return (
-                        <tr key={g.id} className="border-t border-border">
-                          <td className="px-4 py-3 truncate max-w-[240px]" title={g.keyword}>
-                            {g.keyword}
-                          </td>
-                          <td className="px-2 py-3">
-                            <IntentStageBadge stage={g.intentStage} />
-                          </td>
-                          <td className="px-3 py-3 text-right font-mono tabular">{g.latest}</td>
-                          <td className="px-3 py-3 text-right">
-                            <RankDelta value={delta7d} />
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {gapZoneRationale(g)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+      {/* Bento Row 3: AI Brief + Distribution */}
+      <div className="flex gap-3">
+        {/* AI Brief tile — white card, dark text */}
+        {latestBrief.length > 0 ? (
+          <Link
+            href="/dashboard/brief"
+            className="flex-1 h-[180px] rounded-2xl bg-white p-6 flex flex-col justify-between hover:opacity-95 transition-opacity"
+          >
+            <div className="flex items-start justify-between">
+              <span className="font-mono text-[10px] text-[#71717A]">
+                latest ai brief · {latestBrief[0].periodStart} → {latestBrief[0].periodEnd}
+              </span>
+              <ArrowRight className="h-4 w-4 text-[#0A0A0A] shrink-0" strokeWidth={1.5} />
             </div>
-          )}
+            <p className="text-sm text-[#0A0A0A] leading-relaxed line-clamp-3">
+              {latestBrief[0].summary}
+            </p>
+          </Link>
+        ) : (
+          <div className="flex-1 h-[180px] rounded-2xl bg-card p-6 flex flex-col justify-between">
+            <span className="font-mono text-[10px] text-muted-foreground">ai brief</span>
+            <p className="text-sm text-muted-foreground">
+              Generate your first brief to see a preview here.
+            </p>
+          </div>
+        )}
 
-          {/* Position distribution */}
-          {ranked.length > 0 && (
-            <div className="rounded-[20px] bg-secondary p-6 md:p-8">
-              <h2 className="font-display text-2xl md:text-3xl">Position distribution</h2>
-              <p className="text-sm text-muted-foreground mt-2 mb-6">
-                Across {perKeyword.length} tracked keyword{perKeyword.length > 1 ? "s" : ""}.
-              </p>
-              <div className="flex h-2 rounded-full overflow-hidden bg-background">
+        {/* Distribution tile */}
+        <div className="w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
+          <span className="font-mono text-[10px] text-muted-foreground">position distribution</span>
+
+          {/* Bar */}
+          {ranked.length > 0 ? (
+            <>
+              <div className="flex h-1.5 rounded-full overflow-hidden bg-background">
                 {[
-                  { v: buckets.top3, color: "bg-[var(--up)]", label: "1–3" },
-                  { v: buckets.top10, color: "bg-[var(--up)]/70", label: "4–10" },
-                  { v: buckets.top20, color: "bg-primary/70", label: "11–20" },
-                  { v: buckets.top50, color: "bg-primary/40", label: "21–50" },
-                  { v: buckets.rest, color: "bg-muted-foreground/40", label: "51–100" },
-                  { v: buckets.unranked, color: "bg-[var(--down)]/40", label: "100+" },
+                  { v: buckets.top3, bg: "#34D399" },
+                  { v: buckets.top10, bg: "#34D39988" },
+                  { v: buckets.top20, bg: "#A855F7" },
+                  { v: buckets.top50, bg: "#A855F766" },
+                  { v: buckets.rest, bg: "#71717A55" },
                 ].map((b, i) =>
                   b.v > 0 ? (
                     <div
                       key={i}
-                      className={b.color}
-                      style={{ width: `${(b.v / perKeyword.length) * 100}%` }}
-                      title={`${b.label}: ${b.v}`}
+                      style={{
+                        width: `${(b.v / perKeyword.length) * 100}%`,
+                        backgroundColor: b.bg,
+                      }}
                     />
                   ) : null,
                 )}
               </div>
-              <div className="mt-6 grid grid-cols-6 gap-2 text-center">
-                <Bucket label="1–3" value={buckets.top3} accent />
-                <Bucket label="4–10" value={buckets.top10} accent />
-                <Bucket label="11–20" value={buckets.top20} />
-                <Bucket label="21–50" value={buckets.top50} />
-                <Bucket label="51–100" value={buckets.rest} />
-                <Bucket label="100+" value={buckets.unranked} muted />
+              <div className="flex justify-between">
+                <Bucket label="1-3" value={buckets.top3} color="#34D399" />
+                <Bucket label="4-10" value={buckets.top10} color="#34D399" />
+                <Bucket label="11-20" value={buckets.top20} color="#FFFFFF" />
+                <Bucket label="21-50" value={buckets.top50} color="#A1A1AA" />
+                <Bucket label="51+" value={buckets.rest + buckets.unranked} color="#71717A" />
               </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+              No position data yet
             </div>
           )}
 
-          {/* Top movers */}
-          {(topUp.length > 0 || topDown.length > 0) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <MoverList title="Top up" items={topUp} direction="up" />
-              <MoverList title="Top down" items={topDown} direction="down" />
+          {/* Upcoming schedule */}
+          <div className="space-y-2 mt-auto">
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+              <span className="text-[#A1A1AA]">SERP fetch</span>
+              <span className="flex-1 border-b border-border" />
+              <span className="font-mono font-medium">{formatUntil(nextDailyFetch())}</span>
             </div>
-          )}
-          {ranked.length > 0 && topUp.length === 0 && topDown.length === 0 && (
-            <div className="rounded-[20px] border border-dashed border-border p-5 text-sm text-muted-foreground">
-              Movers will appear after a second fetch. Daily cron runs at 06:00 UTC.
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+              <span className="text-[#A1A1AA]">AI brief</span>
+              <span className="flex-1 border-b border-border" />
+              <span className="font-mono font-medium">{formatUntil(nextMondayBrief())}</span>
             </div>
-          )}
-
-          {/* Latest brief preview */}
-          {latestBrief.length > 0 && (
-            <Link
-              href="/dashboard/brief"
-              className="block rounded-[20px] bg-primary text-primary-foreground p-6 md:p-8 hover:opacity-90 transition-opacity"
-            >
-              <div className="flex items-start justify-between gap-6">
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs uppercase tracking-wider opacity-70">
-                    Latest AI brief · Week of {latestBrief[0].periodStart} → {latestBrief[0].periodEnd}
-                  </div>
-                  <p className="mt-4 text-lg md:text-xl leading-snug line-clamp-3">
-                    {latestBrief[0].summary}
-                  </p>
-                </div>
-                <ArrowRight className="h-5 w-5 shrink-0 mt-1" strokeWidth={1.5} />
-              </div>
-            </Link>
-          )}
-        </div>
-
-        {/* Side column */}
-        <div className="space-y-6">
-          {/* Setup status */}
-          <details
-            className="rounded-[20px] bg-secondary overflow-hidden group"
-            open={!setupComplete}
-          >
-            <summary className="px-6 py-5 cursor-pointer list-none flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  {setupComplete && (
-                    <CheckCircle2 className="h-4 w-4 text-[var(--up)]" strokeWidth={2} />
-                  )}
-                  <h2 className="text-sm font-semibold">Setup</h2>
-                  <span className="text-xs text-muted-foreground font-mono tabular">
-                    {steps.filter((s) => s.done).length}/{steps.length}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {setupComplete ? "Complete. Tap to expand." : "What's actually happening."}
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">
-                ▾
-              </span>
-            </summary>
-            <ul className="px-2 pb-2">
-              {steps.map((step, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-3 px-4 py-3 rounded-[12px] hover:bg-background/60"
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {step.done ? (
-                      <CheckCircle2 className="h-4 w-4 text-[var(--up)]" strokeWidth={2} />
-                    ) : (
-                      <Circle className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{step.label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 break-words">
-                      {step.hint}
-                    </div>
-                  </div>
-                  {step.action && "kind" in step.action ? (
-                    <div className="shrink-0">
-                      {step.action.kind === "fetch-now" ? (
-                        <FetchNowButton />
-                      ) : (
-                        <GenerateBriefButton />
-                      )}
-                    </div>
-                  ) : step.action ? (
-                    <Link
-                      href={step.action.href}
-                      className="shrink-0 text-xs font-medium hover:underline"
-                    >
-                      {step.action.label} →
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </details>
-
-          {/* Schedules */}
-          <div className="rounded-[20px] bg-secondary p-6 space-y-5">
-            <h2 className="text-xs uppercase tracking-wider text-muted-foreground">
-              Upcoming
-            </h2>
-            <ScheduleRow
-              icon={<Clock className="h-4 w-4" strokeWidth={1.5} />}
-              label="Next SERP fetch"
-              value={formatUntil(nextDailyFetch())}
-              when="06:00 UTC daily"
-            />
-            <ScheduleRow
-              icon={<Clock className="h-4 w-4" strokeWidth={1.5} />}
-              label="Next AI brief"
-              value={formatUntil(nextMondayBrief())}
-              when="Mondays 09:00 UTC"
-            />
           </div>
-
-          {/* Inngest dev hint */}
-          {connected && activeKeywords.length > 0 && totalPositions === 0 && (
-            <div className="rounded-[20px] border border-border p-4 flex items-start gap-2 text-xs text-muted-foreground">
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
-              <div>
-                <strong className="text-foreground">No positions yet.</strong> Daily cron runs at
-                06:00 UTC. In dev, start{" "}
-                <code className="font-mono tabular text-foreground">
-                  bunx inngest-cli@latest dev
-                </code>
-                , then tap <strong>Fetch now</strong>.
-              </div>
-            </div>
-          )}
         </div>
-      </section>
+      </div>
 
-      {/* Recent fetch runs — full width */}
+      {/* Top movers */}
+      {(topUp.length > 0 || topDown.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <MoverList title="Top up" items={topUp} direction="up" />
+          <MoverList title="Top down" items={topDown} direction="down" />
+        </div>
+      )}
+      {ranked.length > 0 && topUp.length === 0 && topDown.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+          Movers will appear after a second fetch. Daily cron runs at 06:00 UTC.
+        </div>
+      )}
+
+      {/* Inngest dev hint */}
+      {connected && activeKeywords.length > 0 && totalPositions === 0 && (
+        <div className="rounded-2xl border border-border p-4 flex items-start gap-2 text-xs text-muted-foreground">
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
+          <div>
+            <strong className="text-foreground">No positions yet.</strong> Daily cron runs at
+            06:00 UTC. In dev, start{" "}
+            <code className="font-mono tabular-nums text-foreground">
+              bunx inngest-cli@latest dev
+            </code>
+            , then tap <strong>Fetch now</strong>.
+          </div>
+        </div>
+      )}
+
+      {/* Recent fetch runs */}
       {recentRuns.length > 0 && (
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Recent fetches
-          </h2>
-          <div className="rounded-[20px] bg-secondary overflow-hidden">
+          <span className="font-mono text-[10px] text-muted-foreground">activity</span>
+          <h2 className="text-xl font-semibold mt-0.5 mb-3">Recent fetches</h2>
+          <div className="rounded-2xl bg-card overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium">Status</th>
-                  <th className="text-left px-4 py-3 font-medium">Source</th>
-                  <th className="text-left px-4 py-3 font-medium">Queued</th>
-                  <th className="text-right px-4 py-3 font-medium">Duration</th>
-                  <th className="text-right px-4 py-3 font-medium">Result</th>
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">status</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">source</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">queued</th>
+                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">duration</th>
+                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">result</th>
                 </tr>
               </thead>
               <tbody>
@@ -672,20 +730,20 @@ export default async function DashboardHome() {
                         )
                       : null;
                   return (
-                    <tr key={r.id} className="border-t border-border">
+                    <tr key={r.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3">
                         <RunStatusPill status={r.status} />
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs font-mono tabular">
+                      <td className="px-4 py-3 text-muted-foreground text-xs font-mono tabular-nums">
                         {r.source}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs font-mono tabular">
+                      <td className="px-4 py-3 text-muted-foreground text-xs font-mono tabular-nums">
                         {formatRelative(r.queuedAt)}
                       </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground text-xs font-mono tabular">
+                      <td className="px-4 py-3 text-right text-muted-foreground text-xs font-mono tabular-nums">
                         {dur != null ? `${dur}s` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right text-xs font-mono tabular">
+                      <td className="px-4 py-3 text-right text-xs font-mono tabular-nums">
                         {r.resultCount != null && r.taskCount != null
                           ? `${r.resultCount}/${r.taskCount}`
                           : "—"}
@@ -727,17 +785,13 @@ function gapZoneRationale(s: {
   return "Page 2. Add a section addressing this query directly + internal links.";
 }
 
-function Bucket({ label, value, accent, muted }: { label: string; value: number; accent?: boolean; muted?: boolean }) {
+function Bucket({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div>
-      <div
-        className={`text-lg font-mono tabular ${
-          muted ? "text-muted-foreground" : accent ? "text-[var(--up)]" : "text-foreground"
-        }`}
-      >
+    <div className="text-center">
+      <div className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="font-mono text-[9px] text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -753,8 +807,8 @@ function MoverList({
 }) {
   if (items.length === 0) return null;
   return (
-    <div className="rounded-[20px] bg-secondary p-5">
-      <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+    <div className="rounded-2xl bg-card p-5">
+      <h3 className="font-mono text-[10px] text-muted-foreground mb-4">
         {title}
       </h3>
       <div className="space-y-1">
@@ -766,7 +820,7 @@ function MoverList({
             <div className="flex-1 truncate" title={item.keyword}>
               {item.keyword}
             </div>
-            <div className="font-mono tabular text-muted-foreground text-xs shrink-0">
+            <div className="font-mono tabular-nums text-muted-foreground text-xs shrink-0">
               #{item.latest}
             </div>
             <div className="shrink-0 w-12 text-right">
@@ -797,15 +851,14 @@ function RunStatusPill({ status }: { status: string }) {
   );
 }
 
-function StatTile({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+function StatTile({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-[20px] bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div
-        className={`mt-4 font-display text-4xl md:text-5xl ${muted ? "text-muted-foreground" : "text-foreground"}`}
-      >
-        {value}
+    <div className="flex-1 bg-card rounded-2xl px-5 py-4 flex items-center justify-between">
+      <div>
+        <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+        <div className="font-mono text-[28px] font-semibold leading-tight tabular-nums">{value}</div>
       </div>
+      {icon}
     </div>
   );
 }
@@ -830,7 +883,7 @@ function ScheduleRow({
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted-foreground mt-0.5">{when}</div>
       </div>
-      <div className="text-sm font-mono tabular shrink-0">{value}</div>
+      <div className="text-sm font-mono tabular-nums shrink-0">{value}</div>
     </div>
   );
 }

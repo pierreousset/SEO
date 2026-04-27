@@ -144,6 +144,80 @@ export function urlToDomain(url: string): string {
   }
 }
 
+/**
+ * DataForSEO Labs — Ranked Keywords for a domain.
+ *
+ * Returns all organic keywords a domain ranks for, with search volume,
+ * current position, URL, CPC, etc. Used for competitor gap discovery:
+ * find keywords where a competitor ranks but you don't.
+ *
+ * Pricing: Live endpoint costs ~$0.0005 per returned keyword.
+ * For 3 competitors × 500 top keywords each = ~$0.75 per sync.
+ */
+export type RankedKeyword = {
+  keyword: string;
+  searchVolume: number | null;
+  competitorPosition: number | null;
+  competitorUrl: string | null;
+  cpc: number | null;
+  keywordDifficulty: number | null;
+};
+
+export async function fetchCompetitorRankedKeywords(
+  domain: string,
+  opts: { limit?: number; locationCode?: number; languageCode?: string } = {},
+): Promise<RankedKeyword[]> {
+  const body = [
+    {
+      target: domain,
+      location_code: opts.locationCode ?? 2250, // 2250 = France, 2840 = US
+      language_code: opts.languageCode ?? "fr",
+      limit: opts.limit ?? 500,
+      order_by: ["ranked_serp_element.serp_item.rank_group,asc"],
+      filters: [
+        ["ranked_serp_element.serp_item.rank_group", "<=", 30],
+        "and",
+        ["keyword_data.keyword_info.search_volume", ">=", 10],
+      ],
+    },
+  ];
+
+  const res = await fetch(
+    `${BASE}/dataforseo_labs/google/ranked_keywords/live`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authHeader(),
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(`DataForSEO ranked_keywords failed: ${res.status} ${await res.text()}`);
+  }
+
+  const json = await res.json();
+  const items = (json.tasks?.[0]?.result?.[0]?.items ?? []) as any[];
+
+  return items.map((i: any) => {
+    const kwInfo = i?.keyword_data?.keyword_info ?? {};
+    const serp = i?.ranked_serp_element?.serp_item ?? {};
+    return {
+      keyword: (i?.keyword_data?.keyword ?? "").toString(),
+      searchVolume: typeof kwInfo.search_volume === "number" ? kwInfo.search_volume : null,
+      competitorPosition: typeof serp.rank_group === "number" ? serp.rank_group : null,
+      competitorUrl: (serp.url ?? null) as string | null,
+      cpc: typeof kwInfo.cpc === "number" ? kwInfo.cpc : null,
+      keywordDifficulty:
+        typeof i?.keyword_data?.keyword_properties?.keyword_difficulty === "number"
+          ? i.keyword_data.keyword_properties.keyword_difficulty
+          : null,
+    };
+  });
+}
+
 /** Check which posted tasks are ready. Returns IDs that are ready to fetch. */
 export async function listReadyTasks(): Promise<string[]> {
   const res = await fetch(`${BASE}/serp/google/organic/tasks_ready`, {

@@ -16,4 +16,5 @@ export type Events = {
   "brief/generate.weekly": { data: { userId: string; runId?: string } };
   "gsc/history.pull": { data: { userId: string; runId?: string; days?: number } };
   "audit/run": { data: { userId: string; runId: string; siteId?: string } };
+  "meta-crawl/run": { data: { userId: string; runId: string } };
 };

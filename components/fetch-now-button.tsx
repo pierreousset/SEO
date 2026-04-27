@@ -6,9 +6,15 @@ import { Button } from "@/components/ui/button";
 import { triggerFetchNow } from "@/lib/actions/keywords";
 import { toast } from "sonner";
 
-export function FetchNowButton() {
+type RunStatus = "queued" | "running" | "done" | "failed" | "skipped" | null;
+
+export function FetchNowButton({ activeStatus = null }: { activeStatus?: RunStatus }) {
   const [pending, start] = useTransition();
+  const isActive = activeStatus === "queued" || activeStatus === "running";
+  const disabled = pending || isActive;
+
   function onClick() {
+    if (disabled) return;
     start(async () => {
       try {
         await triggerFetchNow();
@@ -18,13 +24,16 @@ export function FetchNowButton() {
       }
     });
   }
+
+  const label = pending ? "Queuing…" : isActive ? "Running…" : "Fetch now";
+
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={pending}>
+    <Button variant="outline" size="sm" onClick={onClick} disabled={disabled}>
       <RefreshCw
-        className={`h-3.5 w-3.5 mr-1.5 ${pending ? "animate-spin" : ""}`}
+        className={`h-3.5 w-3.5 mr-1.5 ${pending || isActive ? "animate-spin" : ""}`}
         strokeWidth={1.5}
       />
-      {pending ? "Queuing…" : "Fetch now"}
+      {label}
     </Button>
   );
 }

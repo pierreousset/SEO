@@ -10,7 +10,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:opacity-85 [a]:hover:opacity-85",
         outline:
-          "border-2 border-foreground bg-transparent text-foreground hover:opacity-85 aria-expanded:opacity-85 dark:border-foreground",
+          "border-[1.5px] border-border bg-transparent text-foreground hover:bg-secondary/50 aria-expanded:bg-secondary/50 dark:border-border",
         secondary:
           "bg-secondary text-secondary-foreground hover:opacity-85 aria-expanded:opacity-85",
         ghost:
