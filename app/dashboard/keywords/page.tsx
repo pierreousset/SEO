@@ -263,6 +263,19 @@ export default async function KeywordsPage({
     .filter((r) => r.position != null && r.position >= 4 && r.position <= 10)
     .sort((a, b) => b.gscImpressions - a.gscImpressions)[0] ?? null;
 
+  // Top movers (1-day delta) — promoted from the dashboard home so the table view
+  // doesn't bury what changed today.
+  const moversBase = rows
+    .filter((r) => r.position != null && r.delta1d != null && r.delta1d !== 0);
+  const topUp = [...moversBase]
+    .filter((r) => (r.delta1d as number) > 0)
+    .sort((a, b) => (b.delta1d as number) - (a.delta1d as number))
+    .slice(0, 5);
+  const topDown = [...moversBase]
+    .filter((r) => (r.delta1d as number) < 0)
+    .sort((a, b) => (a.delta1d as number) - (b.delta1d as number))
+    .slice(0, 5);
+
   const severityColor: Record<string, string> = {
     high: "#F87171",
     medium: "#FBBF24",
@@ -361,6 +374,44 @@ export default async function KeywordsPage({
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Top Movers (1-day delta) ─────────────────────────────── */}
+      {(topUp.length > 0 || topDown.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+          <div className="bg-card rounded-2xl p-5">
+            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">top up · 1d</h3>
+            {topUp.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-2">No upward movers in last fetch</p>
+            ) : (
+              <div className="space-y-1">
+                {topUp.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-background/60 text-sm">
+                    <div className="flex-1 truncate" title={r.keyword}>{r.keyword}</div>
+                    <div className="font-mono tabular-nums text-muted-foreground text-xs shrink-0">#{r.position}</div>
+                    <div className="shrink-0 w-12 text-right"><RankDelta value={r.delta1d ?? 0} /></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="bg-card rounded-2xl p-5">
+            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">top down · 1d</h3>
+            {topDown.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground py-2">No downward movers in last fetch</p>
+            ) : (
+              <div className="space-y-1">
+                {topDown.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-background/60 text-sm">
+                    <div className="flex-1 truncate" title={r.keyword}>{r.keyword}</div>
+                    <div className="font-mono tabular-nums text-muted-foreground text-xs shrink-0">#{r.position}</div>
+                    <div className="shrink-0 w-12 text-right"><RankDelta value={r.delta1d ?? 0} /></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

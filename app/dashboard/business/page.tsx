@@ -1,6 +1,6 @@
 import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { BusinessProfileForm } from "@/components/business-profile-form";
 import { EmailDigestForm } from "@/components/email-digest-form";
 import { CompetitorSuggestions } from "@/components/competitor-suggestions";
@@ -13,29 +13,72 @@ const DISCOVERY_WINDOW_DAYS = 28;
 export default async function BusinessPage() {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
-  const [profile, sites] = await Promise.all([t.selectBusinessProfile(), t.selectSites()]);
+  const [profile, sites, keywords] = await Promise.all([
+    t.selectBusinessProfile(),
+    t.selectSites(),
+    t.selectKeywords(),
+  ]);
 
   // Pull competitor SERP positions from the last 28 days to suggest new ones.
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - DISCOVERY_WINDOW_DAYS);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-  const rows = await db
-    .select({
-      keywordId: schema.competitorPositions.keywordId,
-      competitorDomain: schema.competitorPositions.competitorDomain,
-      date: schema.competitorPositions.date,
-      position: schema.competitorPositions.position,
-      url: schema.competitorPositions.url,
-    })
-    .from(schema.competitorPositions)
-    .where(
-      and(
-        eq(schema.competitorPositions.userId, ctx.ownerId),
-        gte(schema.competitorPositions.date, cutoffStr),
-      ),
-    )
-    .limit(20000);
+  const [rows, kwAgg] = await Promise.all([
+    db
+      .select({
+        keywordId: schema.competitorPositions.keywordId,
+        competitorDomain: schema.competitorPositions.competitorDomain,
+        date: schema.competitorPositions.date,
+        position: schema.competitorPositions.position,
+        url: schema.competitorPositions.url,
+      })
+      .from(schema.competitorPositions)
+      .where(
+        and(
+          eq(schema.competitorPositions.userId, ctx.ownerId),
+          gte(schema.competitorPositions.date, cutoffStr),
+        ),
+      )
+      .limit(20000),
+    db
+      .select({
+        keywordId: schema.gscMetrics.keywordId,
+        clicks: sql<number>`sum(${schema.gscMetrics.clicks})::int`,
+        impressions: sql<number>`sum(${schema.gscMetrics.impressions})::int`,
+      })
+      .from(schema.gscMetrics)
+      .where(
+        and(
+          eq(schema.gscMetrics.userId, ctx.ownerId),
+          gte(schema.gscMetrics.date, cutoffStr),
+        ),
+      )
+      .groupBy(schema.gscMetrics.keywordId),
+  ]);
+
+  // Branded vs non-branded split — match keyword query against businessName tokens.
+  const brandTokens = (() => {
+    const name = profile?.businessName?.trim().toLowerCase() ?? "";
+    if (!name) return [] as string[];
+    return name.split(/[\s,.\-_]+/).filter((t) => t.length >= 3);
+  })();
+  const brand = { clicks: 0, impressions: 0, count: 0 };
+  const nonBrand = { clicks: 0, impressions: 0, count: 0 };
+  if (brandTokens.length > 0) {
+    const kwById = new Map(keywords.map((k) => [k.id, k.query.toLowerCase()]));
+    for (const m of kwAgg) {
+      const q = kwById.get(m.keywordId);
+      if (!q) continue;
+      const isBranded = brandTokens.some((t) => q.includes(t));
+      const bucket = isBranded ? brand : nonBrand;
+      bucket.clicks += m.clicks;
+      bucket.impressions += m.impressions;
+      bucket.count += 1;
+    }
+  }
+  const brandedTotal = brand.clicks + nonBrand.clicks;
+  const brandedPct = brandedTotal > 0 ? Math.round((brand.clicks / brandedTotal) * 100) : 0;
 
   // Exclude the user's own domain + already-declared competitors.
   const excluded = new Set<string>();
@@ -105,6 +148,57 @@ export default async function BusinessPage() {
               }
         }
       />
+
+      {/* Brand visibility — branded vs non-branded GSC traffic split */}
+      {profile?.businessName && (
+        <section>
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">brand visibility</h2>
+          <div className="bg-card rounded-2xl p-5">
+            {brandedTotal === 0 ? (
+              <p className="text-[12px] text-muted-foreground">
+                No GSC keyword data yet for &ldquo;{profile.businessName}&rdquo;. Pull GSC from the dashboard to populate this.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-end justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-[13px] text-muted-foreground">
+                      Detected brand: <span className="font-mono text-foreground">&ldquo;{profile.businessName}&rdquo;</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {brand.count} branded · {nonBrand.count} non-branded keywords (28d)
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-2xl font-semibold tabular-nums" style={{ color: "#A855F7" }}>
+                      {brandedPct}%
+                    </div>
+                    <div className="font-mono text-[10px] text-muted-foreground">branded share</div>
+                  </div>
+                </div>
+                <div className="flex h-2 rounded-full overflow-hidden bg-background mb-3">
+                  <div style={{ width: `${brandedPct}%`, backgroundColor: "#A855F7" }} />
+                  <div style={{ width: `${100 - brandedPct}%`, backgroundColor: "#34D399" }} />
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[12px]">
+                  <div>
+                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#A855F7" }}>
+                      {brand.clicks.toLocaleString()}
+                    </div>
+                    <div className="text-muted-foreground">branded clicks</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#34D399" }}>
+                      {nonBrand.clicks.toLocaleString()}
+                    </div>
+                    <div className="text-muted-foreground">non-branded clicks</div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="font-mono text-[10px] text-muted-foreground mb-3">email digest</h2>
