@@ -18,12 +18,12 @@ export default async function BacklinksPage() {
 
   if (!BACKLINKS_ENABLED) {
     return (
-      <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <header>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Backlink intelligence
           </p>
-          <h1 className="font-display text-[40px] mt-3">Backlinks</h1>
+          <h1 className="font-display text-[40px] mt-2">Backlinks</h1>
         </header>
 
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
@@ -167,13 +167,13 @@ export default async function BacklinksPage() {
     .slice(0, 50);
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Backlink intelligence
           </p>
-          <h1 className="font-display text-[40px] mt-3">Backlinks</h1>
+          <h1 className="font-display text-[40px] mt-2">Backlinks</h1>
         </div>
         <RunBacklinkPullButton
           label={latestRun ? "Pull fresh" : "Pull first report"}

@@ -61,12 +61,12 @@ export default async function BusinessPage() {
   const remainingSlots = Math.max(0, 5 - currentCount);
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1100px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1100px] mx-auto space-y-8">
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
           Business context
         </p>
-        <h1 className="font-display text-[40px] mt-3">Business</h1>
+        <h1 className="font-display text-[40px] mt-2">Business</h1>
         <p className="mt-4 text-base text-muted-foreground max-w-2xl">
           Fill this once. Every AI brief uses it as system context, so recommendations are
           specific to your business instead of generic SEO advice. Declared competitors also
@@ -107,7 +107,7 @@ export default async function BusinessPage() {
       />
 
       <section>
-        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Email digest</h2>
+        <h2 className="font-mono text-[10px] text-muted-foreground mb-3">email digest</h2>
         <div className="border border-border rounded-md bg-card p-5">
           <EmailDigestForm
             currentFrequency={profile?.emailDigestFrequency ?? "weekly"}

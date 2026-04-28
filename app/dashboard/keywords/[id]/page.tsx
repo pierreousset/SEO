@@ -86,7 +86,7 @@ export default async function KeywordBriefPage({
   const isActive = status === "queued" || status === "running";
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       {/* Auto-refresh while the job is running */}
       {isActive && <meta httpEquiv="refresh" content="5" />}
 
@@ -97,7 +97,7 @@ export default async function KeywordBriefPage({
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Keyword brief
           </p>
-          <h1 className="font-display text-[40px] mt-3 break-words">
+          <h1 className="font-display text-[40px] mt-2 break-words">
             {keyword.query}
           </h1>
           <div className="flex items-center gap-3 mt-4 flex-wrap">

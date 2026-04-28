@@ -76,7 +76,7 @@ export default async function InternalLinksPage() {
   const lowCount = suggestions.filter((s) => s.impact === "low").length;
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <Breadcrumbs />
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">

@@ -7,7 +7,7 @@ import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
 import { GscStatusBanner } from "@/components/gsc-status-banner";
-import { GscPerformanceChart } from "@/components/gsc-performance-chart";
+import nextDynamic from "next/dynamic";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { SyncGscButton } from "@/components/sync-gsc-button";
 import { RankDelta } from "@/components/rank-delta";
@@ -15,9 +15,20 @@ import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { computeDiagnostic, diagnosticInfo } from "@/lib/diagnostics";
 import { IssueCard, type IssueCardData } from "@/components/issue-card";
-import { CtrPositionScatter } from "@/components/ctr-position-scatter";
-import { HealthScoreChart } from "@/components/health-score-chart";
 import { SetupChecklist } from "@/components/setup-checklist";
+
+const GscPerformanceChart = nextDynamic(
+  () => import("@/components/gsc-performance-chart").then((m) => ({ default: m.GscPerformanceChart })),
+  { loading: () => <div className="h-[280px] bg-card rounded-2xl animate-pulse" />, ssr: false },
+);
+const CtrPositionScatter = nextDynamic(
+  () => import("@/components/ctr-position-scatter").then((m) => ({ default: m.CtrPositionScatter })),
+  { loading: () => <div className="h-[280px] bg-card rounded-2xl animate-pulse" />, ssr: false },
+);
+const HealthScoreChart = nextDynamic(
+  () => import("@/components/health-score-chart").then((m) => ({ default: m.HealthScoreChart })),
+  { loading: () => <div className="h-[200px] bg-card rounded-2xl animate-pulse" />, ssr: false },
+);
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +95,9 @@ export default async function DashboardHome() {
     rawGscMetrics,
     rawGscSiteMetrics,
     seoScoreRows,
+    auditRunRows,
+    competitorData,
+    kwMetrics,
   ] = await Promise.all([
       t.selectGscToken(),
       t.selectSites(),
@@ -137,29 +151,38 @@ export default async function DashboardHome() {
         .where(eq(schema.seoScores.userId, ctx.ownerId))
         .orderBy(desc(schema.seoScores.computedAt))
         .limit(8),
+      // Audit run check (for setup checklist)
+      db
+        .select({ id: schema.auditRuns.id })
+        .from(schema.auditRuns)
+        .where(eq(schema.auditRuns.userId, ctx.ownerId))
+        .limit(1),
+      // Competitor positions — latest 30 rows, joined with keyword name
+      db
+        .select({
+          domain: schema.competitorPositions.competitorDomain,
+          keyword: schema.keywords.query,
+          competitorPos: schema.competitorPositions.position,
+          keywordId: schema.competitorPositions.keywordId,
+        })
+        .from(schema.competitorPositions)
+        .innerJoin(schema.keywords, eq(schema.competitorPositions.keywordId, schema.keywords.id))
+        .where(eq(schema.competitorPositions.userId, ctx.ownerId))
+        .orderBy(desc(schema.competitorPositions.date))
+        .limit(30),
+      // Per-keyword GSC metrics for CTR scatter plot (was a separate query below)
+      db
+        .select({
+          keywordId: schema.gscMetrics.keywordId,
+          clicks: sql<number>`sum(${schema.gscMetrics.clicks})::int`,
+          impressions: sql<number>`sum(${schema.gscMetrics.impressions})::int`,
+        })
+        .from(schema.gscMetrics)
+        .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff)))
+        .groupBy(schema.gscMetrics.keywordId),
     ]);
 
-  // Check if any audit has been run (for setup checklist)
-  const [firstAuditRun] = await db
-    .select({ id: schema.auditRuns.id })
-    .from(schema.auditRuns)
-    .where(eq(schema.auditRuns.userId, ctx.ownerId))
-    .limit(1);
-  const hasAuditRun = !!firstAuditRun;
-
-  // Competitor positions — latest 30 rows, joined with keyword name
-  const competitorData = await db
-    .select({
-      domain: schema.competitorPositions.competitorDomain,
-      keyword: schema.keywords.query,
-      competitorPos: schema.competitorPositions.position,
-      keywordId: schema.competitorPositions.keywordId,
-    })
-    .from(schema.competitorPositions)
-    .innerJoin(schema.keywords, eq(schema.competitorPositions.keywordId, schema.keywords.id))
-    .where(eq(schema.competitorPositions.userId, ctx.ownerId))
-    .orderBy(desc(schema.competitorPositions.date))
-    .limit(30);
+  const hasAuditRun = auditRunRows.length > 0;
 
   // Aggregate GSC metrics by date — sum clicks/impressions, weight CTR by impressions,
   // average position over keywords that ranked that day.
@@ -259,6 +282,17 @@ export default async function DashboardHome() {
   const totalPositions = allPositions.length;
   const lastFetch = allPositions[0]?.fetchedAt ?? null;
 
+  // Build a Map<keywordId, positions[]> so we avoid O(keywords × positions) filtering
+  const positionsByKeyword = new Map<string, typeof allPositions>();
+  for (const p of allPositions) {
+    let arr = positionsByKeyword.get(p.keywordId);
+    if (!arr) {
+      arr = [];
+      positionsByKeyword.set(p.keywordId, arr);
+    }
+    arr.push(p);
+  }
+
   // Per-keyword latest + previous (for delta computation) + diagnostic tag
   type Snap = {
     id: string;
@@ -270,8 +304,7 @@ export default async function DashboardHome() {
     diagnostic: ReturnType<typeof computeDiagnostic>;
   };
   const perKeyword: Snap[] = activeKeywords.map((k) => {
-    const history = allPositions
-      .filter((p) => p.keywordId === k.id)
+    const history = (positionsByKeyword.get(k.id) ?? [])
       .sort((a, b) => a.date.localeCompare(b.date));
     const latest = history.at(-1)?.position ?? null;
     const prev = history.at(-2)?.position ?? null;
@@ -358,17 +391,7 @@ export default async function DashboardHome() {
     ? (avgPrev - avgCurrent).toFixed(1)
     : null;
 
-  // Per-keyword GSC metrics for CTR scatter plot
-  const kwMetrics = await db
-    .select({
-      keywordId: schema.gscMetrics.keywordId,
-      clicks: sql<number>`sum(${schema.gscMetrics.clicks})::int`,
-      impressions: sql<number>`sum(${schema.gscMetrics.impressions})::int`,
-    })
-    .from(schema.gscMetrics)
-    .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff)))
-    .groupBy(schema.gscMetrics.keywordId);
-
+  // kwMetrics already fetched in the main Promise.all above
   const kwMetricsMap = new Map(kwMetrics.map((m) => [m.keywordId, m]));
 
   const scatterData = perKeyword
@@ -615,9 +638,9 @@ export default async function DashboardHome() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-medium">keyword</th>
-                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-medium">pos</th>
-                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-medium">7d</th>
+                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">keyword</th>
+                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">pos</th>
+                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">7d</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -854,11 +877,11 @@ export default async function DashboardHome() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">status</th>
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">source</th>
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">queued</th>
-                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">duration</th>
-                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-medium">result</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">status</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">source</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">queued</th>
+                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">duration</th>
+                  <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">result</th>
                 </tr>
               </thead>
               <tbody>

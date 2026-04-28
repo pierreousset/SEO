@@ -21,8 +21,11 @@ export default async function ConnectGooglePage({
   const authUrl = process.env.GOOGLE_CLIENT_ID ? getAuthUrl(state) : null;
 
   return (
-    <div className="px-8 py-6 max-w-2xl">
-      <h1 className="text-xl font-semibold tracking-tight">Connections</h1>
+    <div className="px-4 md:px-9 py-7 max-w-2xl mx-auto space-y-8">
+      <header>
+        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">account</p>
+        <h1 className="font-display text-[40px] mt-2">Connections</h1>
+      </header>
       <p className="text-sm text-muted-foreground mt-1">
         Grant read-only access to your Google Search Console data.
       </p>

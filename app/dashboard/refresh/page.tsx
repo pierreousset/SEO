@@ -91,12 +91,12 @@ export default async function RefreshPage() {
   const hasData = pageRows.length > 0 || kwMetrics.length > 0;
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
           Content refresh radar · last {WINDOW_DAYS} days
         </p>
-        <h1 className="font-display text-[40px] mt-3">Refresh</h1>
+        <h1 className="font-display text-[40px] mt-2">Refresh</h1>
       </header>
 
       {!hasData && (

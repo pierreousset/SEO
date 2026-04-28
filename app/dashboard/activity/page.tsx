@@ -74,13 +74,13 @@ export default async function ActivityPage() {
   const mostActive = [...byCompetitor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 1)[0];
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Competitor activity · last {WINDOW_DAYS} days
           </p>
-          <h1 className="font-display text-[40px] mt-3">Activity</h1>
+          <h1 className="font-display text-[40px] mt-2">Activity</h1>
         </div>
       </header>
 

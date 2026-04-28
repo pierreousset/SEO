@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="px-8 lg:px-12 py-10 space-y-6">
+    <div className="px-4 md:px-9 py-7 space-y-6">
       {/* Row 1 */}
       <div className="flex gap-6">
         <div className="flex-1 h-[200px] bg-card rounded-2xl animate-pulse" />

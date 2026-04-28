@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import type { Plan } from "@/lib/billing-constants";
@@ -6,8 +7,10 @@ import type { Plan } from "@/lib/billing-constants";
  * Resolve a user's effective plan. Considers active subscription status.
  * Returns "pro" if there's any subscription with status in (active, trialing, past_due).
  * "past_due" is treated as pro for a grace window — Stripe retries 4 times over a week.
+ *
+ * Wrapped with React cache() to deduplicate within a single server render.
  */
-export async function getUserPlan(userId: string): Promise<Plan> {
+export const getUserPlan = cache(async (userId: string): Promise<Plan> => {
   const rows = await db
     .select({ status: schema.subscriptions.status, plan: schema.subscriptions.plan })
     .from(schema.subscriptions)
@@ -21,7 +24,7 @@ export async function getUserPlan(userId: string): Promise<Plan> {
 
   if (rows.length === 0) return "free";
   return (rows[0].plan as Plan) ?? "pro";
-}
+});
 
 export async function getActiveSubscription(userId: string) {
   const rows = await db

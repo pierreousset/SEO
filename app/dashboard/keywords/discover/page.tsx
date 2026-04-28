@@ -14,9 +14,9 @@ export default async function DiscoverPage() {
 
   if (gscToken.length === 0) {
     return (
-      <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto">
         <h1 className="font-display text-[32px] mb-4">Discover</h1>
-        <div className="rounded-2xl bg-secondary p-8 text-sm">
+        <div className="rounded-2xl bg-card p-8 text-sm">
           Connect Google Search Console first to discover untracked keywords.
         </div>
       </div>
@@ -25,9 +25,9 @@ export default async function DiscoverPage() {
 
   if (sites.length === 0) {
     return (
-      <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto">
+      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto">
         <h1 className="font-display text-[32px] mb-4">Discover</h1>
-        <div className="rounded-2xl bg-secondary p-8 text-sm">
+        <div className="rounded-2xl bg-card p-8 text-sm">
           No site registered yet. Re-connect GSC to auto-import your site.
         </div>
       </div>
@@ -35,10 +35,10 @@ export default async function DiscoverPage() {
   }
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-6">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-6">
       <div>
         <Breadcrumbs />
-        <h1 className="font-display text-[40px] mt-3">Discover</h1>
+        <h1 className="font-display text-[40px] mt-2">Discover</h1>
         <p className="mt-3 text-base text-muted-foreground max-w-2xl">
           Three sources to expand your tracked keyword list: your own Search Console queries,
           what your declared competitors rank for, and AI-generated candidates from your

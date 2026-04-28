@@ -13,15 +13,14 @@ export default async function ApiKeysPage() {
   const status = await getApiKeyStatus(ctx.ownerId);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-10">
+    <div className="px-4 md:px-9 py-7 max-w-2xl mx-auto space-y-8">
       <Breadcrumbs />
-      {/* Header */}
-      <div className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-neutral-500">
+      <header>
+        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
           settings
         </p>
-        <h1 className="text-2xl font-semibold text-white">API Keys</h1>
-      </div>
+        <h1 className="font-display text-[40px] mt-2">API Keys</h1>
+      </header>
 
       {/* Form card */}
       <div className="rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] p-6">

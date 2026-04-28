@@ -135,7 +135,7 @@ export default async function ChatPage({
         conversations={sidebarConversations}
         activeId={activeConv?.id ?? null}
       />
-      <div className="flex-1 flex flex-col px-8 lg:px-12 pt-8 pb-6 max-w-[1000px] mx-auto min-w-0">
+      <div className="flex-1 flex flex-col px-4 md:px-9 pt-7 pb-6 max-w-[1000px] mx-auto min-w-0">
         <header className="mb-4 shrink-0">
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Ask your SEO data

@@ -1,6 +1,6 @@
 import { getUserPlan } from "@/lib/billing-helpers";
 import { debitCredits, InsufficientCreditsError } from "@/lib/credits";
-import { getApiKeyStatus } from "@/lib/actions/api-keys";
+import { getApiKeyStatus } from "@/lib/api-key-status";
 
 export type GuardResult =
   | { ok: true; byok?: boolean }

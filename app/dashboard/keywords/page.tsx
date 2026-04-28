@@ -68,7 +68,7 @@ export default async function KeywordsPage({
 
   if (keywords.length === 0) {
     return (
-      <div className="px-8 py-12">
+      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <EmptyState
           icon={ListOrdered}
           title="No keywords tracked yet"
@@ -137,17 +137,37 @@ export default async function KeywordsPage({
     gscClicksByKw.set(m.keywordId, (gscClicksByKw.get(m.keywordId) ?? 0) + m.clicks);
   }
 
+  // Build Maps for O(1) lookups instead of O(keywords × positions) filtering
+  const positionsByKeyword = new Map<string, typeof positions>();
+  for (const p of positions) {
+    let arr = positionsByKeyword.get(p.keywordId);
+    if (!arr) {
+      arr = [];
+      positionsByKeyword.set(p.keywordId, arr);
+    }
+    arr.push(p);
+  }
+  const compsByKeyword = new Map<string, typeof competitorPositions>();
+  for (const c of competitorPositions) {
+    let arr = compsByKeyword.get(c.keywordId);
+    if (!arr) {
+      arr = [];
+      compsByKeyword.set(c.keywordId, arr);
+    }
+    arr.push(c);
+  }
+
   // Build per-keyword latest + delta
   const rows = keywords
     .filter((k) => !k.removedAt)
     .map((k) => {
-      const kPos = positions.filter((p) => p.keywordId === k.id).sort((a, b) => a.date.localeCompare(b.date));
+      const kPos = (positionsByKeyword.get(k.id) ?? []).sort((a, b) => a.date.localeCompare(b.date));
       const latest = kPos.at(-1);
       const prev = kPos.at(-2);
       const weekAgo = kPos.at(-8);
 
       // Best (lowest = better) competitor position for this keyword in latest fetch.
-      const compsLatest = competitorPositions.filter((c) => c.keywordId === k.id);
+      const compsLatest = compsByKeyword.get(k.id) ?? [];
       const latestDate = latest?.date;
       const compsToday = latestDate
         ? compsLatest.filter((c) => c.date === latestDate)
@@ -258,10 +278,11 @@ export default async function KeywordsPage({
   };
 
   return (
-    <div className="px-8 py-6">
-      <header className="mb-6 flex items-end justify-between gap-4 flex-wrap">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
+      <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">rank tracking</p>
+          <h1 className="font-display text-[40px] mt-2">
             Keywords{" "}
             {sites[0] && (
               <span className="text-muted-foreground font-normal text-base font-mono tabular">

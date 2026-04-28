@@ -157,13 +157,13 @@ export default async function AeoPage() {
   }
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Answer Engine Optimization
           </p>
-          <h1 className="font-display text-[40px] mt-3">AEO</h1>
+          <h1 className="font-display text-[40px] mt-2">AEO</h1>
         </div>
         <RunAeoCheckButton
           label={latestRun ? "Run new check" : "Run first check"}

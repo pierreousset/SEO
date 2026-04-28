@@ -41,13 +41,13 @@ export default async function ArticleDetailPage({
   }
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[900px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[900px] mx-auto space-y-8">
       <Breadcrumbs />
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
           generated article
         </p>
-        <h1 className="font-display text-[40px] mt-3">{article.title || "Untitled"}</h1>
+        <h1 className="font-display text-[40px] mt-2">{article.title || "Untitled"}</h1>
       </header>
 
       {/* Meta stats */}
@@ -60,8 +60,8 @@ export default async function ArticleDetailPage({
 
       {/* Meta description */}
       {article.metaDescription && (
-        <section className="rounded-2xl bg-secondary p-6">
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+        <section className="rounded-2xl bg-card p-6">
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-2">
             Meta description
           </h2>
           <p className="text-sm">{article.metaDescription}</p>
@@ -75,7 +75,7 @@ export default async function ArticleDetailPage({
 
       {/* Article content */}
       {article.status === "done" && article.content ? (
-        <section className="rounded-2xl bg-secondary p-6 md:p-10">
+        <section className="rounded-2xl bg-card p-6 md:p-10">
           <ArticleRenderer content={article.content} />
         </section>
       ) : article.status === "failed" ? (
@@ -85,7 +85,7 @@ export default async function ArticleDetailPage({
           </p>
         </section>
       ) : (
-        <section className="rounded-2xl bg-secondary p-8">
+        <section className="rounded-2xl bg-card p-8">
           <p className="text-lg text-muted-foreground">
             Article is being generated. Refresh the page in a moment...
           </p>
@@ -97,8 +97,8 @@ export default async function ArticleDetailPage({
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-secondary p-5">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-5">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className="mt-2 font-mono tabular-nums text-sm truncate">{value}</div>
     </div>
   );

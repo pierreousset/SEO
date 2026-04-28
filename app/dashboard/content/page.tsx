@@ -35,16 +35,16 @@ export default async function ContentPage() {
   const kwMap = new Map(keywords.map((k) => [k.id, k.query]));
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
           content
         </p>
-        <h1 className="font-display text-[40px] mt-3">Article Generator</h1>
+        <h1 className="font-display text-[40px] mt-2">Article Generator</h1>
       </header>
 
       {/* Generation form */}
-      <section className="rounded-2xl bg-secondary p-6 md:p-8 max-w-2xl">
+      <section className="rounded-2xl bg-card p-6 md:p-8 max-w-2xl">
         <h2 className="font-display text-2xl mb-4">Generate a new article</h2>
         <p className="text-sm text-muted-foreground mb-6">
           Select a tracked keyword or enter a custom topic. Claude will produce an
@@ -57,17 +57,17 @@ export default async function ContentPage() {
 
       {/* Articles list */}
       {articles.length > 0 && (
-        <section className="rounded-2xl bg-secondary p-6 md:p-8">
+        <section className="rounded-2xl bg-card p-6 md:p-8">
           <h2 className="font-display text-2xl md:text-3xl mb-6">Generated articles</h2>
           <div className="rounded-[12px] bg-background overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Title</th>
-                  <th className="text-left px-4 py-3 font-medium">Keyword</th>
-                  <th className="text-right px-3 py-3 font-medium">Words</th>
-                  <th className="text-left px-3 py-3 font-medium">Status</th>
-                  <th className="text-left px-4 py-3 font-medium">Date</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">title</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">keyword</th>
+                  <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">words</th>
+                  <th className="text-left px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">status</th>
+                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">date</th>
                 </tr>
               </thead>
               <tbody>

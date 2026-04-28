@@ -78,11 +78,11 @@ export default async function BriefPage() {
 
   if (!latest) {
     return (
-      <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <BriefStatusBanner run={briefRunBanner} />
         <header>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Weekly</p>
-          <h1 className="font-display text-[40px] mt-3">Brief</h1>
+          <h1 className="font-display text-[40px] mt-2">Brief</h1>
         </header>
         {plan === "free" ? (
           <UpgradePrompt
@@ -130,7 +130,7 @@ export default async function BriefPage() {
   const highPriorityCount = tickets.filter((t) => t.priority === "high").length;
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <BriefStatusBanner run={briefRunBanner} />
 
       {/* Hero header */}
@@ -139,7 +139,7 @@ export default async function BriefPage() {
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground font-mono tabular">
             Week of {latest.periodStart} → {latest.periodEnd}
           </p>
-          <h1 className="font-display text-[40px] mt-3">Weekly brief</h1>
+          <h1 className="font-display text-[40px] mt-2">Weekly brief</h1>
           <p className="mt-6 text-lg md:text-xl leading-relaxed text-muted-foreground">
             {latest.summary}
           </p>
@@ -215,10 +215,10 @@ export default async function BriefPage() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Actions — primary column */}
         <div className="lg:col-span-2">
-          <div className="rounded-2xl bg-secondary p-6 md:p-8">
+          <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                This week
+              <div className="font-mono text-[10px] text-muted-foreground">
+                this week
               </div>
               <h2 className="font-display text-2xl md:text-3xl mt-2">Actions</h2>
               <p className="text-sm text-muted-foreground mt-2">
@@ -256,10 +256,10 @@ export default async function BriefPage() {
 
         {/* Movers — side column */}
         <div className="space-y-6">
-          <div className="rounded-2xl bg-secondary p-6 md:p-8">
+          <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                This week
+              <div className="font-mono text-[10px] text-muted-foreground">
+                this week
               </div>
               <h2 className="font-display text-2xl md:text-3xl mt-2">Top movers</h2>
             </div>
@@ -300,8 +300,8 @@ export default async function BriefPage() {
 
           {warnings.length > 0 && (
             <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6">
-              <h2 className="text-xs uppercase tracking-wider text-[var(--down)] mb-3">
-                Warnings
+              <h2 className="font-mono text-[10px] text-[var(--down)] mb-3">
+                warnings
               </h2>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
                 {warnings.map((w, i) => (
@@ -318,8 +318,8 @@ export default async function BriefPage() {
 
 function StatTile({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div
         className={`mt-4 font-display text-4xl md:text-5xl ${
           muted ? "text-muted-foreground" : "text-foreground"

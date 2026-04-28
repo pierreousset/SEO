@@ -42,10 +42,10 @@ export default async function BillingPage({
   const flash = sp.status;
 
   return (
-    <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Billing</p>
-        <h1 className="font-display text-[40px] mt-3">Plan & credits</h1>
+        <h1 className="font-display text-[40px] mt-2">Plan & credits</h1>
       </header>
 
       {flash === "success" && (
@@ -66,10 +66,10 @@ export default async function BillingPage({
 
       {/* Current state */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-2xl bg-secondary p-6">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+        <div className="rounded-2xl bg-card p-6">
+          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
             <CreditCard className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Current plan
+            current plan
           </div>
           <div className="mt-3 flex items-baseline gap-3">
             <h2 className="font-display text-3xl">{plan === "pro" ? "Pro" : "Free"}</h2>
@@ -91,10 +91,10 @@ export default async function BillingPage({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-secondary p-6">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+        <div className="rounded-2xl bg-card p-6">
+          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
             <Coins className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Credits balance
+            credits balance
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <h2 className="font-display text-3xl tabular">{balance}</h2>
@@ -138,8 +138,8 @@ export default async function BillingPage({
       {/* Credit packs — Pro-only add-on. Free users can still spend any balance
           they already hold, but must subscribe before buying new packs. */}
       <section>
-        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
-          Credit packs
+        <h2 className="font-mono text-[10px] text-muted-foreground mb-4">
+          credit packs
         </h2>
         {plan === "free" && (
           <div className="mb-4 rounded-[12px] border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
@@ -181,11 +181,11 @@ export default async function BillingPage({
       {/* Auto-refill settings — Pro only */}
       {plan === "pro" && (
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-4 flex items-center gap-2">
             <BellRing className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Auto-refill
+            auto-refill
           </h2>
-          <div className="rounded-2xl bg-secondary p-6">
+          <div className="rounded-2xl bg-card p-6">
             <AutoRefillForm
               initialEnabled={autoRefill.enabled}
               initialThreshold={autoRefill.threshold}
@@ -202,11 +202,11 @@ export default async function BillingPage({
 
       {/* Referral program */}
       <section>
-        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+        <h2 className="font-mono text-[10px] text-muted-foreground mb-4 flex items-center gap-2">
           <Gift className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Referrals
+          referrals
         </h2>
-        <div className="rounded-2xl bg-secondary p-6">
+        <div className="rounded-2xl bg-card p-6">
           <ReferralSection
             referralUrl={referralLink.url}
             referrals={referralStats.referrals}
@@ -245,7 +245,7 @@ function CreditPack({
   disabled?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-secondary p-6 flex flex-col">
+    <div className="rounded-2xl bg-card p-6 flex flex-col">
       <div className="flex items-baseline justify-between">
         <div>
           <div className="font-display text-3xl tabular">{credits}</div>

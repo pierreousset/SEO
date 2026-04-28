@@ -10,6 +10,7 @@
  * debitCredits(), etc. to the owner's id. All downstream code works unchanged.
  */
 
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { eq, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -40,8 +41,11 @@ const COOKIE_NAME = "activeAccountId";
 /**
  * Resolve the full account context for the current request.
  * Reads session + team memberships + active account cookie.
+ *
+ * Wrapped with React cache() to deduplicate within a single server render.
+ * Multiple calls to resolveAccountContext() in the same request share one result.
  */
-export async function resolveAccountContext(): Promise<AccountContext> {
+export const resolveAccountContext = cache(async (): Promise<AccountContext> => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) throw new Error("unauthorized");
 
@@ -109,7 +113,7 @@ export async function resolveAccountContext(): Promise<AccountContext> {
     isOwner: effectiveOwnerId === sessionUserId,
     accounts,
   };
-}
+});
 
 /**
  * Drop-in replacement for the per-file requireSession().
