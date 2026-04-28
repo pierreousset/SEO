@@ -1,8 +1,9 @@
+import Link from "next/link";
 import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb } from "@/db/client";
 import { getAuthUrl } from "@/lib/google-oauth";
 import { randomBytes } from "node:crypto";
-import { Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle, Key } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,24 @@ export default async function ConnectGooglePage({
           </div>
         )}
       </div>
+
+      {/* API Keys link */}
+      {ctx.isOwner && (
+        <Link
+          href="/dashboard/settings/api-keys"
+          className="mt-4 flex items-center gap-3 border border-border rounded-2xl bg-card p-5 hover:bg-secondary/50 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Key className="h-5 w-5 text-primary" strokeWidth={1.5} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">API Keys</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Configure your own Claude, Gemini, HuggingFace, or Nvidia API keys.
+            </p>
+          </div>
+        </Link>
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ const NAV = [
   { href: "/dashboard/team", label: "Team", iconName: "users" as const },
   { href: "/dashboard/billing", label: "Billing", iconName: "credit-card" as const, ownerOnly: true as const },
   { href: "/dashboard/connect-google", label: "Connections", iconName: "settings" as const },
+  { href: "/dashboard/settings/api-keys", label: "API Keys", iconName: "key-round" as const, ownerOnly: true as const },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

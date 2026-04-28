@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Sparkles } from "lucide-react";
 
 const CHANGELOG = [
@@ -56,7 +57,7 @@ export function ChangelogModal() {
         <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.5} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh]">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -98,7 +99,8 @@ export function ChangelogModal() {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
