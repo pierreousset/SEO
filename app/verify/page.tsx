@@ -11,6 +11,7 @@ function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") || "";
+  const redirectTo = params.get("redirect") || "/dashboard";
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +22,7 @@ function VerifyForm() {
     try {
       const res = await authClient.signIn.emailOtp({ email, otp: code });
       if (res.error) throw new Error(res.error.message);
-      router.push("/dashboard");
+      router.push(redirectTo);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Invalid code.";

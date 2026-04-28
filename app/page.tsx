@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
@@ -27,6 +27,8 @@ import {
 
 function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +42,8 @@ function AuthForm() {
         type: "sign-in",
       });
       if (res.error) throw new Error(res.error.message);
-      router.push(`/verify?email=${encodeURIComponent(email)}`);
+      const verifyUrl = `/verify?email=${encodeURIComponent(email)}${redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : ""}`;
+      router.push(verifyUrl);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Couldn't send code. Try again.";
