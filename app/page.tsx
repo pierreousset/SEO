@@ -260,14 +260,24 @@ export default function LandingPage() {
           </div>
           <span className="text-white font-semibold text-lg">SEO Dashboard</span>
         </div>
-        <a href="#get-started">
-          <Button
-            className="rounded-full text-white font-medium text-sm"
-            style={{ backgroundColor: "#A855F7" }}
-          >
-            Get started
-          </Button>
-        </a>
+        <div className="flex items-center gap-3">
+          <a href="#get-started">
+            <Button
+              variant="ghost"
+              className="rounded-full text-sm font-medium"
+            >
+              Log in
+            </Button>
+          </a>
+          <a href="#get-started">
+            <Button
+              className="rounded-full text-white font-medium text-sm"
+              style={{ backgroundColor: "#A855F7" }}
+            >
+              Get started
+            </Button>
+          </a>
+        </div>
       </nav>
 
       {/* ---- Hero ---- */}
