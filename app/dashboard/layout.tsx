@@ -22,11 +22,7 @@ const NAV = [
   { href: "/dashboard/gap", label: "Gap", iconName: "crosshair" as const },
   { href: "/dashboard/content", label: "Content", iconName: "pen-tool" as const },
   { href: "/dashboard/activity", label: "Activity", iconName: "radio" as const },
-  { href: "/dashboard/business", label: "Business", iconName: "briefcase" as const },
-  { href: "/dashboard/team", label: "Team", iconName: "users" as const },
-  { href: "/dashboard/billing", label: "Billing", iconName: "credit-card" as const, ownerOnly: true as const },
-  { href: "/dashboard/connect-google", label: "Connections", iconName: "settings" as const },
-  { href: "/dashboard/settings/api-keys", label: "API Keys", iconName: "key-round" as const, ownerOnly: true as const },
+  { href: "/dashboard/settings", label: "Settings", iconName: "settings" as const },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
