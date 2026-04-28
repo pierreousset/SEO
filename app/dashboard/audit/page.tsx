@@ -4,6 +4,8 @@ import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { RunAuditButton } from "@/components/run-audit-button";
 import { AuditStatusBanner } from "@/components/audit-status-banner";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { ShareLinkButton } from "@/components/share-link-button";
 
 export const dynamic = "force-dynamic";
 
@@ -82,16 +84,22 @@ export default async function AuditPage() {
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Site audit</p>
           <h1 className="font-display text-[40px] mt-3">Audit</h1>
         </div>
-        <RunAuditButton
-          label={latestRun ? "Run new audit" : "Run first audit"}
-          activeStatus={(latestRun?.status as any) ?? null}
-        />
+        <div className="flex items-center gap-2">
+          {latestRun && (
+            <ShareLinkButton resourceType="audit" resourceId={latestRun.id} />
+          )}
+          <ExportCsvButton type="audit" />
+          <RunAuditButton
+            label={latestRun ? "Run new audit" : "Run first audit"}
+            activeStatus={(latestRun?.status as any) ?? null}
+          />
+        </div>
       </header>
 
       <AuditStatusBanner run={banner} />
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg text-muted-foreground">
             Crawl your homepage + top 10 pages from sitemap, run 14 SEO checks on both raw HTML
             <strong> and JS-rendered DOM</strong> (so we see what Google sees post-hydration),
@@ -126,9 +134,9 @@ export default async function AuditPage() {
         )}
 
       {synthesis && (
-        <section className="rounded-2xl bg-secondary p-6 md:p-8">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            AI synthesis
+        <section className="rounded-2xl bg-card p-6 md:p-8">
+          <div className="font-mono text-[10px] text-muted-foreground">
+            ai synthesis
           </div>
           <h2 className="font-display text-2xl md:text-3xl mt-2">Top actions</h2>
           <p className="mt-4 text-base leading-relaxed">{synthesis.summary}</p>
@@ -159,12 +167,12 @@ export default async function AuditPage() {
 
       {findings.length > 0 && (
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            All findings ({findings.length})
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+            all findings ({findings.length})
           </h2>
           <div className="space-y-4">
             {Array.from(byUrl.entries()).map(([url, items]) => (
-              <div key={url} className="rounded-2xl bg-secondary overflow-hidden">
+              <div key={url} className="rounded-2xl bg-card overflow-hidden">
                 <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-4 flex-wrap">
                   <div className="font-mono tabular text-xs text-muted-foreground truncate flex-1 min-w-0">
                     {url}
@@ -178,7 +186,7 @@ export default async function AuditPage() {
                     <div key={f.id} className="px-5 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`inline-block text-[10px] uppercase font-medium px-1.5 py-0.5 rounded-sm ${SEVERITY_TONE[f.severity]}`}
+                          className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${SEVERITY_TONE[f.severity]}`}
                         >
                           {f.severity}
                         </span>
@@ -218,7 +226,7 @@ function PriorityPill({ priority }: { priority: "high" | "medium" | "low" }) {
         : "bg-muted text-muted-foreground";
   return (
     <span
-      className={`inline-block text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full ${cls}`}
+      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${cls}`}
     >
       {priority}
     </span>

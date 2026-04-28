@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
 
 /**
  * Classify a keyword into a 4-stage buyer-journey intent:
@@ -112,10 +113,14 @@ export function classifyIntentRule(query: string, knownCities: string[] = []): n
 export async function classifyIntentLLM(
   queries: string[],
   knownCities: string[] = [],
+  userId?: string,
 ): Promise<Record<string, number>> {
   if (queries.length === 0) return {};
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = userId
+    ? await getAnthropicApiKey(userId)
+    : process.env.ANTHROPIC_API_KEY;
+  const client = new Anthropic({ apiKey });
 
   const tool: Anthropic.Tool = {
     name: "classify_keywords",
@@ -179,6 +184,7 @@ Stage 4 = revenue NOW. Stage 1-2 = traffic for funnel, low immediate revenue.${c
 export async function classifyKeywords(
   queries: string[],
   knownCities: string[] = [],
+  userId?: string,
 ): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   const ambiguous: string[] = [];
@@ -192,9 +198,14 @@ export async function classifyKeywords(
     }
   }
 
-  if (ambiguous.length > 0 && process.env.ANTHROPIC_API_KEY) {
+  // Check if we have an API key available (user-provided or env)
+  const hasKey = userId
+    ? !!(await getAnthropicApiKey(userId))
+    : !!process.env.ANTHROPIC_API_KEY;
+
+  if (ambiguous.length > 0 && hasKey) {
     try {
-      const llm = await classifyIntentLLM(ambiguous, knownCities);
+      const llm = await classifyIntentLLM(ambiguous, knownCities, userId);
       Object.assign(result, llm);
     } catch (err) {
       console.warn("[intent-classifier] LLM fallback failed:", err);

@@ -4,7 +4,6 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 
@@ -23,8 +22,10 @@ function VerifyForm() {
       const res = await authClient.signIn.emailOtp({ email, otp: code });
       if (res.error) throw new Error(res.error.message);
       router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Invalid code.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Invalid code.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -32,32 +33,48 @@ function VerifyForm() {
 
   async function handleResend() {
     try {
-      const res = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+      const res = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "sign-in",
+      });
       if (res.error) throw new Error(res.error.message);
       toast.success("New code sent.");
-    } catch (err: any) {
-      toast.error(err?.message ?? "Couldn't resend.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Couldn't resend.";
+      toast.error(message);
     }
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="mb-10">
-        <h1 className="text-2xl font-semibold tracking-tight">Enter your code</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Check <span className="text-foreground font-medium">{email || "your email"}</span> for a
-          6-digit code.
-        </p>
+    <div
+      className="w-full max-w-[400px] rounded-2xl p-8"
+      style={{ backgroundColor: "#1A1A1A" }}
+    >
+      {/* Logo + Brand */}
+      <div className="flex items-center gap-3 mb-8">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
+          style={{ backgroundColor: "#A855F7" }}
+        >
+          S
+        </div>
+        <span className="text-white font-semibold text-lg">SEO Dashboard</span>
       </div>
 
+      {/* Heading */}
+      <h1 className="text-lg font-semibold text-white mb-1">
+        Enter your code
+      </h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        Check{" "}
+        <span className="text-white font-medium">{email || "your email"}</span>{" "}
+        for a 6-digit code.
+      </p>
+
+      {/* Form */}
       <form onSubmit={handleVerify} className="space-y-4">
         <div>
-          <Label
-            htmlFor="code"
-            className="text-xs uppercase tracking-wide text-muted-foreground"
-          >
-            Code
-          </Label>
           <Input
             id="code"
             type="text"
@@ -70,17 +87,26 @@ function VerifyForm() {
             placeholder="123456"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            className="mt-2 font-mono text-center text-lg tracking-widest"
+            className="h-11 rounded-xl text-sm px-4 border font-mono text-center text-lg tracking-widest text-white placeholder:text-neutral-500"
+            style={{
+              backgroundColor: "#0A0A0A",
+              borderColor: "#2A2A2A",
+            }}
           />
         </div>
-        <Button type="submit" disabled={loading || code.length !== 6} className="w-full">
-          {loading ? "Verifying…" : "Verify & sign in"}
+        <Button
+          type="submit"
+          disabled={loading || code.length !== 6}
+          className="w-full rounded-full text-white font-medium"
+          style={{ backgroundColor: "#A855F7" }}
+        >
+          {loading ? "Verifying..." : "Verify & sign in"}
         </Button>
       </form>
 
       <button
         onClick={handleResend}
-        className="mt-6 text-xs text-muted-foreground hover:text-foreground"
+        className="mt-6 text-xs text-muted-foreground hover:text-white transition-colors"
       >
         Didn't get it? Resend code
       </button>
@@ -90,10 +116,21 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <main className="flex-1 flex items-center justify-center px-6">
-      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+    <main
+      className="flex-1 flex flex-col items-center justify-center px-4"
+      style={{ backgroundColor: "#0A0A0A" }}
+    >
+      <Suspense
+        fallback={
+          <div className="text-sm text-muted-foreground">Loading...</div>
+        }
+      >
         <VerifyForm />
       </Suspense>
+
+      <p className="mt-6 text-xs text-muted-foreground">
+        Indie alternative to Semrush
+      </p>
     </main>
   );
 }

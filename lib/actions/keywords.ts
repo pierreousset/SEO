@@ -10,6 +10,7 @@ import { getUserPlan } from "@/lib/billing-helpers";
 import { debitCredits, InsufficientCreditsError } from "@/lib/credits";
 import { CREDIT_COSTS, FREE_LIMITS } from "@/lib/billing-constants";
 import { requireAccountContext } from "@/lib/account-context";
+import { logAction } from "@/lib/audit-log";
 
 export async function addKeyword(formData: FormData) {
   const ctx = await requireAccountContext();
@@ -55,6 +56,7 @@ export async function addKeyword(formData: FormData) {
     }
     throw e;
   }
+  await logAction({ userId: ctx.ownerId, actorId: ctx.sessionUserId, action: "keyword_added", detail: { keyword: query } });
   revalidatePath("/dashboard/keywords");
   return { ok: true };
 }
@@ -78,6 +80,7 @@ export async function classifyUnclassifiedKeywords() {
   const classifications = await classifyKeywords(
     rows.map((r) => r.query),
     cities,
+    ctx.ownerId,
   );
 
   let count = 0;
@@ -168,6 +171,7 @@ export async function triggerSiteAudit() {
     name: "audit/run",
     data: { userId: ctx.ownerId, runId },
   });
+  await logAction({ userId: ctx.ownerId, actorId: ctx.sessionUserId, action: "audit_triggered" });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/audit");
   return { ok: true, runId };
@@ -187,6 +191,7 @@ export async function triggerMetaCrawl() {
     name: "meta-crawl/run",
     data: { userId: ctx.ownerId, runId },
   });
+  await logAction({ userId: ctx.ownerId, actorId: ctx.sessionUserId, action: "crawl_triggered" });
   revalidatePath("/dashboard/audit/metas");
   return { ok: true, runId };
 }
@@ -251,6 +256,7 @@ export async function triggerBriefNow() {
     name: "brief/generate.weekly",
     data: { userId: ctx.ownerId, runId },
   });
+  await logAction({ userId: ctx.ownerId, actorId: ctx.sessionUserId, action: "brief_triggered" });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/brief");
   return { ok: true, runId };

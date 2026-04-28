@@ -15,7 +15,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SEO Dashboard",
-  description: "AI-first rank tracking + weekly actionable briefs. An indie alternative to Semrush.",
+  description: "AI-first rank tracking + weekly actionable briefs.",
+  icons: { icon: "/favicon.svg" },
+  openGraph: {
+    title: "SEO Dashboard",
+    description:
+      "AI-first rank tracking + weekly actionable briefs. An indie alternative to Semrush.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

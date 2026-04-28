@@ -7,18 +7,20 @@ import { inngest } from "@/lib/inngest/client";
 import { guardMeteredAction } from "@/lib/billing-guards";
 import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { requireAccountContext } from "@/lib/account-context";
+import { getApiKeyStatus } from "@/lib/actions/api-keys";
 
-function enabledEngines(): Array<"perplexity" | "claude" | "openai"> {
+async function enabledEngines(userId: string): Promise<Array<"perplexity" | "claude" | "openai">> {
+  const userKeys = await getApiKeyStatus(userId);
   const list: Array<"perplexity" | "claude" | "openai"> = [];
   if (process.env.PERPLEXITY_API_KEY) list.push("perplexity");
-  if (process.env.ANTHROPIC_API_KEY) list.push("claude");
+  if (userKeys.anthropic || process.env.ANTHROPIC_API_KEY) list.push("claude");
   if (process.env.OPENAI_API_KEY) list.push("openai");
   return list;
 }
 
 export async function runAeoCheck(keywordIds?: string[]) {
   const ctx = await requireAccountContext();
-  const engines = enabledEngines();
+  const engines = await enabledEngines(ctx.ownerId);
   if (engines.length === 0) {
     return { error: "No LLM engine API keys configured. Add at least one of PERPLEXITY_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY." };
   }

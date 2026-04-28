@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { BusinessProfile } from "@/lib/llm/brief";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
 
 const suggestionSchema = z.object({
   suggestions: z
@@ -62,8 +63,12 @@ export async function generateKeywordSuggestions(input: {
   profile: BusinessProfile | null;
   existingKeywords: string[];
   gscTopQueries?: string[]; // already seen in GSC, should not be suggested again
+  userId?: string;
 }): Promise<KeywordSuggestion[]> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = input.userId
+    ? await getAnthropicApiKey(input.userId)
+    : process.env.ANTHROPIC_API_KEY;
+  const client = new Anthropic({ apiKey });
 
   const tool: Anthropic.Tool = {
     name: "save_suggestions",

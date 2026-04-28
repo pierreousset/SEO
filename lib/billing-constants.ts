@@ -49,6 +49,7 @@ export const CREDIT_COSTS = {
   aeoCheck: 10, // Perplexity/Claude/OpenAI x N keywords (~$0.30/run)
   extraSitePerMonth: 50, // 5€/mo extra site
   chatMessageOverage: 1, // per message beyond PRO_CHAT_MONTHLY_INCLUDED
+  articleGeneration: 5, // full SEO article generation (~$0.15 LLM)
 } as const;
 
 /** Chat (Haiku 4.5) quotas. Free gets a lifetime trial, Pro a monthly cap. */

@@ -22,29 +22,37 @@ export async function sendTeamInviteEmail(opts: {
     to: opts.to,
     subject: `${who} vous invite sur SEO Dashboard`,
     html: `
-      <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
-        <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 16px;">
-          Invitation au SEO Dashboard
-        </h2>
-        <p style="color: #666; line-height: 1.6; margin: 0 0 24px;">
-          <strong>${who}</strong> vous invite à rejoindre son compte sur SEO Dashboard.
-          Vous aurez accès aux mêmes données (sites, keywords, briefs, audits, etc.).
-        </p>
-        <a href="${link}" style="
-          display: inline-block;
-          background: #0D9488;
-          color: white;
-          text-decoration: none;
-          padding: 12px 24px;
-          border-radius: 9999px;
-          font-size: 14px;
-          font-weight: 500;
-        ">
-          Accepter l'invitation
-        </a>
-        <p style="color: #999; font-size: 12px; margin: 24px 0 0;">
-          Ce lien expire dans 7 jours. Si vous n'avez pas de compte, vous pourrez en créer un en cliquant.
-        </p>
+      <div style="font-family: 'Geist', system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 0; background: #0A0A0A; color: #FFFFFF;">
+        <div style="background: #1A1A1A; border-radius: 16px; padding: 32px; border: 1px solid #2A2A2A;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+            <div style="width: 28px; height: 28px; background: #A855F7; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <span style="color: white; font-size: 14px; font-weight: 700;">S</span>
+            </div>
+            <span style="font-size: 15px; font-weight: 600;">SEO Dashboard</span>
+          </div>
+          <h2 style="font-size: 20px; font-weight: 600; margin: 0 0 12px; color: #FFFFFF;">
+            Invitation
+          </h2>
+          <p style="color: #A1A1AA; line-height: 1.6; margin: 0 0 24px; font-size: 14px;">
+            <strong style="color: #FFFFFF;">${who}</strong> vous invite à rejoindre son compte.
+            Vous aurez accès aux mêmes données (sites, keywords, briefs, audits).
+          </p>
+          <a href="${link}" style="
+            display: inline-block;
+            background: #A855F7;
+            color: white;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 500;
+          ">
+            Accepter l'invitation
+          </a>
+          <p style="color: #71717A; font-size: 11px; margin: 24px 0 0; font-family: 'Geist Mono', monospace;">
+            Ce lien expire dans 7 jours.
+          </p>
+        </div>
       </div>
     `,
     text: `${who} vous invite sur SEO Dashboard. Acceptez ici : ${link}`,

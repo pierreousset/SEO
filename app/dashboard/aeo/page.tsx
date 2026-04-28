@@ -5,6 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { RunAeoCheckButton } from "@/components/run-aeo-check-button";
 import { AeoStatusBanner } from "@/components/aeo-status-banner";
+import { getUserPlan } from "@/lib/billing-helpers";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -171,19 +173,26 @@ export default async function AeoPage() {
       <AeoStatusBanner run={banner} />
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
-          <p className="text-lg">
-            Track whether your domain is cited by <strong>ChatGPT</strong>,{" "}
-            <strong>Perplexity</strong>, and <strong>Claude</strong> for your keywords. This is
-            the SEO of 2026 — when people ask an AI instead of Google, are you in the answer?
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Configure at least one of <code className="font-mono">PERPLEXITY_API_KEY</code>,{" "}
-            <code className="font-mono">ANTHROPIC_API_KEY</code>, or{" "}
-            <code className="font-mono">OPENAI_API_KEY</code> in your env, then tap{" "}
-            <strong>Run first check</strong>.
-          </p>
-        </div>
+        await getUserPlan(ctx.ownerId) === "free" ? (
+          <UpgradePrompt
+            feature="Answer Engine Optimization"
+            description="Track whether ChatGPT, Perplexity, and Claude cite your domain for your keywords. Upgrade to Pro to run AEO checks."
+          />
+        ) : (
+          <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
+            <p className="text-lg">
+              Track whether your domain is cited by <strong>ChatGPT</strong>,{" "}
+              <strong>Perplexity</strong>, and <strong>Claude</strong> for your keywords. This is
+              the SEO of 2026 — when people ask an AI instead of Google, are you in the answer?
+            </p>
+            <p className="text-sm text-muted-foreground mt-4">
+              Configure at least one of <code className="font-mono">PERPLEXITY_API_KEY</code>,{" "}
+              <code className="font-mono">ANTHROPIC_API_KEY</code>, or{" "}
+              <code className="font-mono">OPENAI_API_KEY</code> in your env, then tap{" "}
+              <strong>Run first check</strong>.
+            </p>
+          </div>
+        )
       )}
 
       {latestRun && latestRun.status === "done" && results.length > 0 && (
@@ -209,14 +218,14 @@ export default async function AeoPage() {
           </section>
 
           {/* Per-engine summary */}
-          <section className="rounded-2xl bg-secondary p-6 md:p-8">
+          <section className="rounded-2xl bg-card p-6 md:p-8">
             <h2 className="font-display text-2xl md:text-3xl">By engine</h2>
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               {engineStats.map((s) => {
                 const pct = s.total > 0 ? Math.round((s.cited / s.total) * 100) : 0;
                 return (
                   <div key={s.engine} className="rounded-[12px] bg-background p-5">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <div className="font-mono text-[10px] text-muted-foreground">
                       {ENGINE_LABELS[s.engine] ?? s.engine}
                     </div>
                     <div className="mt-3 font-display text-3xl">{pct}%</div>
@@ -231,18 +240,18 @@ export default async function AeoPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main matrix */}
-            <div className="lg:col-span-2 rounded-2xl bg-secondary p-6 md:p-8">
+            <div className="lg:col-span-2 rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">Keyword × engine</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 ✓ = your domain is in the answer's citations. Number = position in the cited list.
               </p>
               <div className="rounded-[12px] bg-background overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium">Keyword</th>
+                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
                       {enginesUsed.map((e) => (
-                        <th key={e} className="text-center px-3 py-3 font-medium">
+                        <th key={e} className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">
                           {ENGINE_LABELS[e] ?? e}
                         </th>
                       ))}
@@ -253,7 +262,7 @@ export default async function AeoPage() {
                       const kw = keywordById.get(keywordId);
                       if (!kw) return null;
                       return (
-                        <tr key={keywordId} className="border-t border-border">
+                        <tr key={keywordId} className="border-b border-border last:border-0 hover:bg-secondary/50">
                           <td className="px-4 py-3 truncate max-w-[280px]" title={kw.query}>
                             {kw.query}
                           </td>
@@ -275,7 +284,7 @@ export default async function AeoPage() {
 
             {/* Side: all citing domains (organic discovery) */}
             <div className="space-y-6">
-              <div className="rounded-2xl bg-secondary p-6 md:p-8">
+              <div className="rounded-2xl bg-card p-6 md:p-8">
                 <h2 className="font-display text-2xl md:text-3xl">All cited domains</h2>
                 <p className="text-sm text-muted-foreground mt-2 mb-6">
                   Every domain the LLMs cited, most-to-least frequent. Candidates for your
@@ -296,7 +305,7 @@ export default async function AeoPage() {
                             {domain}
                           </div>
                           {declared && (
-                            <span className="text-[10px] uppercase font-medium px-2 py-0.5 rounded-full bg-foreground/10 text-foreground shrink-0">
+                            <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground shrink-0">
                               tracked
                             </span>
                           )}
@@ -320,8 +329,8 @@ export default async function AeoPage() {
 
           {/* Competitor showdown — against user's declared competitors */}
           {declaredCompetitors.length === 0 ? (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
+              <div className="font-mono text-[10px] text-muted-foreground">
                 Competitor showdown
               </div>
               <h2 className="font-display text-2xl md:text-3xl mt-2">
@@ -341,7 +350,7 @@ export default async function AeoPage() {
           ) : (
             <section className="space-y-6">
               <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                <div className="font-mono text-[10px] text-muted-foreground">
                   Competitor showdown
                 </div>
                 <h2 className="font-display text-2xl md:text-3xl mt-2">You vs your competitors</h2>
@@ -355,7 +364,7 @@ export default async function AeoPage() {
                   const theyPct = c.total > 0 ? Math.round((c.cited / c.total) * 100) : 0;
                   const diff = youPct - theyPct;
                   return (
-                    <div key={c.domain} className="rounded-2xl bg-secondary p-6">
+                    <div key={c.domain} className="rounded-2xl bg-card p-6">
                       <div className="font-mono tabular text-xs text-muted-foreground truncate">
                         vs {c.domain}
                       </div>
@@ -370,7 +379,7 @@ export default async function AeoPage() {
                         <div className="text-muted-foreground text-sm">them</div>
                       </div>
                       <div
-                        className={`mt-4 inline-flex items-center gap-1.5 text-[10px] uppercase font-medium px-2.5 py-1 rounded-full ${
+                        className={`mt-4 inline-flex items-center gap-1.5 font-mono text-[10px] px-2.5 py-1 rounded-full ${
                           diff > 0
                             ? "bg-[var(--up)]/15 text-[var(--up)]"
                             : diff < 0
@@ -386,7 +395,7 @@ export default async function AeoPage() {
               </div>
 
               {/* Showdown matrix: rows = keywords, columns = [You, Comp1..N] */}
-              <div className="rounded-2xl bg-secondary p-6 md:p-8">
+              <div className="rounded-2xl bg-card p-6 md:p-8">
                 <h3 className="font-display text-xl md:text-2xl">Per-keyword breakdown</h3>
                 <p className="text-sm text-muted-foreground mt-2 mb-6">
                   Each cell shows <strong>engines that cited the domain</strong> / engines
@@ -394,14 +403,14 @@ export default async function AeoPage() {
                 </p>
                 <div className="rounded-[12px] bg-background overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <thead>
                       <tr>
-                        <th className="text-left px-4 py-3 font-medium">Keyword</th>
-                        <th className="text-center px-3 py-3 font-medium">You</th>
+                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
+                        <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">You</th>
                         {declaredCompetitors.map((c) => (
                           <th
                             key={c}
-                            className="text-center px-3 py-3 font-medium font-mono tabular text-[10px] normal-case max-w-[140px] truncate"
+                            className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal max-w-[140px] truncate"
                             title={c}
                           >
                             {c}
@@ -414,7 +423,7 @@ export default async function AeoPage() {
                         const kw = keywordById.get(keywordId);
                         if (!kw) return null;
                         return (
-                          <tr key={keywordId} className="border-t border-border">
+                          <tr key={keywordId} className="border-b border-border last:border-0 hover:bg-secondary/50">
                             <td className="px-4 py-3 truncate max-w-[280px]" title={kw.query}>
                               {kw.query}
                             </td>
@@ -438,7 +447,7 @@ export default async function AeoPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Next step</div>
+                <div className="font-mono text-[10px] opacity-70">next step</div>
                 <p className="mt-3 text-lg leading-snug">
                   Not cited for a keyword? Check that page's content — does it answer the
                   question directly in the first 200 words? Does it have a clear, dated byline
@@ -506,7 +515,7 @@ function MentionCell({
   if (result.error) {
     return (
       <span
-        className="inline-block text-[10px] uppercase font-medium px-2 py-1 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+        className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
         title={result.error}
       >
         err
@@ -535,8 +544,8 @@ function StatTile({
   muted?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div
         className={`mt-4 font-display text-4xl md:text-5xl ${muted ? "text-muted-foreground" : "text-foreground"}`}
       >

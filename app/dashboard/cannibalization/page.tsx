@@ -76,7 +76,7 @@ export default async function CannibalizationPage() {
       <CannibalizationStatusBanner run={banner} />
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             When <strong>two or more of your own pages</strong> compete for the same keyword,
             Google splits authority and impressions — and nobody wins. This scan pulls GSC
@@ -89,7 +89,7 @@ export default async function CannibalizationPage() {
       )}
 
       {latestRun && latestRun.status === "done" && findings.length === 0 && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10">
+        <div className="rounded-2xl bg-card p-8 md:p-10">
           <p className="text-lg">
             <strong>No cannibalization detected.</strong> Scanned{" "}
             {latestRun.queriesScanned ?? 0} queries over the last{" "}
@@ -138,8 +138,8 @@ export default async function CannibalizationPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">
-                  How to fix cannibalization
+                <div className="font-mono text-[10px] opacity-70">
+                  how to fix cannibalization
                 </div>
                 <p className="mt-3 text-lg leading-snug">
                   Pick the URL you want to rank. Consolidate content from the losing URLs into
@@ -159,13 +159,13 @@ export default async function CannibalizationPage() {
 function FindingCard({ finding }: { finding: Finding }) {
   const topShare = finding.urls[0]?.share ?? 0;
   return (
-    <div className="rounded-2xl bg-secondary p-6 md:p-8">
+    <div className="rounded-2xl bg-card p-6 md:p-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityPill severity={finding.severity} />
             {finding.trackedKeywordId && (
-              <span className="text-[10px] uppercase font-medium px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
+              <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
                 tracked
               </span>
             )}
@@ -179,15 +179,15 @@ function FindingCard({ finding }: { finding: Finding }) {
         </div>
       </div>
 
-      <div className="mt-6 rounded-[12px] bg-background overflow-hidden">
+      <div className="mt-6 rounded-[12px] bg-background overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <thead>
             <tr>
-              <th className="text-left px-4 py-3 font-medium">URL</th>
-              <th className="text-right px-3 py-3 font-medium">Impressions</th>
-              <th className="text-right px-3 py-3 font-medium">Clicks</th>
-              <th className="text-right px-3 py-3 font-medium">Avg pos</th>
-              <th className="text-right px-4 py-3 font-medium">Share</th>
+              <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
+              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Impressions</th>
+              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Clicks</th>
+              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Avg pos</th>
+              <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Share</th>
             </tr>
           </thead>
           <tbody>
@@ -198,7 +198,7 @@ function FindingCard({ finding }: { finding: Finding }) {
                 display = new URL(u.page).pathname || u.page;
               } catch {}
               return (
-                <tr key={u.page} className="border-t border-border">
+                <tr key={u.page} className="border-b border-border last:border-0 hover:bg-secondary/50">
                   <td className="px-4 py-3 min-w-0 max-w-[420px]">
                     <a
                       href={u.page}
@@ -256,7 +256,7 @@ function SeverityPill({ severity }: { severity: "high" | "medium" | "low" }) {
   };
   return (
     <span
-      className={`inline-block text-[10px] uppercase font-semibold px-2.5 py-1 rounded-full ${map[severity]}`}
+      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${map[severity]}`}
     >
       {severity}
     </span>
@@ -284,8 +284,8 @@ function StatTile({
         ? "text-[var(--up)]"
         : "text-foreground";
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className={`mt-4 font-display text-4xl md:text-5xl ${valueColor}`}>{value}</div>
       {subtitle && (
         <div className="text-xs text-muted-foreground mt-2 font-mono tabular">{subtitle}</div>

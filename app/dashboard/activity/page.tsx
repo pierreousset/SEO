@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, tenantDb, schema } from "@/db/client";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, desc } from "drizzle-orm";
 import {
   ArrowDown,
   ArrowUp,
@@ -49,6 +49,21 @@ export default async function ActivityPage() {
 
   const events = buildCompetitorFeed(rows, keywordById, WINDOW_DAYS);
 
+  // Audit log — last 50 actions
+  const auditRows = await db
+    .select({
+      id: schema.auditLog.id,
+      action: schema.auditLog.action,
+      detail: schema.auditLog.detail,
+      createdAt: schema.auditLog.createdAt,
+      actorEmail: schema.users.email,
+    })
+    .from(schema.auditLog)
+    .innerJoin(schema.users, eq(schema.auditLog.actorId, schema.users.id))
+    .where(eq(schema.auditLog.userId, ctx.ownerId))
+    .orderBy(desc(schema.auditLog.createdAt))
+    .limit(50);
+
   // Headline stats
   const upCount = events.filter((e) => e.type === "big_up" || e.type === "new_entry").length;
   const downCount = events.filter((e) => e.type === "big_down" || e.type === "lost").length;
@@ -70,7 +85,7 @@ export default async function ActivityPage() {
       </header>
 
       {keywords.length === 0 ? (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             Track some keywords first — the feed surfaces what your competitors did on
             <strong> your </strong>SERP in the last week.
@@ -83,7 +98,7 @@ export default async function ActivityPage() {
           </Link>
         </div>
       ) : events.length === 0 ? (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             <strong>All quiet on the competitive front.</strong> No big moves detected in the
             last {WINDOW_DAYS} days.
@@ -128,7 +143,7 @@ export default async function ActivityPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Dig deeper</div>
+                <div className="font-mono text-[10px] opacity-70">dig deeper</div>
                 <p className="mt-3 text-lg leading-snug">
                   Ask the chat <em>"Why did [competitor] jump 10 positions on [keyword] this
                   week?"</em> — it has access to the SERP snapshot, GSC data, and your history
@@ -140,6 +155,36 @@ export default async function ActivityPage() {
           </Link>
         </>
       )}
+
+      {/* Audit log timeline */}
+      {auditRows.length > 0 && (
+        <section className="space-y-0">
+          <h2 className="font-display text-xl mb-4">Audit log</h2>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            {auditRows.map((row, i) => (
+              <div
+                key={row.id}
+                className={`flex items-start gap-4 px-5 py-3 ${i < auditRows.length - 1 ? "border-b border-border" : ""}`}
+              >
+                <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap tabular-nums pt-0.5">
+                  {row.createdAt ? formatAuditDate(row.createdAt) : "—"}
+                </span>
+                <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                  {row.actorEmail}
+                </span>
+                <span className="text-sm flex-1">
+                  {ACTION_LABELS[row.action] ?? row.action}
+                  {row.detail && (
+                    <span className="text-muted-foreground ml-1.5 text-xs font-mono">
+                      {formatDetail(row.detail)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -149,7 +194,7 @@ function EventCard({ event }: { event: CompetitorEvent }) {
   const Icon = config.icon;
 
   return (
-    <div className="rounded-2xl bg-secondary p-5 md:p-6 flex items-start gap-4">
+    <div className="rounded-2xl bg-card p-5 md:p-6 flex items-start gap-4">
       <div
         className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${config.iconBg}`}
       >
@@ -158,7 +203,7 @@ function EventCard({ event }: { event: CompetitorEvent }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className={`inline-block text-[10px] uppercase font-semibold px-2.5 py-1 rounded-full ${config.pillClass}`}
+            className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${config.pillClass}`}
           >
             {config.label}
           </span>
@@ -239,8 +284,8 @@ function StatTile({
         ? "text-[var(--up)]"
         : "text-foreground";
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className={`mt-4 font-display text-3xl md:text-4xl ${valueColor} truncate`}>
         {value}
       </div>
@@ -257,6 +302,41 @@ function safePath(url: string): string {
     return `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`;
   } catch {
     return url;
+  }
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  keyword_added: "Added keyword",
+  keyword_removed: "Removed keyword",
+  audit_triggered: "Ran site audit",
+  brief_triggered: "Generated brief",
+  crawl_triggered: "Ran meta crawl",
+  invite_sent: "Sent invite",
+  member_joined: "Member joined",
+  settings_updated: "Updated settings",
+  article_generated: "Generated article",
+};
+
+function formatAuditDate(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function formatDetail(raw: string): string {
+  try {
+    const obj = JSON.parse(raw);
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(obj)) {
+      if (v != null && v !== "") parts.push(`${k}: ${String(v)}`);
+    }
+    return parts.join(", ");
+  } catch {
+    return raw;
   }
 }
 

@@ -10,11 +10,17 @@ import { ClassifyAllButton } from "@/components/classify-all-button";
 import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { computeDiagnostic } from "@/lib/diagnostics";
 import { ThreatBadge } from "@/components/threat-badge";
+import { PositionSparkline } from "@/components/position-sparkline";
+import { PositionHeatmap } from "@/components/position-heatmap";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { KeywordsFilterBar } from "@/components/keywords-filter-bar";
+import { ExportCsvButton } from "@/components/export-csv-button";
 import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filters";
+import { listGroups, listAllMemberships } from "@/lib/actions/keyword-groups";
+import { KeywordGroupBar } from "@/components/keyword-group-bar";
+import { KeywordGroupPicker } from "@/components/keyword-group-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -36,22 +42,42 @@ export default async function KeywordsPage({
     },
   });
 
+  const activeGroupId = typeof sp.group === "string" ? sp.group : null;
+
+  // Load groups and memberships
+  const [groups, memberships] = await Promise.all([
+    listGroups(),
+    listAllMemberships(),
+  ]);
+
+  // Build lookup: keywordId -> groupIds
+  const keywordGroupMap = new Map<string, string[]>();
+  for (const m of memberships) {
+    const arr = keywordGroupMap.get(m.keywordId) ?? [];
+    arr.push(m.groupId);
+    keywordGroupMap.set(m.keywordId, arr);
+  }
+
+  // Set of keyword IDs in the active group (for filtering)
+  const activeGroupKeywordIds = activeGroupId
+    ? new Set(memberships.filter((m) => m.groupId === activeGroupId).map((m) => m.keywordId))
+    : null;
+
   if (keywords.length === 0) {
     return (
       <div className="px-8 py-12">
-        <div className="max-w-md border border-border border-dashed rounded-md p-8 bg-card">
-          <h2 className="text-base font-semibold">Start tracking your first keyword</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+        <div className="bg-card rounded-2xl p-8 text-center">
+          <p className="text-sm text-muted-foreground">
             {sites.length === 0
               ? "Connect Google Search Console first to register your site."
               : "Add a keyword manually, or re-connect GSC to auto-import your top 20 queries."}
           </p>
           {sites.length > 0 && (
-            <div className="mt-5">
+            <div className="mt-4">
               <AddKeywordForm />
             </div>
           )}
-          <div className="mt-4 text-xs text-muted-foreground font-mono tabular">
+          <div className="mt-4 font-mono text-[10px] text-muted-foreground">
             Example: &quot;rank tracker alternative&quot;
           </div>
         </div>
@@ -138,11 +164,32 @@ export default async function KeywordsPage({
         bestCompThreat: bestThreat,
         compCount: ranked.length,
         gscImpressions: gscImpByKw.get(k.id) ?? 0,
+        sparkline7d: kPos.slice(-7).map((p) => p.position).filter((p): p is number => p != null),
+        heatmap7d: (() => {
+          const last8 = kPos.slice(-8);
+          const deltas: Array<number | null> = [];
+          for (let i = 1; i < 8; i++) {
+            const curr = last8[i]?.position ?? null;
+            const prev = last8[i - 1]?.position ?? null;
+            if (curr != null && prev != null) {
+              // Lower position = better, so positive delta = improvement
+              deltas.push(prev - curr);
+            } else {
+              deltas.push(null);
+            }
+          }
+          // Pad from the front if we have fewer than 7 deltas
+          while (deltas.length < 7) deltas.unshift(null);
+          return deltas.slice(-7);
+        })(),
         history: kPos.slice(-30).map((p) => p.position),
       };
     });
 
-  const filteredRows = applyFilters(rows, filters);
+  const filteredByFilters = applyFilters(rows, filters);
+  const filteredRows = activeGroupKeywordIds
+    ? filteredByFilters.filter((r) => activeGroupKeywordIds.has(r.id))
+    : filteredByFilters;
 
   const unclassifiedCount = rows.filter((r) => r.intentStage == null).length;
 
@@ -173,46 +220,67 @@ export default async function KeywordsPage({
           <AddKeywordForm />
           {unclassifiedCount > 0 && <ClassifyAllButton />}
           <FetchNowButton />
+          <ExportCsvButton type="keywords" />
         </div>
       </header>
+
+      <div className="mb-4">
+        <KeywordGroupBar groups={groups} activeGroupId={activeGroupId} />
+      </div>
 
       <div className="mb-6">
         <KeywordsFilterBar totalCount={rows.length} filteredCount={filteredRows.length} />
       </div>
 
-      <div className="border border-border rounded-md overflow-hidden bg-card">
+      <div className="bg-card rounded-2xl overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/60">
-            <tr className="text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="text-left px-4 py-2 font-medium">Keyword</th>
-              <th className="text-left px-3 py-2 font-medium w-12">Intent</th>
-              <th className="text-left px-3 py-2 font-medium">Diagnostic</th>
-              <th className="text-right px-4 py-2 font-medium">Position</th>
-              <th className="text-right px-4 py-2 font-medium">1d Δ</th>
-              <th className="text-right px-4 py-2 font-medium">7d Δ</th>
-              <th className="text-right px-4 py-2 font-medium">Impr 30d</th>
-              <th className="text-right px-4 py-2 font-medium">Best comp</th>
-              <th className="text-left px-4 py-2 font-medium">Country</th>
+          <thead>
+            <tr>
+              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal w-12">Intent</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">Diagnostic</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Position</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">1d Δ</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">7d Δ</th>
+              <th className="px-2 py-2 font-mono text-[9px] text-muted-foreground font-normal text-center">7d</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Impr 30d</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Best comp</th>
+              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Country</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={11} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No keywords match these filters. Click <strong>Reset</strong> above to clear.
                 </td>
               </tr>
             )}
             {filteredRows.map((r) => (
-              <tr key={r.id} className="border-t border-border hover:bg-muted/40">
-                <td className="px-4 py-2.5 truncate max-w-xs" title={r.keyword}>
-                  <Link
-                    href={`/dashboard/keywords/${r.id}`}
-                    className="hover:underline"
-                  >
-                    {r.keyword}
-                  </Link>
+              <tr key={r.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
+                <td className="px-4 py-2.5 text-xs max-w-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`/dashboard/keywords/${r.id}`}
+                      className="hover:underline truncate"
+                      title={r.keyword}
+                    >
+                      {r.keyword}
+                    </Link>
+                    {(keywordGroupMap.get(r.id) ?? []).map((gId) => {
+                      const g = groups.find((gr) => gr.id === gId);
+                      if (!g) return null;
+                      return (
+                        <span
+                          key={gId}
+                          className="inline-flex h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: g.color ?? "#A855F7" }}
+                          title={g.name}
+                        />
+                      );
+                    })}
+                  </div>
                 </td>
                 <td className="px-3 py-2.5">
                   <IntentStageBadge stage={r.intentStage} />
@@ -220,12 +288,18 @@ export default async function KeywordsPage({
                 <td className="px-3 py-2.5">
                   <DiagnosticBadge tag={r.diagnostic} />
                 </td>
-                <td className="px-4 py-2.5 text-right font-mono tabular">
+                <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums">
                   {r.position ?? <span className="text-muted-foreground">—</span>}
                 </td>
                 <td className="px-4 py-2.5 text-right"><RankDelta value={r.delta1d} /></td>
                 <td className="px-4 py-2.5 text-right"><RankDelta value={r.delta7d} /></td>
-                <td className="px-4 py-2.5 text-right font-mono tabular text-xs">
+                <td className="px-2 py-2.5 text-center">
+                  <PositionHeatmap changes={r.heatmap7d} />
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  {r.gscImpressions > 0 ? r.gscImpressions.toLocaleString() : "—"}
+                </td>
+                <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums">
                   {r.bestCompPosition != null ? (
                     <span
                       className="inline-flex items-center gap-1.5 justify-end"
@@ -253,11 +327,18 @@ export default async function KeywordsPage({
                     <span className="text-muted-foreground">—</span>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground uppercase text-xs font-mono tabular">
-                  {r.country}
+                <td className="px-4 py-2.5 text-muted-foreground text-xs font-mono tabular-nums">
+                  {r.country.toUpperCase()}
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <RemoveKeywordButton keywordId={r.id} />
+                  <div className="flex items-center justify-end gap-1.5">
+                    <KeywordGroupPicker
+                      keywordId={r.id}
+                      groups={groups}
+                      memberOf={keywordGroupMap.get(r.id) ?? []}
+                    />
+                    <RemoveKeywordButton keywordId={r.id} />
+                  </div>
                 </td>
               </tr>
             ))}

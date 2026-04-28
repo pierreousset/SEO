@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { computeDiagnostic, diagnosticInfo } from "@/lib/diagnostics";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
 
 /**
  * Weekly AI brief generator.
@@ -138,8 +139,12 @@ export async function generateBrief(input: {
   periodStart: string;
   periodEnd: string;
   profile?: BusinessProfile | null;
+  userId?: string;
 }): Promise<Brief> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = input.userId
+    ? await getAnthropicApiKey(input.userId)
+    : process.env.ANTHROPIC_API_KEY;
+  const client = new Anthropic({ apiKey });
 
   // Assemble a compact data payload for the model.
   // Intent stage hint: prioritize tickets on stage 4 (high commercial intent) keywords.

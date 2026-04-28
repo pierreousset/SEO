@@ -100,7 +100,7 @@ export default async function RefreshPage() {
       </header>
 
       {!hasData && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             Pull GSC history first — the radar needs at least 3 weeks of daily data to fit a
             trend.
@@ -115,7 +115,7 @@ export default async function RefreshPage() {
       )}
 
       {hasData && allCandidates.length === 0 && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             <strong>Nothing declining.</strong> Every page and keyword we have enough data on
             is flat or improving.
@@ -182,7 +182,7 @@ export default async function RefreshPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Next step</div>
+                <div className="font-mono text-[10px] opacity-70">next step</div>
                 <p className="mt-3 text-lg leading-snug">
                   Pick the highest-severity page, open it, skim the content. If it's more than
                   6 months old and answers the query thinly — refresh now. Ask chat for a
@@ -205,14 +205,14 @@ function CandidateCard({ candidate }: { candidate: RefreshCandidate }) {
       ? candidate.label
       : `/dashboard/keywords/${candidate.id}`;
   return (
-    <div className="rounded-2xl bg-secondary p-5 md:p-6 flex items-start gap-4">
+    <div className="rounded-2xl bg-card p-5 md:p-6 flex items-start gap-4">
       <div className="h-10 w-10 rounded-full bg-[var(--down)]/15 text-[var(--down)] flex items-center justify-center shrink-0">
         <TrendingDown className="h-5 w-5" strokeWidth={2} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <SeverityPill severity={candidate.severity} />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {candidate.kind === "page" ? "page" : "keyword"}
           </span>
           <span className="font-mono tabular text-xs text-muted-foreground">
@@ -271,7 +271,7 @@ function SeverityPill({ severity }: { severity: "high" | "medium" | "low" }) {
   };
   return (
     <span
-      className={`inline-block text-[10px] uppercase font-semibold px-2.5 py-1 rounded-full ${map[severity]}`}
+      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${map[severity]}`}
     >
       {severity}
     </span>
@@ -299,8 +299,8 @@ function StatTile({
         ? "text-[var(--up)]"
         : "text-foreground";
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className={`mt-4 font-display text-3xl md:text-4xl ${valueColor}`}>{value}</div>
       {subtitle && (
         <div className="text-xs text-muted-foreground mt-2 font-mono tabular">{subtitle}</div>

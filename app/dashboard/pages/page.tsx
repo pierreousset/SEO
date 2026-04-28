@@ -52,7 +52,7 @@ export default async function PagesPage() {
       </header>
 
       {totalPages === 0 ? (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             No pages yet. Run a GSC history pull from the Overview page — the data shows up
             here 30-60s later.
@@ -73,7 +73,7 @@ export default async function PagesPage() {
             <StatTile label="Avg CTR" value={`${avgCtr.toFixed(2)}%`} />
           </section>
 
-          <section className="rounded-2xl bg-secondary p-6 md:p-8">
+          <section className="rounded-2xl bg-card p-6 md:p-8">
             <h2 className="font-display text-2xl md:text-3xl">Top pages</h2>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
               Any URL with at least one Google impression in the last {WINDOW_DAYS} days counts
@@ -81,14 +81,14 @@ export default async function PagesPage() {
             </p>
             <div className="rounded-[12px] bg-background overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium">URL</th>
-                    <th className="text-right px-3 py-3 font-medium">Clicks</th>
-                    <th className="text-right px-3 py-3 font-medium">Impr.</th>
-                    <th className="text-right px-3 py-3 font-medium">CTR</th>
-                    <th className="text-right px-3 py-3 font-medium">Avg pos</th>
-                    <th className="text-right px-4 py-3 font-medium">Last seen</th>
+                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Clicks</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Impr.</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">CTR</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Avg pos</th>
+                    <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,7 +100,7 @@ export default async function PagesPage() {
                       display = `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`;
                     } catch {}
                     return (
-                      <tr key={r.url} className="border-t border-border">
+                      <tr key={r.url} className="border-b border-border last:border-0 hover:bg-secondary/50">
                         <td className="px-4 py-3 min-w-0 max-w-[480px]">
                           <a
                             href={r.url}
@@ -154,7 +154,7 @@ export default async function PagesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Next</div>
+                <div className="font-mono text-[10px] opacity-70">next</div>
                 <p className="mt-3 text-lg leading-snug">
                   See which of these pages are losing ground week after week — the Refresh
                   radar surfaces candidates for a content update.
@@ -171,8 +171,8 @@ export default async function PagesPage() {
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className="mt-4 font-display text-3xl md:text-4xl">{value}</div>
     </div>
   );

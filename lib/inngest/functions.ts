@@ -12,6 +12,7 @@ import { getUserPlan } from "@/lib/billing-helpers";
 import { getCreditsBalance, debitCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { generateBrief } from "@/lib/llm/brief";
+import { checkAndFireAlerts } from "@/lib/alerts/check-alerts";
 import { randomUUID } from "node:crypto";
 
 // -------------------------------------------------------------------
@@ -189,6 +190,11 @@ export const userDailyFetch = inngest.createFunction(
         saved++;
       }
 
+      // Check position alerts after all positions are saved
+      const alertResult = await step.run("check-position-alerts", () =>
+        checkAndFireAlerts(userId),
+      );
+
       await step.run("mark-done", async () =>
         db
           .update(schema.fetchRuns)
@@ -200,7 +206,7 @@ export const userDailyFetch = inngest.createFunction(
           .where(eq(schema.fetchRuns.id, runId!)),
       );
 
-      return { processed: allTaskIds.length, saved, date };
+      return { processed: allTaskIds.length, saved, date, alerts: alertResult };
     } catch (err: any) {
       await step.run("mark-failed", async () =>
         db
@@ -355,6 +361,7 @@ export const weeklyBrief = inngest.createFunction(
           periodStart: ps,
           periodEnd: pe,
           profile,
+          userId,
         }),
       );
 
@@ -871,6 +878,7 @@ export const siteAudit = inngest.createFunction(
             findings: allFindings,
             profile,
             pagesCrawled: urls.length,
+            userId,
           }),
         );
       }
@@ -989,7 +997,7 @@ export const llmVisibilityCheck = inngest.createFunction(
       // Each keyword is its own Inngest step so retries/resumes are granular.
       for (const kw of targetKeywords) {
         const results = await step.run(`check-${kw.id}`, async () => {
-          return checkAllEngines(kw.query, userDomain, engines);
+          return checkAllEngines(kw.query, userDomain, engines, userId);
         });
 
         await step.run(`persist-${kw.id}`, async () => {
@@ -1277,6 +1285,7 @@ export const contentBriefGenerate = inngest.createFunction(
                 preferredLanguage: profile.preferredLanguage,
               }
             : null,
+          userId,
         });
       });
 
@@ -1824,6 +1833,186 @@ export const fullMetaCrawl = inngest.createFunction(
   },
 );
 
+// -------------------------------------------------------------------
+// Article generation — produces a full SEO-optimized article via Claude.
+// -------------------------------------------------------------------
+export const generateArticle = inngest.createFunction(
+  {
+    id: "content-generate-article",
+    concurrency: { limit: 3 },
+    triggers: [{ event: "content/generate.article" }],
+  },
+  async ({ event, step }) => {
+    const { userId, articleId, keywordId, topic } = event.data as {
+      userId: string;
+      articleId: string;
+      keywordId?: string;
+      topic?: string;
+    };
+    if (!userId || !articleId) throw new Error("userId and articleId required");
+    const t = tenantDb(userId);
+
+    await step.run("mark-generating", async () =>
+      db
+        .update(schema.generatedArticles)
+        .set({ status: "generating" })
+        .where(eq(schema.generatedArticles.id, articleId)),
+    );
+
+    try {
+      // Load keyword if provided
+      const keyword = keywordId
+        ? await step.run("load-keyword", async () => {
+            const [kw] = await db
+              .select()
+              .from(schema.keywords)
+              .where(and(eq(schema.keywords.id, keywordId), eq(schema.keywords.userId, userId)))
+              .limit(1);
+            return kw ?? null;
+          })
+        : null;
+
+      // Load business profile for context
+      const profile = await step.run("load-profile", () => t.selectBusinessProfile());
+
+      // Load latest SERP data if keyword exists
+      const serpContext = keyword
+        ? await step.run("load-serp-context", async () => {
+            const positions = await db
+              .select()
+              .from(schema.positions)
+              .where(
+                and(
+                  eq(schema.positions.userId, userId),
+                  eq(schema.positions.keywordId, keyword.id),
+                ),
+              )
+              .orderBy(desc(schema.positions.date))
+              .limit(1);
+            return positions[0] ?? null;
+          })
+        : null;
+
+      const targetTopic = keyword?.query ?? topic ?? "general SEO topic";
+      const lang = profile?.preferredLanguage ?? "fr";
+      const MODEL = "claude-haiku-4-5-20251001";
+
+      const result = await step.run("call-claude", async () => {
+        const Anthropic = (await import("@anthropic-ai/sdk")).default;
+        const client = new Anthropic();
+
+        const systemPrompt = `You are an expert SEO content writer. You produce full, publication-ready articles optimized for search engines.
+
+Rules:
+- Write the article in ${lang === "en" ? "English" : "French"}.
+- The article MUST be between 800 and 1500 words.
+- Use proper markdown formatting with H2 (##) and H3 (###) headings.
+- Include a compelling introduction and conclusion.
+- Naturally incorporate the target keyword and semantic variations throughout.
+- Write for humans first, search engines second — no keyword stuffing.
+- Use short paragraphs (2-3 sentences max) for readability.
+- Include actionable advice, examples, or data points where relevant.
+${profile ? `
+Business context:
+- Business: ${profile.businessName ?? "Unknown"}
+- Primary service: ${profile.primaryService ?? "Unknown"}
+- Target customer: ${profile.targetCustomer ?? "Unknown"}
+- Target cities: ${profile.targetCities?.join(", ") ?? "Unknown"}
+- Biggest SEO problem: ${profile.biggestSeoProblem ?? "Not specified"}
+` : ""}
+${serpContext ? `Current SERP position: #${serpContext.position ?? "not ranked"}` : ""}
+
+You MUST respond using the provided tool to structure your output.`;
+
+        const response = await client.messages.create({
+          model: MODEL,
+          max_tokens: 4096,
+          system: systemPrompt,
+          tools: [
+            {
+              name: "save_article",
+              description: "Save the generated SEO article",
+              input_schema: {
+                type: "object" as const,
+                properties: {
+                  title: { type: "string", description: "SEO-optimized title (50-65 chars)" },
+                  meta_description: { type: "string", description: "Meta description (140-155 chars)" },
+                  slug: { type: "string", description: "URL-friendly slug (lowercase, hyphens)" },
+                  content: { type: "string", description: "Full article in markdown with ## and ### headings" },
+                },
+                required: ["title", "meta_description", "slug", "content"],
+              },
+            },
+          ],
+          tool_choice: { type: "tool", name: "save_article" },
+          messages: [
+            {
+              role: "user",
+              content: `Write a comprehensive, SEO-optimized article targeting the keyword/topic: "${targetTopic}".
+
+The article should:
+1. Have a compelling title optimized for the target keyword
+2. Include a meta description
+3. Have a URL-friendly slug
+4. Be structured with H2 and H3 headings
+5. Be 800-1500 words
+6. Be engaging and actionable`,
+            },
+          ],
+        });
+
+        const toolBlock = response.content.find((b) => b.type === "tool_use");
+        if (!toolBlock || toolBlock.type !== "tool_use") {
+          throw new Error("No tool_use block in response");
+        }
+        const input = toolBlock.input as {
+          title: string;
+          meta_description: string;
+          slug: string;
+          content: string;
+        };
+        return {
+          title: input.title,
+          metaDescription: input.meta_description,
+          slug: input.slug,
+          content: input.content,
+          model: MODEL,
+        };
+      });
+
+      const wordCount = result.content
+        .replace(/[#*_\[\]()>-]/g, "")
+        .split(/\s+/)
+        .filter(Boolean).length;
+
+      await step.run("save-article", async () =>
+        db
+          .update(schema.generatedArticles)
+          .set({
+            title: result.title,
+            metaDescription: result.metaDescription,
+            slug: result.slug,
+            content: result.content,
+            wordCount,
+            model: result.model,
+            status: "done",
+          })
+          .where(eq(schema.generatedArticles.id, articleId)),
+      );
+
+      return { articleId, wordCount, status: "done" };
+    } catch (err: any) {
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.generatedArticles)
+          .set({ status: "failed" })
+          .where(eq(schema.generatedArticles.id, articleId)),
+      );
+      throw err;
+    }
+  },
+);
+
 export const functions = [
   dailyFetchScheduler,
   userDailyFetch,
@@ -1838,4 +2027,5 @@ export const functions = [
   contentBriefGenerate,
   competitorGapScan,
   backlinkPull,
+  generateArticle,
 ];

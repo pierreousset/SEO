@@ -26,7 +26,7 @@ export default async function BacklinksPage() {
           <h1 className="font-display text-[40px] mt-3">Backlinks</h1>
         </header>
 
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <span className="inline-block text-[10px] uppercase font-semibold px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
             Coming with Pro plan
           </span>
@@ -184,7 +184,7 @@ export default async function BacklinksPage() {
       <BacklinkStatusBanner run={banner} />
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             Pull your backlink profile from DataForSEO's crawler. You'll see the total links,
             referring domains, domain authority, and the top-authority links pointing at you.
@@ -225,20 +225,20 @@ export default async function BacklinksPage() {
 
           {/* Main grid: top backlinks (2/3) + top ref domains (1/3) */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 rounded-2xl bg-secondary p-6 md:p-8">
+            <div className="lg:col-span-2 rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">Top backlinks</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 By domain rank (DataForSEO 0-1000). Green badge = new since last pull.
               </p>
               <div className="rounded-[12px] bg-background overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium">Source</th>
-                      <th className="text-left px-3 py-3 font-medium">Anchor</th>
-                      <th className="text-center px-3 py-3 font-medium">DR</th>
-                      <th className="text-center px-3 py-3 font-medium">Type</th>
-                      <th className="text-center px-3 py-3 font-medium">Flag</th>
+                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Source</th>
+                      <th className="text-left px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Anchor</th>
+                      <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">DR</th>
+                      <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Type</th>
+                      <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Flag</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -248,7 +248,7 @@ export default async function BacklinksPage() {
                         sourcePath = new URL(l.sourceUrl).pathname || l.sourceUrl;
                       } catch {}
                       return (
-                        <tr key={l.id} className="border-t border-border">
+                        <tr key={l.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                           <td className="px-4 py-3 min-w-0 max-w-[340px]">
                             <a
                               href={l.sourceUrl}
@@ -280,11 +280,11 @@ export default async function BacklinksPage() {
                           </td>
                           <td className="px-3 py-3 text-center">
                             {l.isNew ? (
-                              <span className="inline-block text-[10px] uppercase font-medium px-2 py-0.5 rounded-full bg-[var(--up)]/15 text-[var(--up)]">
+                              <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-[var(--up)]/15 text-[var(--up)]">
                                 new
                               </span>
                             ) : l.isLost ? (
-                              <span className="inline-block text-[10px] uppercase font-medium px-2 py-0.5 rounded-full bg-[var(--down)]/15 text-[var(--down)]">
+                              <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-[var(--down)]/15 text-[var(--down)]">
                                 lost
                               </span>
                             ) : (
@@ -306,7 +306,7 @@ export default async function BacklinksPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-secondary p-6 md:p-8">
+            <div className="rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">Top referring domains</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 By authority. A few strong links beat many weak ones.
@@ -337,25 +337,25 @@ export default async function BacklinksPage() {
 
           {/* vs competitors — side-by-side authority comparison */}
           {compSummaries.length > 0 && (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">vs your competitors</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 Authority comparison based on this pull. Positive delta = you beat them.
               </p>
               <div className="rounded-[12px] bg-background overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium">Domain</th>
-                      <th className="text-right px-3 py-3 font-medium">Backlinks</th>
-                      <th className="text-right px-3 py-3 font-medium">Ref domains</th>
-                      <th className="text-right px-3 py-3 font-medium">Dofollow</th>
-                      <th className="text-right px-3 py-3 font-medium">Avg rank</th>
-                      <th className="text-right px-4 py-3 font-medium">Δ ref domains</th>
+                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Domain</th>
+                      <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Backlinks</th>
+                      <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Ref domains</th>
+                      <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Dofollow</th>
+                      <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Avg rank</th>
+                      <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Δ ref domains</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t border-border bg-foreground/5">
+                    <tr className="border-b border-border bg-foreground/5">
                       <td className="px-4 py-3 font-medium">You</td>
                       <td className="px-3 py-3 text-right font-mono tabular">
                         {(latestRun.totalBacklinks ?? 0).toLocaleString()}
@@ -375,12 +375,12 @@ export default async function BacklinksPage() {
                       const deltaRef =
                         (latestRun.referringDomains ?? 0) - c.referringDomains;
                       return (
-                        <tr key={c.domain} className="border-t border-border">
+                        <tr key={c.domain} className="border-b border-border last:border-0 hover:bg-secondary/50">
                           <td className="px-4 py-3 font-mono tabular text-xs truncate max-w-[240px]">
                             {c.domain}
                             {c.error && (
                               <span
-                                className="ml-2 text-[10px] uppercase font-medium px-1.5 py-0.5 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+                                className="ml-2 font-mono text-[10px] px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
                                 title={c.error}
                               >
                                 err
@@ -421,8 +421,8 @@ export default async function BacklinksPage() {
 
           {/* Link gap — domains linking to competitors but not to you */}
           {linkGaps.length > 0 && (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
+              <div className="font-mono text-[10px] text-muted-foreground">
                 Outreach
               </div>
               <h2 className="font-display text-2xl md:text-3xl mt-2">Link gap</h2>
@@ -433,16 +433,16 @@ export default async function BacklinksPage() {
               </p>
               <div className="rounded-[12px] bg-background overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 font-medium">Domain</th>
-                      <th className="text-center px-3 py-3 font-medium">Rank</th>
-                      <th className="text-left px-4 py-3 font-medium">Links to</th>
+                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Domain</th>
+                      <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Rank</th>
+                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Links to</th>
                     </tr>
                   </thead>
                   <tbody>
                     {linkGaps.map((g) => (
-                      <tr key={g.domain} className="border-t border-border">
+                      <tr key={g.domain} className="border-b border-border last:border-0 hover:bg-secondary/50">
                         <td className="px-4 py-3 font-mono tabular text-xs truncate max-w-[280px]">
                           <a
                             href={`https://${g.domain}`}
@@ -465,7 +465,7 @@ export default async function BacklinksPage() {
                             {g.linksToCompetitors.map((c) => (
                               <span
                                 key={c}
-                                className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-foreground/10 text-foreground font-mono tabular"
+                                className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground"
                               >
                                 {c}
                               </span>
@@ -485,8 +485,8 @@ export default async function BacklinksPage() {
           )}
 
           {previousRun && (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
-              <h2 className="text-xs uppercase tracking-wider text-muted-foreground">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
+              <h2 className="font-mono text-[10px] text-muted-foreground">
                 Compared to previous pull
               </h2>
               <p className="text-sm mt-3">
@@ -510,7 +510,7 @@ export default async function BacklinksPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Link outreach</div>
+                <div className="font-mono text-[10px] opacity-70">link outreach</div>
                 <p className="mt-3 text-lg leading-snug">
                   Domains that link to your <strong>competitors</strong> but not to you are the
                   cleanest outreach targets. Cross-reference against your Gap scan.
@@ -548,8 +548,8 @@ function StatTile({
         ? "text-[var(--up)]"
         : "text-foreground";
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className={`mt-4 font-display text-3xl md:text-4xl ${valueColor}`}>{value}</div>
       {delta !== undefined && delta !== null && delta !== 0 && (
         <div
@@ -568,7 +568,7 @@ function StatTile({
 function DofollowPill({ dofollow }: { dofollow: boolean }) {
   return (
     <span
-      className={`inline-block text-[10px] uppercase font-medium px-2 py-0.5 rounded-full ${
+      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${
         dofollow
           ? "bg-[var(--up)]/15 text-[var(--up)]"
           : "bg-muted text-muted-foreground"

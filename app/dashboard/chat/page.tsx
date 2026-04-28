@@ -3,12 +3,17 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { ChatUi } from "@/components/chat-ui";
+import { ChatHistorySidebar } from "@/components/chat-history-sidebar";
 import { getUserPlan } from "@/lib/billing-helpers";
 import { CHAT_LIMITS } from "@/lib/billing-constants";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
   const plan = await getUserPlan(ctx.ownerId);
 
@@ -77,19 +82,37 @@ export default async function ChatPage() {
     }
   }
 
-  // Load the most recent conversation as initial state. Fresh convo = empty UI.
-  const [latestConv] = await db
-    .select()
+  const sp = await searchParams;
+  const requestedConvId = typeof sp.c === "string" ? sp.c : null;
+  const isNew = sp.new === "1";
+
+  // Fetch conversation history for sidebar
+  const allConversations = await db
+    .select({
+      id: schema.chatConversations.id,
+      title: schema.chatConversations.title,
+      updatedAt: schema.chatConversations.updatedAt,
+    })
     .from(schema.chatConversations)
     .where(eq(schema.chatConversations.userId, ctx.ownerId))
     .orderBy(desc(schema.chatConversations.updatedAt))
-    .limit(1);
+    .limit(20);
 
-  const prior = latestConv
+  // Determine which conversation to load
+  let activeConv: typeof allConversations[number] | null = null;
+  if (!isNew) {
+    if (requestedConvId) {
+      activeConv = allConversations.find((c) => c.id === requestedConvId) ?? null;
+    } else if (allConversations.length > 0) {
+      activeConv = allConversations[0];
+    }
+  }
+
+  const prior = activeConv
     ? await db
         .select()
         .from(schema.chatMessages)
-        .where(eq(schema.chatMessages.conversationId, latestConv.id))
+        .where(eq(schema.chatMessages.conversationId, activeConv.id))
         .orderBy(schema.chatMessages.createdAt)
     : [];
 
@@ -100,22 +123,34 @@ export default async function ChatPage() {
     toolCalls: (m.toolCalls as Array<{ name: string; input: Record<string, unknown> }>) ?? [],
   }));
 
+  const sidebarConversations = allConversations.map((c) => ({
+    id: c.id,
+    title: c.title,
+    updatedAt: c.updatedAt.toISOString(),
+  }));
+
   return (
-    <div className="h-screen flex flex-col px-8 lg:px-12 pt-8 pb-6 max-w-[1000px] mx-auto">
-      <header className="mb-4 shrink-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
-          Ask your SEO data
-        </p>
-        <h1 className="font-display text-[40px] mt-2">Chat</h1>
-      </header>
+    <div className="h-screen flex">
+      <ChatHistorySidebar
+        conversations={sidebarConversations}
+        activeId={activeConv?.id ?? null}
+      />
+      <div className="flex-1 flex flex-col px-8 lg:px-12 pt-8 pb-6 max-w-[1000px] mx-auto min-w-0">
+        <header className="mb-4 shrink-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+            Ask your SEO data
+          </p>
+          <h1 className="font-display text-[40px] mt-2">Chat</h1>
+        </header>
 
-      {quotaBanner ? <div className="mb-4 shrink-0">{quotaBanner}</div> : null}
+        {quotaBanner ? <div className="mb-4 shrink-0">{quotaBanner}</div> : null}
 
-      <div className="flex-1 min-h-0">
-        <ChatUi
-          initialMessages={initialMessages}
-          conversationId={latestConv?.id ?? null}
-        />
+        <div className="flex-1 min-h-0">
+          <ChatUi
+            initialMessages={initialMessages}
+            conversationId={activeConv?.id ?? null}
+          />
+        </div>
       </div>
     </div>
   );

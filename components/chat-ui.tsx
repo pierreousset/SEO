@@ -25,6 +25,14 @@ const TOOL_LABEL: Record<string, string> = {
   latest_brief: "Reading weekly brief",
 };
 
+const SUGGESTED_QUESTIONS = [
+  "Quels keywords ont perdu des positions cette semaine ?",
+  "Résume les résultats de mon dernier audit",
+  "Quels sont mes keywords les plus proches du top 3 ?",
+  "Analyse mon CTR vs mes positions",
+  "Quelles pages manquent dans mon sitemap ?",
+];
+
 export function ChatUi({
   initialMessages = [],
   conversationId: initialConvId,
@@ -45,9 +53,8 @@ export function ChatUi({
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, liveTools]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const message = input.trim();
+  async function sendMessage(text: string) {
+    const message = text.trim();
     if (!message || loading) return;
     setInput("");
     setLoading(true);
@@ -138,6 +145,11 @@ export function ChatUi({
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    sendMessage(input);
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
@@ -147,23 +159,17 @@ export function ChatUi({
               Ask anything about your SEO data. I can read your keywords, positions, GSC
               metrics, audit findings, cannibalizations, AEO visibility, and more.
             </p>
-            <div className="mt-5 space-y-2">
-              <SamplePrompt
-                onPick={setInput}
-                text="Why did my best keyword lose positions this week?"
-              />
-              <SamplePrompt
-                onPick={setInput}
-                text="Give me 5 keywords to fix first — highest ROI."
-              />
-              <SamplePrompt
-                onPick={setInput}
-                text="Summarise my SEO state for my co-founder in 3 lines."
-              />
-              <SamplePrompt
-                onPick={setInput}
-                text="Which tracked keywords are cannibalized right now?"
-              />
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SUGGESTED_QUESTIONS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => sendMessage(q)}
+                  className="bg-card rounded-2xl px-4 py-3 border border-border hover:border-primary/50 transition text-sm text-left"
+                >
+                  {q}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -329,14 +335,3 @@ function MarkdownBody({ content }: { content: string }) {
   );
 }
 
-function SamplePrompt({ text, onPick }: { text: string; onPick: (s: string) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onPick(text)}
-      className="block w-full text-left rounded-[12px] bg-background hover:bg-background/80 px-4 py-3 text-sm transition-colors"
-    >
-      {text}
-    </button>
-  );
-}

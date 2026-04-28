@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { BusinessProfile } from "@/lib/llm/brief";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
 
 /**
  * Content brief generator — one per keyword.
@@ -26,6 +27,7 @@ export type ContentBriefInput = {
     avgPosition: number;
   } | null;
   profile: BusinessProfile | null;
+  userId?: string;
 };
 
 export type ContentBrief = {
@@ -95,7 +97,9 @@ function intentLabel(stage: number | null): string {
 export async function generateContentBrief(
   input: ContentBriefInput,
 ): Promise<{ content: ContentBrief; model: string; costUsd: number }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = input.userId
+    ? await getAnthropicApiKey(input.userId)
+    : process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
 
   const client = new Anthropic({ apiKey });

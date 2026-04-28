@@ -143,6 +143,17 @@ export const creditTransactions = pgTable("credit_transactions", {
   index("credit_tx_event_idx").on(t.stripeEventId),
 ]);
 
+// User-provided API keys — encrypted at rest with AES-256-GCM (lib/encryption.ts).
+// When present, these override the platform-level env vars for AI features.
+export const userApiKeys = pgTable("user_api_keys", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  anthropicKey: text("anthropic_key"),       // encrypted
+  googleGeminiKey: text("google_gemini_key"), // encrypted
+  huggingfaceKey: text("huggingface_key"),   // encrypted
+  nvidiaKey: text("nvidia_key"),             // encrypted
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Encrypted GSC OAuth tokens — one per user.
 // Note: refresh_token is encrypted at rest with AES-256-GCM via lib/encryption.ts.
 export const gscTokens = pgTable("gsc_tokens", {
@@ -684,6 +695,88 @@ export const ticketStatus = pgTable("ticket_status", {
 }, (t) => [
   uniqueIndex("ticket_status_unique").on(t.briefId, t.ticketIndex),
   index("ticket_status_user_idx").on(t.userId),
+]);
+
+// Generated articles — full SEO-optimized articles produced by AI.
+export const generatedArticles = pgTable("generated_articles", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keywordId: text("keyword_id").references(() => keywords.id, { onDelete: "set null" }),
+  title: text("title").notNull().default(""),
+  metaDescription: text("meta_description").notNull().default(""),
+  slug: text("slug").notNull().default(""),
+  content: text("content").notNull().default(""),
+  wordCount: integer("word_count"),
+  status: text("status").notNull(), // queued | generating | done | failed
+  model: text("model"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("generated_articles_user_idx").on(t.userId),
+  index("generated_articles_keyword_idx").on(t.keywordId),
+  index("generated_articles_status_idx").on(t.status),
+]);
+
+// Keyword groups — user-defined tags/folders for organizing keywords.
+export const keywordGroups = pgTable("keyword_groups", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color"), // hex color, e.g. "#A855F7"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("keyword_groups_user_idx").on(t.userId),
+]);
+
+// Many-to-many: which keywords belong to which groups.
+export const keywordGroupMembers = pgTable("keyword_group_members", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").notNull().references(() => keywordGroups.id, { onDelete: "cascade" }),
+  keywordId: text("keyword_id").notNull().references(() => keywords.id, { onDelete: "cascade" }),
+}, (t) => [
+  uniqueIndex("keyword_group_members_unique").on(t.groupId, t.keywordId),
+  index("keyword_group_members_keyword_idx").on(t.keywordId),
+]);
+
+// Public share links — shareable read-only URLs for briefs and audits.
+export const shareLinks = pgTable("share_links", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  resourceType: text("resource_type").notNull(), // 'brief' | 'audit'
+  resourceId: text("resource_id").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("share_links_user_idx").on(t.userId),
+  index("share_links_token_idx").on(t.token),
+]);
+
+// Position alerts — user-configured alerts on keyword rank changes.
+export const positionAlerts = pgTable("position_alerts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keywordId: text("keyword_id").notNull().references(() => keywords.id, { onDelete: "cascade" }),
+  condition: text("condition").notNull(), // 'exits_top_3' | 'exits_top_10' | 'exits_top_20' | 'drops_by_5' | 'drops_by_10'
+  enabled: boolean("enabled").notNull().default(true),
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("position_alerts_user_idx").on(t.userId),
+  index("position_alerts_keyword_idx").on(t.keywordId),
+]);
+
+// Audit log — tracks every meaningful user action for accountability.
+export const auditLog = pgTable("audit_log", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  actorId: text("actor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  detail: text("detail"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("audit_log_user_idx").on(t.userId),
+  index("audit_log_actor_idx").on(t.actorId),
+  index("audit_log_created_idx").on(t.createdAt),
 ]);
 
 // Relations (for Drizzle query helpers)

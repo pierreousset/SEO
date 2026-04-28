@@ -6,6 +6,9 @@ import { and, eq, desc } from "drizzle-orm";
 import { ArrowLeft, ExternalLink, FileText, Loader2, XCircle } from "lucide-react";
 import { GenerateContentBriefButton } from "@/components/generate-content-brief-button";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
+import { Breadcrumbs } from "@/components/breadcrumbs";
+import { PositionAlerts } from "@/components/position-alerts";
+import { listAlerts } from "@/lib/actions/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +53,8 @@ export default async function KeywordBriefPage({
     .orderBy(desc(schema.positions.date))
     .limit(1);
 
+  const alerts = await listAlerts(id);
+
   const status = (latestBrief?.status ?? null) as
     | "queued"
     | "running"
@@ -64,13 +69,7 @@ export default async function KeywordBriefPage({
       {/* Auto-refresh while the job is running */}
       {isActive && <meta httpEquiv="refresh" content="5" />}
 
-      <Link
-        href="/dashboard/keywords"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-        All keywords
-      </Link>
+      <Breadcrumbs />
 
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div className="max-w-3xl">
@@ -133,7 +132,7 @@ export default async function KeywordBriefPage({
       )}
 
       {!brief && status !== "queued" && status !== "running" && status !== "failed" && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
             Generate a <strong>writer-ready brief</strong> for this keyword — outline, entities,
             meta variants, and competitor takeaways. Uses your latest SERP fetch + GSC data +
@@ -148,13 +147,13 @@ export default async function KeywordBriefPage({
       {brief && (
         <>
           {/* Hero summary */}
-          <section className="rounded-2xl bg-secondary p-6 md:p-8">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              Target intent
+          <section className="rounded-2xl bg-card p-6 md:p-8">
+            <div className="font-mono text-[10px] text-muted-foreground">
+              target intent
             </div>
             <p className="mt-3 text-lg md:text-xl leading-relaxed">{brief.targetIntent}</p>
-            <div className="mt-6 text-xs uppercase tracking-wider text-muted-foreground">
-              Your angle
+            <div className="mt-6 font-mono text-[10px] text-muted-foreground">
+              your angle
             </div>
             <p className="mt-3 text-lg md:text-xl leading-relaxed">{brief.primaryAngle}</p>
             <div className="mt-6 flex items-center gap-6 text-sm font-mono tabular text-muted-foreground flex-wrap">
@@ -177,7 +176,7 @@ export default async function KeywordBriefPage({
           {/* Main grid: outline 2/3 + side 1/3 */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Outline */}
-            <div className="lg:col-span-2 rounded-2xl bg-secondary p-6 md:p-8">
+            <div className="lg:col-span-2 rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">Outline</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 {brief.outline.length} sections · follow top-down.
@@ -220,15 +219,15 @@ export default async function KeywordBriefPage({
 
             {/* Side: meta, entities, questions */}
             <div className="space-y-6">
-              <div className="rounded-2xl bg-secondary p-6">
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Meta title variants
+              <div className="rounded-2xl bg-card p-6">
+                <h3 className="font-mono text-[10px] text-muted-foreground">
+                  meta title variants
                 </h3>
                 <ul className="mt-3 space-y-2">
                   {brief.metaTitleVariants.map((t, i) => (
                     <li key={i} className="rounded-[12px] bg-background px-4 py-3 text-sm">
                       {t}
-                      <span className="block text-[10px] uppercase tracking-wider text-muted-foreground mt-1 font-mono tabular">
+                      <span className="block font-mono text-[10px] text-muted-foreground mt-1 font-mono tabular">
                         {t.length} chars
                       </span>
                     </li>
@@ -236,19 +235,19 @@ export default async function KeywordBriefPage({
                 </ul>
               </div>
 
-              <div className="rounded-2xl bg-secondary p-6">
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Meta description
+              <div className="rounded-2xl bg-card p-6">
+                <h3 className="font-mono text-[10px] text-muted-foreground">
+                  meta description
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed">{brief.metaDescription}</p>
-                <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground font-mono tabular">
+                <p className="mt-2 font-mono text-[10px] text-muted-foreground font-mono tabular">
                   {brief.metaDescription.length} chars
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-secondary p-6">
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Entities to cover
+              <div className="rounded-2xl bg-card p-6">
+                <h3 className="font-mono text-[10px] text-muted-foreground">
+                  entities to cover
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {brief.entitiesToCover.map((e, i) => (
@@ -262,9 +261,9 @@ export default async function KeywordBriefPage({
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-secondary p-6">
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Questions to answer
+              <div className="rounded-2xl bg-card p-6">
+                <h3 className="font-mono text-[10px] text-muted-foreground">
+                  questions to answer
                 </h3>
                 <ul className="mt-3 space-y-2">
                   {brief.questionsToAnswer.map((q, i) => (
@@ -282,7 +281,7 @@ export default async function KeywordBriefPage({
 
           {/* Competitor insights */}
           {brief.competitorInsights.length > 0 && (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">Competitor takeaways</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 What each top-ranking page does + the gap you can exploit.
@@ -320,9 +319,9 @@ export default async function KeywordBriefPage({
           {(brief.internalLinkingHints.length > 0 || brief.warnings.length > 0) && (
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {brief.internalLinkingHints.length > 0 && (
-                <div className="rounded-2xl bg-secondary p-6 md:p-8">
-                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Internal linking
+                <div className="rounded-2xl bg-card p-6 md:p-8">
+                  <h3 className="font-mono text-[10px] text-muted-foreground">
+                    internal linking
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm leading-relaxed list-disc pl-5">
                     {brief.internalLinkingHints.map((h, i) => (
@@ -333,8 +332,8 @@ export default async function KeywordBriefPage({
               )}
               {brief.warnings.length > 0 && (
                 <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6 md:p-8">
-                  <h3 className="text-xs uppercase tracking-wider text-[var(--down)]">
-                    Warnings
+                  <h3 className="font-mono text-[10px] text-[var(--down)]">
+                    warnings
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground leading-relaxed list-disc pl-5">
                     {brief.warnings.map((w, i) => (
@@ -347,6 +346,9 @@ export default async function KeywordBriefPage({
           )}
         </>
       )}
+
+      {/* Position alerts */}
+      <PositionAlerts keywordId={id} initialAlerts={alerts} />
     </div>
   );
 }
@@ -359,7 +361,7 @@ function StrengthPill({ strength }: { strength: "weak" | "medium" | "strong" }) 
   };
   return (
     <span
-      className={`inline-block text-[10px] uppercase font-semibold px-2.5 py-1 rounded-full shrink-0 ${map[strength]}`}
+      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full shrink-0 ${map[strength]}`}
     >
       {strength}
     </span>

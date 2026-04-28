@@ -2,8 +2,10 @@ import Link from "next/link";
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { eq, desc } from "drizzle-orm";
-import { ArrowLeft, Check, X, AlertTriangle, Globe, MapPin, Unlink } from "lucide-react";
+import { Check, X, AlertTriangle, Globe, MapPin, Unlink } from "lucide-react";
 import { RunMetaCrawlButton } from "@/components/run-meta-crawl-button";
+import { ExportCsvButton } from "@/components/export-csv-button";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -50,13 +52,7 @@ export default async function MetasPage() {
     <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <Link
-            href="/dashboard/audit"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-4"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            Back to audit
-          </Link>
+          <Breadcrumbs />
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
             Full site crawl
           </p>
@@ -70,10 +66,13 @@ export default async function MetasPage() {
             </p>
           )}
         </div>
-        <RunMetaCrawlButton
-          label={latestRun ? "Re-crawl site" : "Crawl all pages"}
-          activeStatus={runStatus}
-        />
+        <div className="flex items-center gap-2">
+          <ExportCsvButton type="metas" />
+          <RunMetaCrawlButton
+            label={latestRun ? "Re-crawl site" : "Crawl all pages"}
+            activeStatus={runStatus}
+          />
+        </div>
       </header>
 
       {/* Status banner for active/failed runs */}
@@ -97,7 +96,7 @@ export default async function MetasPage() {
       )}
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl text-sm">
+        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl text-sm">
           <p className="text-muted-foreground">
             Parses your sitemap.xml, crawls every page to extract title & meta description,
             then discovers pages linked internally but missing from the sitemap. Takes 1-3 min.
@@ -142,23 +141,23 @@ export default async function MetasPage() {
 
           {/* Full metas table */}
           <section>
-            <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-              All pages ({totalPages})
+            <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+              all pages ({totalPages})
             </h2>
-            <div className="border border-border rounded-2xl overflow-hidden bg-card overflow-x-auto">
+            <div className="bg-card rounded-2xl overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-2.5">URL</th>
-                    <th className="text-left px-4 py-2.5">Title</th>
-                    <th className="text-center px-3 py-2.5 w-14">Len</th>
+                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
+                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">Title</th>
+                    <th className="text-center px-3 py-2.5 w-14 font-mono text-[9px] text-muted-foreground font-normal">Len</th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5">Meta description</th>
-                    <th className="text-center px-3 py-2.5 w-14">Len</th>
+                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">Meta description</th>
+                    <th className="text-center px-3 py-2.5 w-14 font-mono text-[9px] text-muted-foreground font-normal">Len</th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5">H1</th>
-                    <th className="text-center px-3 py-2.5 w-16">Sitemap</th>
-                    <th className="text-center px-3 py-2.5 w-16">Index</th>
+                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">H1</th>
+                    <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Sitemap</th>
+                    <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Index</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,7 +167,7 @@ export default async function MetasPage() {
                     return (
                       <tr
                         key={m.id}
-                        className={`border-t border-border hover:bg-muted/20 ${
+                        className={`border-b border-border last:border-0 hover:bg-secondary/50 ${
                           !m.inSitemap ? "bg-yellow-500/[0.03]" : ""
                         }`}
                       >
@@ -268,8 +267,8 @@ function SummaryCard({
   alert?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-secondary p-5">
-      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-2xl bg-card p-5">
+      <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
         <Icon className="h-3 w-3" strokeWidth={1.5} />
         {label}
       </div>

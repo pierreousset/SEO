@@ -7,6 +7,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { requireAccountContext } from "@/lib/account-context";
 import { sendTeamInviteEmail } from "@/lib/email/team-invite";
+import { logAction } from "@/lib/audit-log";
 
 /**
  * Send an invite email. Only the owner of the current account can invite.
@@ -85,6 +86,7 @@ export async function sendInvite(email: string) {
     token,
   });
 
+  await logAction({ userId: ctx.ownerId, actorId: ctx.sessionUserId, action: "invite_sent", detail: { email: normalized } });
   revalidatePath("/dashboard/team");
   return { ok: true };
 }
@@ -134,6 +136,8 @@ export async function acceptInvite(token: string) {
     .update(schema.teamInvites)
     .set({ acceptedAt: new Date() })
     .where(eq(schema.teamInvites.id, invite.id));
+
+  await logAction({ userId: invite.ownerId, actorId: ctx.sessionUserId, action: "member_joined" });
 
   // Switch to the owner's account
   const cookieStore = await cookies();

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { Finding } from "@/lib/audit/checks";
 import type { BusinessProfile } from "@/lib/llm/brief";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
 
 const synthesisSchema = z.object({
   summary: z.string().min(20).max(800),
@@ -62,8 +63,12 @@ export async function synthesizeAudit(input: {
   findings: Finding[];
   profile?: BusinessProfile | null;
   pagesCrawled: number;
+  userId?: string;
 }): Promise<AuditSynthesis> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const apiKey = input.userId
+    ? await getAnthropicApiKey(input.userId)
+    : process.env.ANTHROPIC_API_KEY;
+  const client = new Anthropic({ apiKey });
 
   const tool: Anthropic.Tool = {
     name: "save_synthesis",

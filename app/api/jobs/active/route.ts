@@ -17,6 +17,9 @@ const RUN_TABLES = [
   { table: schema.llmVisibilityRuns, label: "AEO check" },
 ] as const;
 
+// Ignore runs stuck in "running" for more than 1 hour — likely crashed workers.
+const ONE_HOUR_AGO = () => new Date(Date.now() - 60 * 60 * 1000);
+
 export async function GET() {
   let ctx: Awaited<ReturnType<typeof resolveAccountContext>>;
   try {
@@ -26,10 +29,11 @@ export async function GET() {
   }
 
   const active: Array<{ label: string; status: string }> = [];
+  const cutoff = ONE_HOUR_AGO();
 
   for (const { table, label } of RUN_TABLES) {
-    const [row] = await db
-      .select({ status: table.status })
+    const rows = await db
+      .select({ status: table.status, queuedAt: table.queuedAt })
       .from(table)
       .where(
         and(
@@ -38,7 +42,8 @@ export async function GET() {
         ),
       )
       .limit(1);
-    if (row) {
+    const row = rows[0];
+    if (row && row.queuedAt > cutoff) {
       active.push({ label, status: row.status });
     }
   }

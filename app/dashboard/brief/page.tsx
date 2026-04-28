@@ -4,6 +4,10 @@ import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
+import { getUserPlan } from "@/lib/billing-helpers";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { ShareLinkButton } from "@/components/share-link-button";
+import { BriefPdfButton } from "@/components/brief-pdf-button";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +46,8 @@ export default async function BriefPage() {
       }
     : null;
 
+  const plan = await getUserPlan(ctx.ownerId);
+
   if (!latest) {
     return (
       <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
@@ -50,21 +56,28 @@ export default async function BriefPage() {
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Weekly</p>
           <h1 className="font-display text-[40px] mt-3">Brief</h1>
         </header>
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
-          <p className="text-lg text-muted-foreground">
-            {hasData
-              ? "You have data — generate the first brief now, or wait for Monday 09:00 UTC."
-              : "No data yet. Run a SERP fetch first, then generate the brief."}
-          </p>
-          {hasData && (
-            <div className="mt-6">
-              <GenerateBriefButton
-                variant="default"
-                activeStatus={(latestBriefRun?.status as any) ?? null}
-              />
-            </div>
-          )}
-        </div>
+        {plan === "free" ? (
+          <UpgradePrompt
+            feature="Weekly AI Brief"
+            description="Get a weekly AI-generated brief analyzing your keyword movements, top movers, and actionable tickets. Upgrade to Pro to unlock."
+          />
+        ) : (
+          <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
+            <p className="text-lg text-muted-foreground">
+              {hasData
+                ? "You have data — generate the first brief now, or wait for Monday 09:00 UTC."
+                : "No data yet. Run a SERP fetch first, then generate the brief."}
+            </p>
+            {hasData && (
+              <div className="mt-6">
+                <GenerateBriefButton
+                  variant="default"
+                  activeStatus={(latestBriefRun?.status as any) ?? null}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -101,7 +114,9 @@ export default async function BriefPage() {
             {latest.summary}
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center gap-2">
+          <BriefPdfButton briefId={latest.id} />
+          <ShareLinkButton resourceType="brief" resourceId={latest.id} />
           <GenerateBriefButton
             label="Regenerate"
             activeStatus={(latestBriefRun?.status as any) ?? null}

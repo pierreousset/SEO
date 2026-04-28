@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb } from "@/db/client";
 import { DiscoverTabs } from "@/components/discover-tabs";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +37,7 @@ export default async function DiscoverPage() {
   return (
     <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-6">
       <div>
-        <Link
-          href="/dashboard/keywords"
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3 w-3" /> Back to keywords
-        </Link>
+        <Breadcrumbs />
         <h1 className="font-display text-[40px] mt-3">Discover</h1>
         <p className="mt-3 text-base text-muted-foreground max-w-2xl">
           Three sources to expand your tracked keyword list: your own Search Console queries,

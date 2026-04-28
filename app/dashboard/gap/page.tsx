@@ -7,6 +7,8 @@ import { RunGapScanButton } from "@/components/run-gap-scan-button";
 import { GapStatusBanner } from "@/components/gap-status-banner";
 import { TrackGapKeywordButton } from "@/components/track-gap-keyword-button";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
+import { getUserPlan } from "@/lib/billing-helpers";
+import { UpgradePrompt } from "@/components/upgrade-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -74,24 +76,31 @@ export default async function GapPage() {
       <GapStatusBanner run={banner} />
 
       {!latestRun && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
-          <p className="text-lg">
-            Pull the keywords your <strong>declared competitors</strong> rank for and diff them
-            against your tracked queries. The gap = what they're winning that you don't even
-            track.
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Requires at least one competitor URL in{" "}
-            <Link href="/dashboard/business" className="underline">
-              your business profile
-            </Link>
-            . Takes 1-3 minutes · ~$0.01/competitor.
-          </p>
-        </div>
+        await getUserPlan(ctx.ownerId) === "free" ? (
+          <UpgradePrompt
+            feature="Competitor Keyword Gap"
+            description="Discover keywords your competitors rank for that you don't track yet. Upgrade to Pro to run gap scans."
+          />
+        ) : (
+          <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
+            <p className="text-lg">
+              Pull the keywords your <strong>declared competitors</strong> rank for and diff them
+              against your tracked queries. The gap = what they're winning that you don't even
+              track.
+            </p>
+            <p className="text-sm text-muted-foreground mt-4">
+              Requires at least one competitor URL in{" "}
+              <Link href="/dashboard/business" className="underline">
+                your business profile
+              </Link>
+              . Takes 1-3 minutes · ~$0.01/competitor.
+            </p>
+          </div>
+        )
       )}
 
       {latestRun && latestRun.status === "done" && findings.length === 0 && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10">
+        <div className="rounded-2xl bg-card p-8 md:p-10">
           <p className="text-lg">
             <strong>No gap detected.</strong> Every keyword your competitors rank for is either
             already tracked or below our visibility threshold.
@@ -122,7 +131,7 @@ export default async function GapPage() {
           </section>
 
           {competitorBreakdown.length > 1 && (
-            <section className="rounded-2xl bg-secondary p-6 md:p-8">
+            <section className="rounded-2xl bg-card p-6 md:p-8">
               <h2 className="font-display text-2xl md:text-3xl">By competitor</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 How many gap keywords each competitor owns as their best position.
@@ -141,7 +150,7 @@ export default async function GapPage() {
             </section>
           )}
 
-          <section className="rounded-2xl bg-secondary p-6 md:p-8">
+          <section className="rounded-2xl bg-card p-6 md:p-8">
             <h2 className="font-display text-2xl md:text-3xl">Top opportunities</h2>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
               Ranked by volume × intent − difficulty. Click <strong>Track</strong> to add to
@@ -149,21 +158,21 @@ export default async function GapPage() {
             </p>
             <div className="rounded-[12px] bg-background overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium">Keyword</th>
-                    <th className="text-center px-3 py-3 font-medium w-12">Intent</th>
-                    <th className="text-right px-3 py-3 font-medium">Volume</th>
-                    <th className="text-right px-3 py-3 font-medium">KD</th>
-                    <th className="text-right px-3 py-3 font-medium">CPC</th>
-                    <th className="text-left px-4 py-3 font-medium">Best competitor</th>
-                    <th className="text-center px-3 py-3 font-medium">Also on</th>
-                    <th className="text-right px-4 py-3 font-medium">Action</th>
+                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
+                    <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal w-12">Intent</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Volume</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">KD</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">CPC</th>
+                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Best competitor</th>
+                    <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Also on</th>
+                    <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {findings.slice(0, 200).map((f, i) => (
-                    <tr key={`${f.keyword}-${i}`} className="border-t border-border">
+                    <tr key={`${f.keyword}-${i}`} className="border-b border-border last:border-0 hover:bg-secondary/50">
                       <td className="px-4 py-3 truncate max-w-[280px]" title={f.keyword}>
                         {f.keyword}
                       </td>
@@ -205,7 +214,7 @@ export default async function GapPage() {
                       <td className="px-3 py-3 text-center">
                         {f.alsoOn.length > 0 ? (
                           <span
-                            className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full bg-foreground/10 text-foreground"
+                            className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground"
                             title={f.alsoOn.join(", ")}
                           >
                             +{f.alsoOn.length}
@@ -236,7 +245,7 @@ export default async function GapPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-xs uppercase tracking-wider opacity-70">Expand the scan</div>
+                <div className="font-mono text-[10px] opacity-70">expand the scan</div>
                 <p className="mt-3 text-lg leading-snug">
                   Add more competitors in your business profile to widen the scan. Each extra
                   competitor reveals their unique keyword territory.
@@ -272,8 +281,8 @@ function StatTile({
         ? "text-[var(--up)]"
         : "text-foreground";
   return (
-    <div className="rounded-2xl bg-secondary p-6">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-2xl bg-card p-6">
+      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
       <div className={`mt-4 font-display text-4xl md:text-5xl ${valueColor}`}>{value}</div>
       {subtitle && (
         <div className="text-xs text-muted-foreground mt-2 font-mono tabular">{subtitle}</div>

@@ -5,6 +5,8 @@
 // domain appears in those citations (and at what position), and track which
 // competing domains were cited instead.
 
+import { getAnthropicApiKey } from "@/lib/ai-provider";
+
 export type EngineName = "perplexity" | "claude" | "openai";
 
 export type EngineResult = {
@@ -91,8 +93,11 @@ export async function checkPerplexity(
 export async function checkClaude(
   query: string,
   userDomain: string,
+  userId?: string,
 ): Promise<EngineResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = userId
+    ? await getAnthropicApiKey(userId)
+    : process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return emptyResult("claude", "ANTHROPIC_API_KEY not set");
   }
@@ -275,10 +280,11 @@ export async function checkAllEngines(
   query: string,
   userDomain: string,
   engines: EngineName[],
+  userId?: string,
 ): Promise<EngineResult[]> {
   const tasks = engines.map((e) => {
     if (e === "perplexity") return checkPerplexity(query, userDomain);
-    if (e === "claude") return checkClaude(query, userDomain);
+    if (e === "claude") return checkClaude(query, userDomain, userId);
     if (e === "openai") return checkOpenAI(query, userDomain);
     return Promise.resolve(emptyResult(e, "unknown engine"));
   });

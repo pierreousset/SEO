@@ -398,6 +398,7 @@ export async function suggestKeywordsWithAI(): Promise<{
     profile,
     existingKeywords,
     gscTopQueries: topQueries,
+    userId: ctx.ownerId,
   });
 
   return { suggestions };

@@ -8,6 +8,8 @@ import { CHAT_TOOLS, executeTool } from "@/lib/chat/tools";
 import { getUserPlan } from "@/lib/billing-helpers";
 import { CHAT_LIMITS, CREDIT_COSTS } from "@/lib/billing-constants";
 import { debitCredits, InsufficientCreditsError } from "@/lib/credits";
+import { getAnthropicApiKey } from "@/lib/ai-provider";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +37,15 @@ export async function POST(req: NextRequest) {
     return new Response("unauthorized", { status: 401 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const rl = rateLimit(`chat:${ctx.ownerId}`, 30, 60_000); // 30 messages per minute
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: "Rate limited. Max 30 messages per minute." }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const apiKey = await getAnthropicApiKey(ctx.ownerId);
   if (!apiKey) return new Response("ANTHROPIC_API_KEY not set", { status: 500 });
 
   // Quota gate (three buckets):

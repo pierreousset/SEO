@@ -1,185 +1,139 @@
-# Design System Inspired by Revolut
+# Design System — Dark Bento
 
-## 1. Visual Theme & Atmosphere
+## 1. Visual Theme
 
-Revolut's website is fintech confidence distilled into pixels — a design system that communicates "your money is in capable hands" through massive typography, generous whitespace, and a disciplined neutral palette. The visual language is built on Aeonik Pro, a geometric grotesque that creates billboard-scale headlines at 136px with weight 500 and aggressive negative tracking (-2.72px). This isn't subtle branding; it's fintech at stadium scale.
+Dark-first dashboard inspired by fintech apps. Depth through subtle tile contrast, not shadows. Zero shadows. Purple accent for primary actions, teal for positive/success, red for negative/error.
 
-The color system is built on a comprehensive `--rui-*` (Revolut UI) token architecture with semantic naming for every state: danger (`#e23b4a`), warning (`#ec7e00`), teal (`#00a87e`), blue (`#494fdf`), deep-pink (`#e61e49`), and more. But the marketing surface itself is remarkably restrained — near-black (`#191c1f`) and pure white (`#ffffff`) dominate, with the colorful semantic tokens reserved for the product interface, not the marketing page.
+## 2. Color Tokens
 
-What distinguishes Revolut is its pill-everything button system. Every button uses 9999px radius — primary dark (`#191c1f`), secondary light (`#f4f4f4`), outlined (`transparent + 2px solid`), and ghost on dark (`rgba(244,244,244,0.1) + 2px solid`). The padding is generous (14px 32px–34px), creating large, confident touch targets. Combined with Inter for body text at various weights and positive letter-spacing (0.16px–0.24px), the result is a design that feels both premium and accessible — banking for the modern era.
+### Dark Mode (default)
+| Token | Value | Use |
+|-------|-------|-----|
+| background | `#0A0A0A` | Page ground |
+| card | `#1A1A1A` | Tiles, cards, inputs |
+| card-hover | `#222222` | Hover state for cards |
+| border | `#2A2A2A` | Dividers, table rows, card borders |
+| foreground | `#FFFFFF` | Primary text |
+| muted-foreground | `#71717A` | Labels, secondary text |
+| fg2 | `#A1A1AA` | Tertiary text, descriptions |
+| primary | `#A855F7` | Purple accent — CTAs, active states, charts |
+| up / teal | `#34D399` | Positive change, success |
+| down / red | `#F87171` | Negative change, error |
+| destructive | `#F87171` | Same as down |
 
-**Key Characteristics:**
-- Aeonik Pro display at 136px weight 500 — billboard-scale fintech headlines
-- Near-black (`#191c1f`) + white binary with comprehensive `--rui-*` semantic tokens
-- Universal pill buttons (9999px radius) with generous padding (14px 32px)
-- Inter for body text with positive letter-spacing (0.16px–0.24px)
-- Rich semantic color system: blue, teal, pink, yellow, green, brown, danger, warning
-- Zero shadows detected — depth through color contrast only
-- Tight display line-heights (1.00) with relaxed body (1.50–1.56)
+### Light Mode (preserved for future toggle)
+| Token | Value |
+|-------|-------|
+| background | `#FFFFFF` |
+| card | `#FFFFFF` |
+| secondary | `#F4F4F4` |
+| border | `#C9C9CD` |
+| foreground | `#191C1F` |
+| muted-foreground | `#505A63` |
+| primary | `#191C1F` |
+| up | `#00A87E` |
+| down | `#E23B4A` |
 
-## 2. Color Palette & Roles
-
-### Primary
-- **Revolut Dark** (`#191c1f`): Primary dark surface, button background, near-black text
-- **Pure White** (`#ffffff`): `--rui-color-action-label`, primary light surface
-- **Light Surface** (`#f4f4f4`): Secondary button background, subtle surface
-
-### Brand / Interactive
-- **Revolut Blue** (`#494fdf`): `--rui-color-blue`, primary brand blue
-- **Action Blue** (`#4f55f1`): `--rui-color-action-photo-header-text`, header accent
-- **Blue Text** (`#376cd5`): `--website-color-blue-text`, link blue
-
-### Semantic
-- **Danger Red** (`#e23b4a`): `--rui-color-danger`, error/destructive
-- **Deep Pink** (`#e61e49`): `--rui-color-deep-pink`, critical accent
-- **Warning Orange** (`#ec7e00`): `--rui-color-warning`, warning states
-- **Yellow** (`#b09000`): `--rui-color-yellow`, attention
-- **Teal** (`#00a87e`): `--rui-color-teal`, success/positive
-- **Light Green** (`#428619`): `--rui-color-light-green`, secondary success
-- **Green Text** (`#006400`): `--website-color-green-text`, green text
-- **Light Blue** (`#007bc2`): `--rui-color-light-blue`, informational
-- **Brown** (`#936d62`): `--rui-color-brown`, warm neutral accent
-- **Red Text** (`#8b0000`): `--website-color-red-text`, dark red text
-
-### Neutral Scale
-- **Mid Slate** (`#505a63`): Secondary text
-- **Cool Gray** (`#8d969e`): Muted text, tertiary
-- **Gray Tone** (`#c9c9cd`): `--rui-color-grey-tone-20`, borders/dividers
-
-## 3. Typography Rules
+## 3. Typography
 
 ### Font Families
-- **Display**: `Aeonik Pro` — geometric grotesque, no detected fallbacks
-- **Body / UI**: `Inter` — standard system sans
-- **Fallback**: `Arial` for specific button contexts
+- **Sans**: Geist — all UI text, headings, body
+- **Mono**: Geist Mono — data labels, numbers, KPIs, table headers, status text
 
 ### Hierarchy
+| Role | Font | Size | Weight | Notes |
+|------|------|------|--------|-------|
+| Page title | Geist | 36-40px | 600 | h1 on each page |
+| Section title | Geist | 20px | 600 | "Search Console", "Highest ROI" |
+| Card label | Geist Mono | 10-11px | 400 | Lowercase. "avg position", "keywords" |
+| Table header | Geist Mono | 9px | 400 | Lowercase. "keyword", "pos", "7d" |
+| Body | Geist | 13-14px | 400 | Standard reading |
+| Data value | Geist Mono | 28px | 600 | KPI numbers |
+| Hero value | Geist Mono | 64px | 600 | Main stat on overview |
+| Button | Geist | 12px | 500 | All buttons |
 
-| Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
-|------|------|------|--------|-------------|----------------|-------|
-| Display Mega | Aeonik Pro | 136px (8.50rem) | 500 | 1.00 (tight) | -2.72px | Stadium-scale hero |
-| Display Hero | Aeonik Pro | 80px (5.00rem) | 500 | 1.00 (tight) | -0.8px | Primary hero |
-| Section Heading | Aeonik Pro | 48px (3.00rem) | 500 | 1.21 (tight) | -0.48px | Feature sections |
-| Sub-heading | Aeonik Pro | 40px (2.50rem) | 500 | 1.20 (tight) | -0.4px | Sub-sections |
-| Card Title | Aeonik Pro | 32px (2.00rem) | 500 | 1.19 (tight) | -0.32px | Card headings |
-| Feature Title | Aeonik Pro | 24px (1.50rem) | 400 | 1.33 | normal | Light headings |
-| Nav / UI | Aeonik Pro | 20px (1.25rem) | 500 | 1.40 | normal | Navigation, buttons |
-| Body Large | Inter | 18px (1.13rem) | 400 | 1.56 | -0.09px | Introductions |
-| Body | Inter | 16px (1.00rem) | 400 | 1.50 | 0.24px | Standard reading |
-| Body Semibold | Inter | 16px (1.00rem) | 600 | 1.50 | 0.16px | Emphasized body |
-| Body Bold Link | Inter | 16px (1.00rem) | 700 | 1.50 | 0.24px | Bold links |
+### Rules
+- Labels are **lowercase** (not uppercase). "avg position" not "AVG POSITION"
+- Numbers always `font-mono tabular-nums`
+- Page header labels (above h1): `text-[10px] font-semibold uppercase tracking-[1.2px]` — the only exception to lowercase rule
 
-### Principles
-- **Weight 500 as display default**: Aeonik Pro uses medium (500) for ALL headings — no bold. This creates authority through size and tracking, not weight.
-- **Billboard tracking**: -2.72px at 136px is extremely compressed — text designed to be read at a glance, like airport signage.
-- **Positive tracking on body**: Inter uses +0.16px to +0.24px, creating airy, well-spaced reading text that contrasts with the compressed headings.
-
-## 4. Component Stylings
+## 4. Components
 
 ### Buttons
+- **Primary**: `bg-primary` (#A855F7), white text, pill (rounded-full), px-4.5 py-2.5
+- **Outline**: transparent, `border-[1.5px] border-border`, text-foreground, pill
+- **Ghost**: transparent, hover `bg-secondary/50`
+- All sizes use pill shape (rounded-full / 9999px)
 
-**Primary Dark Pill**
-- Background: `#191c1f`
-- Text: `#ffffff`
-- Padding: 14px 32px
-- Radius: 9999px (full pill)
-- Hover: opacity 0.85
-- Focus: `0 0 0 0.125rem` ring
+### Cards / Tiles
+- Background: `bg-card` (#1A1A1A)
+- Radius: `rounded-2xl` (16px)
+- Padding: p-5 to p-7 depending on size
+- No shadows, no elevation
+- Border only when needed: `border border-border`
 
-**Secondary Light Pill**
-- Background: `#f4f4f4`
-- Text: `#000000`
-- Padding: 14px 34px
-- Radius: 9999px
-- Hover: opacity 0.85
+### Tables
+- Wrapper: `bg-card rounded-2xl overflow-hidden`
+- Headers: `font-mono text-[9px] text-muted-foreground font-normal` — NO uppercase, NO bold
+- Rows: `border-b border-border last:border-0 hover:bg-secondary/50`
+- Data: `text-xs` for text, `font-mono text-xs tabular-nums` for numbers
 
-**Outlined Pill**
-- Background: transparent
-- Text: `#191c1f`
-- Border: `2px solid #191c1f`
-- Padding: 14px 32px
-- Radius: 9999px
+### Badges / Pills
+- Pattern: `font-mono text-[10px] px-2.5 py-1 rounded-full bg-[color]/15 text-[color]`
+- Success: var(--up) #34D399
+- Error: var(--down) #F87171
+- Running: foreground/10
+- Warning: yellow-500
 
-**Ghost on Dark**
-- Background: `rgba(244, 244, 244, 0.1)`
-- Text: `#f4f4f4`
-- Border: `2px solid #f4f4f4`
-- Padding: 14px 32px
-- Radius: 9999px
+### Inputs
+- Background: `bg-background` (#0A0A0A)
+- Border: `border border-border` (#2A2A2A)
+- Radius: `rounded-xl`
+- Focus: `ring-2 ring-primary/50`
 
-### Cards & Containers
-- Radius: 12px (small), 20px (cards)
-- No shadows — flat surfaces with color contrast
-- Dark and light section alternation
+## 5. Layout
 
-### Navigation
-- Aeonik Pro 20px weight 500
-- Clean header, hamburger toggle at 12px radius
-- Pill CTAs right-aligned
+### Sidebar
+- Mini mode: 64px, icon-only, rounded-xl icon buttons (40x40)
+- Expanded mode: 220px, icons + labels (13px), toggle button
+- Logo: purple square (rounded-[10px]) with white "S" bold
+- Bottom: avatar circle, sign-out (expanded only)
 
-## 5. Layout Principles
+### Top Bar
+- Sticky, backdrop-blur, right-aligned
+- Contains: ActiveJobsIndicator, UsageMeter, CreditsDisplay
+- Height: auto, py-3 px-6
 
-### Spacing System
-- Base unit: 8px
-- Scale: 4px, 6px, 8px, 14px, 16px, 20px, 24px, 32px, 40px, 48px, 80px, 88px, 120px
-- Large section spacing: 80px–120px
+### Content Area
+- Padding: py-7 px-9
+- Max-width: 1400px on wide screens
+- Bento grid: flex rows with gap-3
 
-### Border Radius Scale
-- Standard (12px): Navigation, small buttons
-- Card (20px): Feature cards
-- Pill (9999px): All buttons
+### Bento Grid (Overview)
+- Row 1: Hero KPI (flex-1, h-200) + Mini KPI Stack (w-280, 3 cards stacked)
+- Row 2: Chart (flex-1, h-280) + Gap Zone (w-400, h-280)
+- Row 3: AI Brief (flex-1, h-180, white bg inverted) + Distribution (w-300, h-180)
 
-## 6. Depth & Elevation
-
-| Level | Treatment | Use |
-|-------|-----------|-----|
-| Flat (Level 0) | No shadow | Everything — Revolut uses zero shadows |
-| Focus | `0 0 0 0.125rem` ring | Accessibility focus |
-
-**Shadow Philosophy**: Revolut uses ZERO shadows. Depth comes entirely from the dark/light section contrast and the generous whitespace between elements.
+## 6. Spacing
+- Base: 4px
+- Scale: 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48
+- Bento gap: 12px (gap-3)
+- Card padding: 20-28px
+- Page padding: 28px top, 36px sides
 
 ## 7. Do's and Don'ts
 
 ### Do
-- Use Aeonik Pro weight 500 for all display headings
-- Apply 9999px radius to all buttons — pill shape is universal
-- Use generous button padding (14px 32px)
-- Keep the palette to near-black + white for marketing surfaces
-- Apply positive letter-spacing on Inter body text
+- Use Geist Mono for all data, labels, numbers
+- Use lowercase labels (not UPPERCASE) on cards and tiles
+- Use purple (#A855F7) for primary actions only
+- Use bg-card for all tile backgrounds
+- Use rounded-2xl (16px) for all cards
+- Use pill shape for all buttons
 
 ### Don't
-- Don't use shadows — Revolut is flat by design
-- Don't use bold (700) for Aeonik Pro headings — 500 is the weight
-- Don't use small buttons — the generous padding is intentional
-- Don't apply semantic colors to marketing surfaces — they're for the product
-
-## 8. Responsive Behavior
-
-### Breakpoints
-| Name | Width | Key Changes |
-|------|-------|-------------|
-| Mobile Small | <400px | Compact, single column |
-| Mobile | 400–720px | Standard mobile |
-| Tablet | 720–1024px | 2-column layouts |
-| Desktop | 1024–1280px | Standard desktop |
-| Large | 1280–1920px | Full layout |
-
-## 9. Agent Prompt Guide
-
-### Quick Color Reference
-- Dark: Revolut Dark (`#191c1f`)
-- Light: White (`#ffffff`)
-- Surface: Light (`#f4f4f4`)
-- Blue: Revolut Blue (`#494fdf`)
-- Danger: Red (`#e23b4a`)
-- Success: Teal (`#00a87e`)
-
-### Example Component Prompts
-- "Create a hero: white background. Headline at 136px Aeonik Pro weight 500, line-height 1.00, letter-spacing -2.72px, #191c1f text. Dark pill CTA (#191c1f, 9999px, 14px 32px). Outlined pill secondary (transparent, 2px solid #191c1f)."
-- "Build a pill button: #191c1f background, white text, 9999px radius, 14px 32px padding, 20px Aeonik Pro weight 500. Hover: opacity 0.85."
-
-### Iteration Guide
-1. Aeonik Pro 500 for headings — never bold
-2. All buttons are pills (9999px) with generous padding
-3. Zero shadows — flat is the Revolut identity
-4. Near-black + white for marketing, semantic colors for product
+- Don't use shadows
+- Don't use uppercase on card labels (only on page header labels above h1)
+- Don't use bg-secondary when bg-card is more appropriate
+- Don't mix Inter/Space Grotesk — Geist only
+- Don't use border-foreground on outline buttons (use border-border)

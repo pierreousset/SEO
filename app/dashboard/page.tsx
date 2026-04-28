@@ -128,6 +128,20 @@ export default async function DashboardHome() {
         .where(eq(schema.gscSiteMetrics.userId, ctx.ownerId)),
     ]);
 
+  // Competitor positions — latest 30 rows, joined with keyword name
+  const competitorData = await db
+    .select({
+      domain: schema.competitorPositions.competitorDomain,
+      keyword: schema.keywords.query,
+      competitorPos: schema.competitorPositions.position,
+      keywordId: schema.competitorPositions.keywordId,
+    })
+    .from(schema.competitorPositions)
+    .innerJoin(schema.keywords, eq(schema.competitorPositions.keywordId, schema.keywords.id))
+    .where(eq(schema.competitorPositions.userId, ctx.ownerId))
+    .orderBy(desc(schema.competitorPositions.date))
+    .limit(30);
+
   // Aggregate GSC metrics by date — sum clicks/impressions, weight CTR by impressions,
   // average position over keywords that ranked that day.
   type DailyAgg = { clicks: number; impressions: number; positions: number[] };
@@ -394,7 +408,7 @@ export default async function DashboardHome() {
   ];
 
   return (
-    <div className="py-7 px-9 max-w-[1400px] mx-auto space-y-3">
+    <div className="py-5 px-4 md:py-7 md:px-9 max-w-[1400px] mx-auto space-y-3">
       {/* Header */}
       <header className="flex items-end justify-between gap-6 flex-wrap mb-4">
         <div>
@@ -421,7 +435,7 @@ export default async function DashboardHome() {
       <GscStatusBanner run={gscRunForBanner} />
 
       {/* Bento Row 1: Hero KPI + Mini KPI Stack */}
-      <div className="flex gap-3 items-stretch">
+      <div className="flex flex-col md:flex-row gap-3 items-stretch">
         {/* Hero KPI tile */}
         <div className="flex-1 min-h-[200px] bg-card rounded-2xl p-7 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -449,7 +463,7 @@ export default async function DashboardHome() {
         </div>
 
         {/* Mini KPI Stack */}
-        <div className="w-[280px] flex flex-col gap-3">
+        <div className="w-full md:w-[280px] flex flex-col gap-3">
           <StatTile
             label="keywords"
             value={activeKeywords.length.toLocaleString()}
@@ -469,9 +483,9 @@ export default async function DashboardHome() {
       </div>
 
       {/* Bento Row 2: Chart + Gap Zone */}
-      <div className="flex gap-3">
+      <div className="flex flex-col md:flex-row gap-3">
         {/* Chart tile */}
-        <div className="flex-1 h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-[240px] md:h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
           <div className="mb-3">
             <span className="font-mono text-[10px] text-muted-foreground">performance</span>
             <h2 className="text-xl font-semibold">Search Console</h2>
@@ -488,7 +502,7 @@ export default async function DashboardHome() {
         </div>
 
         {/* Gap Zone tile */}
-        <div className="w-[400px] h-[280px] bg-card rounded-2xl overflow-hidden flex flex-col">
+        <div className="w-full md:w-[400px] min-h-[240px] md:h-[280px] bg-card rounded-2xl overflow-hidden flex flex-col">
           <div className="px-6 pt-5 pb-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
@@ -593,7 +607,7 @@ export default async function DashboardHome() {
       )}
 
       {/* Bento Row 3: AI Brief + Distribution */}
-      <div className="flex gap-3">
+      <div className="flex flex-col md:flex-row gap-3">
         {/* AI Brief tile — white card, dark text */}
         {latestBrief.length > 0 ? (
           <Link
@@ -620,7 +634,7 @@ export default async function DashboardHome() {
         )}
 
         {/* Distribution tile */}
-        <div className="w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
+        <div className="w-full md:w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
           <span className="font-mono text-[10px] text-muted-foreground">position distribution</span>
 
           {/* Bar */}
@@ -690,6 +704,64 @@ export default async function DashboardHome() {
         </div>
       )}
 
+      {/* Competitor positions */}
+      {competitorData.length > 0 && (() => {
+        // Deduplicate: group by keywordId, keep the competitor with the best (lowest) position
+        const bestByKeyword = new Map<string, { domain: string; keyword: string; competitorPos: number | null; keywordId: string }>();
+        for (const row of competitorData) {
+          const existing = bestByKeyword.get(row.keywordId);
+          if (!existing || (row.competitorPos !== null && (existing.competitorPos === null || row.competitorPos < existing.competitorPos))) {
+            bestByKeyword.set(row.keywordId, row);
+          }
+        }
+        const rows = Array.from(bestByKeyword.values());
+
+        return (
+          <div className="bg-card rounded-2xl p-6">
+            <span className="font-mono text-[10px] text-muted-foreground">competitors</span>
+            <h2 className="text-xl font-semibold mt-0.5 mb-4">Competitor positions</h2>
+            <div className="rounded-xl overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">keyword</th>
+                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">you</th>
+                    <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">competitor</th>
+                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">them</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const snap = perKeyword.find((s) => s.id === row.keywordId);
+                    const yourPos = snap?.latest ?? null;
+                    const theirPos = row.competitorPos;
+                    const competitorAhead = theirPos !== null && yourPos !== null && theirPos < yourPos;
+                    const youAhead = theirPos !== null && yourPos !== null && yourPos < theirPos;
+
+                    return (
+                      <tr key={row.keywordId} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2 text-xs truncate max-w-[200px]" title={row.keyword}>
+                          {row.keyword}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">
+                          {yourPos ?? "—"}
+                        </td>
+                        <td className="px-3 py-2 text-xs truncate max-w-[160px]" title={row.domain}>
+                          {row.domain}
+                        </td>
+                        <td className={`px-4 py-2 text-right font-mono text-xs tabular-nums ${competitorAhead ? "text-[var(--down)]" : youAhead ? "text-[var(--up)]" : ""}`}>
+                          {theirPos ?? "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Inngest dev hint */}
       {connected && activeKeywords.length > 0 && totalPositions === 0 && (
         <div className="rounded-2xl border border-border p-4 flex items-start gap-2 text-xs text-muted-foreground">
@@ -710,7 +782,7 @@ export default async function DashboardHome() {
         <section>
           <span className="font-mono text-[10px] text-muted-foreground">activity</span>
           <h2 className="text-xl font-semibold mt-0.5 mb-3">Recent fetches</h2>
-          <div className="rounded-2xl bg-card overflow-hidden">
+          <div className="rounded-2xl bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
