@@ -126,6 +126,13 @@ export function ApiKeysForm({
             <span className={`inline-block h-2 w-2 rounded-full ${status.ollama ? "bg-emerald-500" : "bg-neutral-600"}`} />
             <span className="text-sm font-medium text-neutral-300">Ollama</span>
           </div>
+          <input
+            name="ollamaKey"
+            type="password"
+            autoComplete="off"
+            placeholder={status.ollama ? "******** (configured)" : "API key (cloud) — optional for local"}
+            className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+          />
           <div className="grid grid-cols-2 gap-3">
             <input
               name="ollamaUrl"
@@ -142,7 +149,7 @@ export function ApiKeysForm({
               className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
             />
           </div>
-          <p className="text-[11px] text-neutral-500">URL + model name. Ollama exposes an OpenAI-compatible API.</p>
+          <p className="text-[11px] text-neutral-500">Cloud: API key + URL. Local: just URL + model. OpenAI-compatible API.</p>
         </div>
 
         {/* LM Studio */}

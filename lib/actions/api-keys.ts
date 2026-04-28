@@ -15,7 +15,7 @@ export async function saveApiKeys(formData: FormData) {
   const ctx = await requireAccountContext();
   if (!ctx.isOwner) redirect("/dashboard");
 
-  const encryptedFields = ["anthropicKey", "googleGeminiKey", "huggingfaceKey", "nvidiaKey"] as const;
+  const encryptedFields = ["anthropicKey", "googleGeminiKey", "huggingfaceKey", "nvidiaKey", "ollamaKey"] as const;
 
   const values: Record<string, string | null> = {};
   for (const field of encryptedFields) {
@@ -38,6 +38,7 @@ export async function saveApiKeys(formData: FormData) {
       googleGeminiKey: values.googleGeminiKey,
       huggingfaceKey: values.huggingfaceKey,
       nvidiaKey: values.nvidiaKey,
+      ollamaKey: values.ollamaKey,
       ollamaUrl,
       ollamaModel,
       lmStudioUrl,
@@ -52,6 +53,7 @@ export async function saveApiKeys(formData: FormData) {
         googleGeminiKey: values.googleGeminiKey,
         huggingfaceKey: values.huggingfaceKey,
         nvidiaKey: values.nvidiaKey,
+        ollamaKey: values.ollamaKey,
         ollamaUrl,
         ollamaModel,
         lmStudioUrl,
@@ -82,6 +84,7 @@ export async function getDecryptedApiKeys(userId: string) {
       googleGeminiKey: null as string | null,
       huggingfaceKey: null as string | null,
       nvidiaKey: null as string | null,
+      ollamaKey: null as string | null,
       ollamaUrl: null as string | null,
       ollamaModel: null as string | null,
       lmStudioUrl: null as string | null,
@@ -94,6 +97,7 @@ export async function getDecryptedApiKeys(userId: string) {
     googleGeminiKey: row.googleGeminiKey ? decrypt(row.googleGeminiKey) : null,
     huggingfaceKey: row.huggingfaceKey ? decrypt(row.huggingfaceKey) : null,
     nvidiaKey: row.nvidiaKey ? decrypt(row.nvidiaKey) : null,
+    ollamaKey: row.ollamaKey ? decrypt(row.ollamaKey) : null,
     ollamaUrl: row.ollamaUrl,
     ollamaModel: row.ollamaModel,
     lmStudioUrl: row.lmStudioUrl,
@@ -116,7 +120,7 @@ export async function getApiKeyStatus(userId: string) {
     googleGemini: !!row?.googleGeminiKey,
     huggingface: !!row?.huggingfaceKey,
     nvidia: !!row?.nvidiaKey,
-    ollama: !!row?.ollamaUrl,
+    ollama: !!(row?.ollamaKey || row?.ollamaUrl),
     lmStudio: !!row?.lmStudioUrl,
     byokEnabled: row?.byokEnabled ?? false,
   };

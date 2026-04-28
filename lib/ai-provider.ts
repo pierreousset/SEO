@@ -27,14 +27,20 @@ export async function getNvidiaApiKey(userId: string): Promise<string | undefine
 
 /**
  * Get Ollama config. Returns null if not configured.
+ * Supports both cloud Ollama (with API key) and local (URL only).
  * Ollama exposes an OpenAI-compatible API at /v1.
  */
-export async function getOllamaConfig(userId: string): Promise<{ baseUrl: string; model: string } | null> {
+export async function getOllamaConfig(userId: string): Promise<{
+  baseUrl: string;
+  model: string;
+  apiKey: string | null;
+} | null> {
   const keys = await getDecryptedApiKeys(userId);
-  if (!keys.ollamaUrl) return null;
+  if (!keys.ollamaUrl && !keys.ollamaKey) return null;
   return {
-    baseUrl: keys.ollamaUrl.replace(/\/$/, ""),
+    baseUrl: (keys.ollamaUrl || "http://localhost:11434").replace(/\/$/, ""),
     model: keys.ollamaModel || "llama3",
+    apiKey: keys.ollamaKey,
   };
 }
 

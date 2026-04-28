@@ -151,7 +151,8 @@ export const userApiKeys = pgTable("user_api_keys", {
   googleGeminiKey: text("google_gemini_key"), // encrypted
   huggingfaceKey: text("huggingface_key"),   // encrypted
   nvidiaKey: text("nvidia_key"),             // encrypted
-  ollamaUrl: text("ollama_url"),             // e.g. http://localhost:11434
+  ollamaKey: text("ollama_key"),              // encrypted — cloud Ollama API key
+  ollamaUrl: text("ollama_url"),             // e.g. https://api.ollama.com or http://localhost:11434
   ollamaModel: text("ollama_model"),         // e.g. llama3, mistral
   lmStudioUrl: text("lm_studio_url"),        // e.g. http://localhost:1234
   lmStudioModel: text("lm_studio_model"),    // e.g. local-model
