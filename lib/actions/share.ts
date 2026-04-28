@@ -52,4 +52,5 @@ export async function revokeShareLink(shareId: string) {
 
   revalidatePath("/dashboard/brief");
   revalidatePath("/dashboard/audit");
+  return { ok: true };
 }

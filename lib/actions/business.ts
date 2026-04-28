@@ -51,9 +51,67 @@ export async function saveBusinessProfile(formData: FormData) {
   }
 
   const t = tenantDb(ctx.ownerId);
-  await t.upsertBusinessProfile(parsed.data);
+
+  // Preserve email digest settings that are managed by the separate digest form
+  const existing = await t.selectBusinessProfile();
+  await t.upsertBusinessProfile({
+    ...parsed.data,
+    emailDigestFrequency: existing?.emailDigestFrequency ?? "weekly",
+    emailDigestSections: (existing?.emailDigestSections as string[] | undefined) ?? ["health_score", "top_issues", "position_changes", "brief_summary"],
+  });
   revalidatePath("/dashboard/business");
   revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+const digestFrequencySchema = z.enum(["daily", "weekly", "monthly", "off"]);
+const digestSectionsSchema = z
+  .array(
+    z.enum([
+      "health_score",
+      "top_issues",
+      "position_changes",
+      "brief_summary",
+      "content_decay",
+      "competitor_keywords",
+    ]),
+  )
+  .max(6)
+  .default(["health_score", "top_issues", "position_changes", "brief_summary"]);
+
+export async function updateEmailDigestSettings(frequency: string, sections: string[]) {
+  const ctx = await requireAccountContext();
+
+  const freqParsed = digestFrequencySchema.safeParse(frequency);
+  if (!freqParsed.success) {
+    return { error: "Invalid frequency value." };
+  }
+  const secParsed = digestSectionsSchema.safeParse(sections);
+  if (!secParsed.success) {
+    return { error: "Invalid sections: " + secParsed.error.issues.map((i) => i.message).join("; ") };
+  }
+
+  const t = tenantDb(ctx.ownerId);
+  const profile = await t.selectBusinessProfile();
+
+  // Upsert with existing values + new digest fields
+  await t.upsertBusinessProfile({
+    businessName: profile?.businessName ?? null,
+    primaryService: profile?.primaryService ?? null,
+    secondaryServices: profile?.secondaryServices ?? [],
+    targetCities: profile?.targetCities ?? [],
+    targetCustomer: profile?.targetCustomer ?? null,
+    averageCustomerValueEur: profile?.averageCustomerValueEur ?? null,
+    competitorUrls: profile?.competitorUrls ?? [],
+    biggestSeoProblem: profile?.biggestSeoProblem ?? null,
+    preferredLanguage: profile?.preferredLanguage ?? "fr",
+    weeklyEmailEnabled: profile?.weeklyEmailEnabled ?? true,
+    weeklyEmailRecipient: profile?.weeklyEmailRecipient ?? null,
+    emailDigestFrequency: freqParsed.data,
+    emailDigestSections: secParsed.data,
+  });
+
+  revalidatePath("/dashboard/business");
   return { ok: true };
 }
 
@@ -110,6 +168,8 @@ export async function addCompetitorFromDiscovery(domain: string) {
     preferredLanguage: profile?.preferredLanguage ?? "fr",
     weeklyEmailEnabled: profile?.weeklyEmailEnabled ?? true,
     weeklyEmailRecipient: profile?.weeklyEmailRecipient ?? null,
+    emailDigestFrequency: profile?.emailDigestFrequency ?? "weekly",
+    emailDigestSections: (profile?.emailDigestSections as string[] | undefined) ?? ["health_score", "top_issues", "position_changes", "brief_summary"],
   });
 
   revalidatePath("/dashboard/business");

@@ -422,9 +422,21 @@ export const weeklyBrief = inngest.createFunction(
         }),
       );
 
-      // Send weekly brief email (opt-out via business profile).
+      // Send weekly brief email — respect digest frequency preference.
       await step.run("send-email", async () => {
+        // Legacy opt-out flag
         if (!profile?.weeklyEmailEnabled) return { skipped: "opt_out" };
+
+        // New frequency setting: 'off' skips entirely
+        const freq = (profile as Record<string, unknown>)?.emailDigestFrequency as string | undefined;
+        if (freq === "off") return { skipped: "digest_off" };
+
+        // TODO: 'daily' — needs a separate daily cron function (brief/generate.daily)
+        // TODO: 'monthly' — skip 3 out of 4 weeks (send only on 1st Monday of month)
+        if (freq === "monthly") {
+          const today = new Date();
+          if (today.getDate() > 7) return { skipped: "monthly_not_first_week" };
+        }
 
         // Resolve recipient: profile override first, fall back to login email.
         let recipient = profile?.weeklyEmailRecipient ?? null;

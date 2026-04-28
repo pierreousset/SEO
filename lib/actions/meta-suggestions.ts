@@ -65,7 +65,12 @@ async function callClaude(
     .map((b) => b.text)
     .join("");
 
-  const parsed = JSON.parse(text);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { title: "", metaDescription: "", reasoning: "AI returned invalid response. Try again." };
+  }
   return {
     title: String(parsed.title ?? ""),
     metaDescription: String(parsed.metaDescription ?? ""),

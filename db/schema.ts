@@ -93,6 +93,9 @@ export const businessProfiles = pgTable("business_profiles", {
   // If recipient is null, sends to the user's login email.
   weeklyEmailEnabled: boolean("weekly_email_enabled").notNull().default(true),
   weeklyEmailRecipient: text("weekly_email_recipient"),
+  // Email digest customization
+  emailDigestFrequency: text("email_digest_frequency").notNull().default("weekly"), // 'daily' | 'weekly' | 'monthly' | 'off'
+  emailDigestSections: jsonb("email_digest_sections").$type<string[]>().notNull().default(["health_score", "top_issues", "position_changes", "brief_summary"]),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

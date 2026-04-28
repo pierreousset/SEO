@@ -2,6 +2,7 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { and, eq, gte } from "drizzle-orm";
 import { BusinessProfileForm } from "@/components/business-profile-form";
+import { EmailDigestForm } from "@/components/email-digest-form";
 import { CompetitorSuggestions } from "@/components/competitor-suggestions";
 import { suggestCompetitors } from "@/lib/competitor-discovery";
 
@@ -104,6 +105,16 @@ export default async function BusinessPage() {
               }
         }
       />
+
+      <section>
+        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Email digest</h2>
+        <div className="border border-border rounded-md bg-card p-5">
+          <EmailDigestForm
+            currentFrequency={profile?.emailDigestFrequency ?? "weekly"}
+            currentSections={(profile?.emailDigestSections as string[] | undefined) ?? ["health_score", "top_issues", "position_changes", "brief_summary"]}
+          />
+        </div>
+      </section>
 
       {suggestions.length > 0 && (
         <CompetitorSuggestions

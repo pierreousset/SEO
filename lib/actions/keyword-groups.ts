@@ -9,7 +9,7 @@ import { requireAccountContext } from "@/lib/account-context";
 export async function createGroup(name: string, color?: string) {
   const ctx = await requireAccountContext();
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Group name is required");
+  if (!trimmed) return { error: "Group name is required" };
 
   const id = randomUUID();
   const [group] = await db
@@ -54,7 +54,7 @@ export async function addKeywordToGroup(keywordId: string, groupId: string) {
         eq(schema.keywordGroups.userId, ctx.ownerId),
       ),
     );
-  if (!group) throw new Error("Group not found");
+  if (!group) return { error: "Group not found" };
 
   const id = randomUUID();
   await db
@@ -78,7 +78,7 @@ export async function removeKeywordFromGroup(keywordId: string, groupId: string)
         eq(schema.keywordGroups.userId, ctx.ownerId),
       ),
     );
-  if (!group) throw new Error("Group not found");
+  if (!group) return { error: "Group not found" };
 
   await db
     .delete(schema.keywordGroupMembers)
