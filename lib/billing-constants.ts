@@ -74,6 +74,7 @@ export const CHAT_LIMITS = {
 /** Stripe price IDs from env. Filled per environment. */
 export const STRIPE_PRICES = {
   baseMonthly: process.env.STRIPE_PRICE_BASE_MONTHLY ?? "",
+  baseAnnual: process.env.STRIPE_PRICE_BASE_ANNUAL ?? "",
   credits50: process.env.STRIPE_PRICE_CREDITS_50 ?? "",
   credits200: process.env.STRIPE_PRICE_CREDITS_200 ?? "",
   credits500: process.env.STRIPE_PRICE_CREDITS_500 ?? "",

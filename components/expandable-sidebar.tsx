@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ChangelogModal } from "@/components/changelog-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LocaleToggle } from "@/components/locale-toggle";
+import { useLocale } from "@/components/locale-provider";
+import { t } from "@/lib/i18n";
 import {
   PanelLeftOpen,
   PanelLeftClose,
@@ -100,6 +104,8 @@ export function ExpandableSidebar({
     };
   }, [mobileOpen]);
 
+  const { locale } = useLocale();
+
   // Shared sidebar content rendered as the <aside> inner
   const sidebarContent = (isMobile: boolean) => {
     const isExpanded = isMobile ? true : expanded;
@@ -159,7 +165,7 @@ export function ExpandableSidebar({
                 }`}
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
-                {isExpanded && <span className="truncate">{item.label}</span>}
+                {isExpanded && <span className="truncate">{t(`nav.${item.label.toLowerCase().replace(/ /g, "_")}`, locale) !== `nav.${item.label.toLowerCase().replace(/ /g, "_")}` ? t(`nav.${item.label.toLowerCase().replace(/ /g, "_")}`, locale) : item.label}</span>}
               </Link>
             );
           })}
@@ -172,7 +178,11 @@ export function ExpandableSidebar({
           }`}
         >
           {isExpanded && accountSwitcherSlot}
-          <ChangelogModal />
+          <div className={`flex ${isExpanded ? "gap-1" : "flex-col items-center gap-1"}`}>
+            <ThemeToggle />
+            <LocaleToggle />
+            <ChangelogModal />
+          </div>
 
           {isExpanded ? (
             <div className="rounded-xl bg-secondary p-3 space-y-2">

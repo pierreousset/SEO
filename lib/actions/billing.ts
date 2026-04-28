@@ -121,6 +121,118 @@ export async function startCreditsCheckout(
 }
 
 /**
+ * Subscribe to the Pro plan (annual) — opens Stripe Checkout in subscription mode.
+ * Returns the URL for the client to redirect to.
+ */
+export async function startProAnnualCheckout(): Promise<{ url: string }> {
+  const ctx = await requireOwnerContext();
+  if (!STRIPE_PRICES.baseAnnual) {
+    throw new Error("STRIPE_PRICE_BASE_ANNUAL not configured");
+  }
+
+  const existingCustomerId = await getStripeCustomerIdForUser(ctx.sessionUserId);
+  const customerId = await getOrCreateStripeCustomer({
+    userId: ctx.sessionUserId,
+    email: ctx.sessionUserEmail,
+    existingCustomerId,
+  });
+
+  if (!existingCustomerId) {
+    await db.insert(schema.stripeCustomers).values({
+      userId: ctx.sessionUserId,
+      stripeCustomerId: customerId,
+      email: ctx.sessionUserEmail,
+    }).onConflictDoNothing();
+  }
+
+  const checkout = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    line_items: [{ price: STRIPE_PRICES.baseAnnual, quantity: 1 }],
+    success_url: `${appUrl()}/dashboard/billing?status=success`,
+    cancel_url: `${appUrl()}/dashboard/billing?status=cancelled`,
+    allow_promotion_codes: true,
+    automatic_tax: { enabled: false },
+    metadata: { userId: ctx.sessionUserId, kind: "subscription" },
+    subscription_data: {
+      metadata: { userId: ctx.sessionUserId },
+    },
+  });
+
+  if (!checkout.url) throw new Error("Stripe didn't return a checkout URL");
+  return { url: checkout.url };
+}
+
+/**
+ * Update auto-refill settings for credit notifications.
+ */
+export async function updateAutoRefill(
+  enabled: boolean,
+  threshold: number,
+  packPriceId: string,
+): Promise<void> {
+  const ctx = await requireOwnerContext();
+
+  // Validate pack price id
+  const allowed = [
+    STRIPE_PRICES.credits50,
+    STRIPE_PRICES.credits200,
+    STRIPE_PRICES.credits500,
+  ].filter(Boolean);
+  if (packPriceId && !allowed.includes(packPriceId)) {
+    throw new Error("Unknown credit pack");
+  }
+
+  await db
+    .update(schema.userApiKeys)
+    .set({
+      autoRefillEnabled: enabled,
+      autoRefillThreshold: threshold,
+      autoRefillPackPriceId: packPriceId || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.userApiKeys.userId, ctx.sessionUserId));
+
+  // Upsert if no row exists yet
+  await db
+    .insert(schema.userApiKeys)
+    .values({
+      userId: ctx.sessionUserId,
+      autoRefillEnabled: enabled,
+      autoRefillThreshold: threshold,
+      autoRefillPackPriceId: packPriceId || null,
+      updatedAt: new Date(),
+    })
+    .onConflictDoNothing();
+}
+
+/**
+ * Get auto-refill settings for the current user.
+ */
+export async function getAutoRefillSettings(): Promise<{
+  enabled: boolean;
+  threshold: number;
+  packPriceId: string | null;
+}> {
+  const ctx = await requireOwnerContext();
+  const [row] = await db
+    .select({
+      enabled: schema.userApiKeys.autoRefillEnabled,
+      threshold: schema.userApiKeys.autoRefillThreshold,
+      packPriceId: schema.userApiKeys.autoRefillPackPriceId,
+    })
+    .from(schema.userApiKeys)
+    .where(eq(schema.userApiKeys.userId, ctx.sessionUserId))
+    .limit(1);
+
+  return {
+    enabled: row?.enabled ?? false,
+    threshold: row?.threshold ?? 10,
+    packPriceId: row?.packPriceId ?? null,
+  };
+}
+
+/**
  * Stripe-hosted Billing Portal — user manages payment method, cancels sub, sees history.
  */
 export async function openBillingPortal(): Promise<{ url: string }> {

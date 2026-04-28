@@ -157,6 +157,10 @@ export const userApiKeys = pgTable("user_api_keys", {
   lmStudioUrl: text("lm_studio_url"),        // e.g. http://localhost:1234
   lmStudioModel: text("lm_studio_model"),    // e.g. local-model
   byokEnabled: boolean("byok_enabled").notNull().default(false),
+  // Auto-refill notification settings
+  autoRefillEnabled: boolean("auto_refill_enabled").notNull().default(false),
+  autoRefillThreshold: integer("auto_refill_threshold").notNull().default(10),
+  autoRefillPackPriceId: text("auto_refill_pack_price_id"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -837,6 +841,46 @@ export const webVitals = pgTable("web_vitals", {
 }, (t) => [
   index("web_vitals_user_idx").on(t.userId),
   index("web_vitals_fetched_idx").on(t.fetchedAt),
+]);
+
+// Referral program — tracks who referred whom and credit rewards.
+export const referrals = pgTable("referrals", {
+  id: text("id").primaryKey(),
+  referrerId: text("referrer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  referredEmail: text("referred_email").notNull(),
+  referredUserId: text("referred_user_id").references(() => users.id, { onDelete: "set null" }),
+  creditsAwarded: boolean("credits_awarded").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("referrals_referrer_idx").on(t.referrerId),
+  index("referrals_referred_user_idx").on(t.referredUserId),
+  uniqueIndex("referrals_email_unique").on(t.referredEmail),
+]);
+
+// Webhook subscriptions — fire notifications to Slack / Discord / custom URL.
+export const webhooks = pgTable("webhooks", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  provider: text("provider").notNull(), // 'slack' | 'discord' | 'custom'
+  events: jsonb("events").$type<string[]>().notNull().default([]),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("webhooks_user_idx").on(t.userId),
+]);
+
+// Public REST API keys — hashed, shown once at creation.
+export const apiTokens = pgTable("api_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keyHash: text("key_hash").notNull(),
+  name: text("name").notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("api_tokens_user_idx").on(t.userId),
+  index("api_tokens_hash_idx").on(t.keyHash),
 ]);
 
 // Relations (for Drizzle query helpers)

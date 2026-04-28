@@ -1,7 +1,9 @@
-import { Check, CreditCard, Coins } from "lucide-react";
+import { Check, CreditCard, Coins, Gift, BellRing } from "lucide-react";
 import { resolveAccountContext } from "@/lib/account-context";
 import { getUserPlan, getActiveSubscription } from "@/lib/billing-helpers";
 import { getCreditsBalance } from "@/lib/credits";
+import { getAutoRefillSettings } from "@/lib/actions/billing";
+import { getReferralLink, getReferralStats } from "@/lib/actions/referrals";
 import {
   STRIPE_PRICES,
   PRO_LIMITS,
@@ -12,6 +14,9 @@ import {
   SubscribeButton,
   BuyCreditsButton,
   ManageBillingButton,
+  ProPlanCard,
+  AutoRefillForm,
+  ReferralSection,
 } from "@/components/billing-actions";
 import { Badge } from "@/components/ui/badge";
 
@@ -25,10 +30,13 @@ export default async function BillingPage({
   const ctx = await resolveAccountContext();
   const sp = await searchParams;
 
-  const [plan, sub, balance] = await Promise.all([
+  const [plan, sub, balance, autoRefill, referralLink, referralStats] = await Promise.all([
     getUserPlan(ctx.ownerId),
     getActiveSubscription(ctx.ownerId),
     getCreditsBalance(ctx.ownerId),
+    getAutoRefillSettings().catch(() => ({ enabled: false, threshold: 10, packPriceId: null })),
+    getReferralLink().catch(() => ({ url: "", code: "" })),
+    getReferralStats().catch(() => ({ referrals: [], totalRewards: 0 })),
   ]);
 
   const flash = sp.status;
@@ -103,10 +111,6 @@ export default async function BillingPage({
       {plan === "free" && (
         <section className="rounded-2xl bg-card border border-border p-6 md:p-8">
           <h2 className="font-display text-3xl">Pro</h2>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-5xl">15€</span>
-            <span className="text-muted-foreground">/mois</span>
-          </div>
           <ul className="mt-6 space-y-2 text-sm">
             {[
               `${PRO_LIMITS.maxKeywordsIncluded} keywords tracked daily`,
@@ -126,7 +130,7 @@ export default async function BillingPage({
             ))}
           </ul>
           <div className="mt-6">
-            <SubscribeButton />
+            <ProPlanCard />
           </div>
         </section>
       )}
@@ -172,6 +176,43 @@ export default async function BillingPage({
           Credits never expire. Use them for audits, competitor discovery, AI suggestions, or
           extra sites.
         </p>
+      </section>
+
+      {/* Auto-refill settings — Pro only */}
+      {plan === "pro" && (
+        <section>
+          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+            <BellRing className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Auto-refill
+          </h2>
+          <div className="rounded-2xl bg-secondary p-6">
+            <AutoRefillForm
+              initialEnabled={autoRefill.enabled}
+              initialThreshold={autoRefill.threshold}
+              initialPackPriceId={autoRefill.packPriceId}
+              creditPacks={[
+                { label: "50 credits (5€)", priceId: STRIPE_PRICES.credits50 },
+                { label: "200 credits (18€)", priceId: STRIPE_PRICES.credits200 },
+                { label: "500 credits (40€)", priceId: STRIPE_PRICES.credits500 },
+              ]}
+            />
+          </div>
+        </section>
+      )}
+
+      {/* Referral program */}
+      <section>
+        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+          <Gift className="h-3.5 w-3.5" strokeWidth={1.5} />
+          Referrals
+        </h2>
+        <div className="rounded-2xl bg-secondary p-6">
+          <ReferralSection
+            referralUrl={referralLink.url}
+            referrals={referralStats.referrals}
+            totalRewards={referralStats.totalRewards}
+          />
+        </div>
       </section>
 
       {/* Free tier reminder */}
