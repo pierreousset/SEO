@@ -8,6 +8,7 @@ import { fetchPage, fetchPagesRendered, discoverUrls } from "@/lib/audit/crawler
 import { runPageChecks, runSiteWideChecks } from "@/lib/audit/checks";
 import { synthesizeAudit } from "@/lib/llm/audit-synthesis";
 import { sendWeeklyBriefEmail } from "@/lib/email/weekly-brief";
+import { sendOnboardingEmail1, sendOnboardingEmail2, sendOnboardingEmail3 } from "@/lib/email/onboarding";
 import { getUserPlan } from "@/lib/billing-helpers";
 import { getCreditsBalance, debitCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/billing-constants";
@@ -2065,6 +2066,70 @@ The article should:
   },
 );
 
+// -------------------------------------------------------------------
+// Onboarding email sequence — triggered once when a new user first
+// hits the dashboard with 0 sites. Sends 3 emails over 7 days.
+// -------------------------------------------------------------------
+export const onboardingSequence = inngest.createFunction(
+  {
+    id: "onboarding-email-sequence",
+    concurrency: { limit: 10 },
+    triggers: [{ event: "onboarding/welcome" }],
+  },
+  async ({ event, step }) => {
+    const { userId, email, name } = event.data;
+
+    // Email 1: Welcome (immediately)
+    await step.run("send-welcome", () => sendOnboardingEmail1(email, name));
+
+    // Wait 24h
+    await step.sleep("wait-day-2", "24h");
+
+    // Email 2: Check progress — skip if user already has fetch data
+    const skippedDay2 = await step.run("send-day2", async () => {
+      // Check if user has completed a SERP fetch
+      const fetchRuns = await db
+        .select({ id: schema.fetchRuns.id })
+        .from(schema.fetchRuns)
+        .where(
+          and(
+            eq(schema.fetchRuns.userId, userId),
+            eq(schema.fetchRuns.status, "done"),
+          ),
+        )
+        .limit(1);
+
+      if (fetchRuns.length > 0) {
+        // User already has data — no need for nudge
+        return true;
+      }
+
+      // Check if GSC is connected
+      const gscToken = await db
+        .select({ userId: schema.gscTokens.userId })
+        .from(schema.gscTokens)
+        .where(eq(schema.gscTokens.userId, userId))
+        .limit(1);
+
+      const hasGsc = gscToken.length > 0;
+      await sendOnboardingEmail2(email, hasGsc);
+      return false;
+    });
+
+    // Wait 5 more days (total 7 days from signup)
+    await step.sleep("wait-day-7", "5d");
+
+    // Email 3: Weekly brief ready
+    await step.run("send-day7", async () => {
+      const plan = await getUserPlan(userId);
+      const isFree = plan === "free";
+      await sendOnboardingEmail3(email, isFree);
+    });
+
+    return { userId, skippedDay2, completed: true };
+  },
+);
+
 export const functions = [
   dailyFetchScheduler,
   userDailyFetch,
@@ -2080,4 +2145,5 @@ export const functions = [
   competitorGapScan,
   backlinkPull,
   generateArticle,
+  onboardingSequence,
 ];

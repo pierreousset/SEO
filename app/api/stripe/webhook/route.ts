@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         break;
 
       case "customer.subscription.created":
-        await handleSubscriptionChange(event);
+        await handleSubscriptionCreatedOrUpdated(event);
         // Award referral credits when a referred user subscribes
         {
           const sub = event.data.object as Stripe.Subscription;
@@ -52,21 +52,30 @@ export async function POST(req: NextRequest) {
           }
         }
         break;
+
       case "customer.subscription.updated":
-        await handleSubscriptionChange(event);
+        await handleSubscriptionCreatedOrUpdated(event);
         break;
 
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(event);
         break;
 
-      case "invoice.payment_succeeded":
       case "invoice.payment_failed":
-        // Handled implicitly via subscription.updated
+        await handleInvoicePaymentFailed(event);
+        break;
+
+      case "invoice.paid":
+        await handleInvoicePaid(event);
+        break;
+
+      case "customer.subscription.trial_will_end":
+        await handleTrialWillEnd(event);
         break;
 
       default:
-        // Acknowledge but don't process
+        // Acknowledge but don't process — Stripe expects 200 for all events
+        console.log(`[stripe webhook] unhandled event type: ${event.type}`);
         break;
     }
   } catch (err: any) {
@@ -78,6 +87,9 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true });
 }
 
+// ---------------------------------------------------------------------------
+// checkout.session.completed
+// ---------------------------------------------------------------------------
 async function handleCheckoutCompleted(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.metadata?.userId;
@@ -107,12 +119,56 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
         amountPaid: session.amount_total,
       },
     });
+    console.log(`[stripe webhook] credit pack applied: ${credits} credits for user ${userId}`);
+  } else if (kind === "subscription" || session.subscription) {
+    // Subscription checkout — ensure subscription row exists (race with subscription.created).
+    // Retrieve the full subscription object from Stripe.
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : (session.subscription as Stripe.Subscription | null)?.id;
+
+    if (!subscriptionId) {
+      console.warn("[stripe webhook] checkout.session.completed subscription kind but no subscription ID");
+      return;
+    }
+
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const stripeCustomerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    const planFromPrice = derivePlanFromSubscription(sub);
+    const periodEndUnix = (sub as any).current_period_end as number | undefined;
+
+    await db
+      .insert(schema.subscriptions)
+      .values({
+        id: sub.id,
+        userId,
+        stripeCustomerId,
+        plan: planFromPrice,
+        status: sub.status,
+        currentPeriodEnd: periodEndUnix ? new Date(periodEndUnix * 1000) : null,
+        cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+      })
+      .onConflictDoUpdate({
+        target: schema.subscriptions.id,
+        set: {
+          plan: planFromPrice,
+          status: sub.status,
+          currentPeriodEnd: periodEndUnix ? new Date(periodEndUnix * 1000) : null,
+          cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+          updatedAt: new Date(),
+        },
+      });
+    console.log(`[stripe webhook] checkout.session.completed: upserted subscription ${sub.id} for user ${userId}`);
   }
-  // For subscription kind, the subscription.created event handles it.
 }
 
-async function handleSubscriptionChange(event: Stripe.Event) {
+// ---------------------------------------------------------------------------
+// customer.subscription.created / customer.subscription.updated
+// ---------------------------------------------------------------------------
+async function handleSubscriptionCreatedOrUpdated(event: Stripe.Event) {
   const sub = event.data.object as Stripe.Subscription;
+  const previousAttributes = (event.data as any).previous_attributes as Record<string, unknown> | undefined;
   const userId =
     sub.metadata?.userId ??
     (typeof sub.customer === "string"
@@ -126,9 +182,20 @@ async function handleSubscriptionChange(event: Stripe.Event) {
 
   const stripeCustomerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   const planFromPrice = derivePlanFromSubscription(sub);
-
   const periodEndUnix = (sub as any).current_period_end as number | undefined;
 
+  // Log plan changes for debugging
+  if (previousAttributes?.items) {
+    console.log(`[stripe webhook] subscription ${sub.id}: plan changed to ${planFromPrice}`);
+  }
+  if (previousAttributes?.status) {
+    console.log(`[stripe webhook] subscription ${sub.id}: status changed from ${previousAttributes.status} to ${sub.status}`);
+  }
+  if (previousAttributes?.cancel_at_period_end !== undefined) {
+    console.log(`[stripe webhook] subscription ${sub.id}: cancelAtPeriodEnd changed to ${sub.cancel_at_period_end}`);
+  }
+
+  // Upsert: handles both created and updated in an idempotent way
   await db
     .insert(schema.subscriptions)
     .values({
@@ -150,14 +217,143 @@ async function handleSubscriptionChange(event: Stripe.Event) {
         updatedAt: new Date(),
       },
     });
+
+  console.log(`[stripe webhook] ${event.type}: upserted subscription ${sub.id} (status=${sub.status}, plan=${planFromPrice})`);
 }
 
+// ---------------------------------------------------------------------------
+// customer.subscription.deleted
+// ---------------------------------------------------------------------------
 async function handleSubscriptionDeleted(event: Stripe.Event) {
   const sub = event.data.object as Stripe.Subscription;
+
   await db
     .update(schema.subscriptions)
-    .set({ status: "canceled", updatedAt: new Date() })
+    .set({
+      status: "canceled",
+      cancelAtPeriodEnd: false,
+      updatedAt: new Date(),
+    })
     .where(eq(schema.subscriptions.id, sub.id));
+
+  console.log(`[stripe webhook] subscription ${sub.id} deleted → marked as canceled`);
+}
+
+// ---------------------------------------------------------------------------
+// invoice.payment_failed
+// ---------------------------------------------------------------------------
+async function handleInvoicePaymentFailed(event: Stripe.Event) {
+  const invoice = event.data.object as Stripe.Invoice;
+  const subscriptionId = resolveSubscriptionIdFromInvoice(invoice);
+
+  if (!subscriptionId) {
+    // Not a subscription invoice (e.g. one-time credit pack) — nothing to update
+    console.log("[stripe webhook] invoice.payment_failed: no subscription, skipping");
+    return;
+  }
+
+  // Mark subscription as past_due
+  await db
+    .update(schema.subscriptions)
+    .set({
+      status: "past_due",
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.subscriptions.id, subscriptionId));
+
+  // Resolve user for notification
+  const customerId =
+    typeof invoice.customer === "string"
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | Stripe.DeletedCustomer | null)?.id ?? null;
+  const userId = customerId ? await resolveUserFromCustomer(customerId) : null;
+
+  // TODO: Send email notification about failed payment
+  console.warn(
+    `[stripe webhook] invoice.payment_failed: subscription ${subscriptionId} → past_due` +
+    (userId ? ` (user: ${userId})` : "") +
+    ` | invoice: ${invoice.id}` +
+    ` | attempt: ${invoice.attempt_count}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// invoice.paid
+// ---------------------------------------------------------------------------
+async function handleInvoicePaid(event: Stripe.Event) {
+  const invoice = event.data.object as Stripe.Invoice;
+  const subscriptionId = resolveSubscriptionIdFromInvoice(invoice);
+
+  // Handle credit pack invoices — already handled by checkout.session.completed,
+  // but verify idempotency via stripeEventId in addCredits.
+  if (!subscriptionId) {
+    console.log("[stripe webhook] invoice.paid: no subscription (one-time invoice), skipping");
+    return;
+  }
+
+  // Determine if this is a renewal (not the first payment)
+  const billingReason = invoice.billing_reason;
+  const isRenewal = billingReason === "subscription_cycle";
+  const isFirstPayment = billingReason === "subscription_create";
+
+  // Use invoice period_end for the new subscription period
+  const periodEnd: number | undefined = invoice.period_end ?? undefined;
+
+  if (isRenewal || !isFirstPayment) {
+    // Confirm subscription is active and update the period
+    const updateFields: Record<string, unknown> = {
+      status: "active",
+      updatedAt: new Date(),
+    };
+    if (periodEnd) {
+      updateFields.currentPeriodEnd = new Date(periodEnd * 1000);
+    }
+
+    await db
+      .update(schema.subscriptions)
+      .set(updateFields as { status: string; updatedAt: Date; currentPeriodEnd?: Date })
+      .where(eq(schema.subscriptions.id, subscriptionId));
+
+    console.log(
+      `[stripe webhook] invoice.paid: subscription ${subscriptionId} confirmed active` +
+      (periodEnd ? ` | new period end: ${new Date(periodEnd * 1000).toISOString()}` : "") +
+      ` | billing_reason: ${billingReason}`,
+    );
+  } else {
+    // First payment — subscription.created already handles this, but log it
+    console.log(`[stripe webhook] invoice.paid: first payment for subscription ${subscriptionId}, handled by subscription.created`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// customer.subscription.trial_will_end
+// ---------------------------------------------------------------------------
+async function handleTrialWillEnd(event: Stripe.Event) {
+  const sub = event.data.object as Stripe.Subscription;
+  const userId =
+    sub.metadata?.userId ??
+    (typeof sub.customer === "string"
+      ? await resolveUserFromCustomer(sub.customer)
+      : null);
+
+  // TODO: Send email notification about trial ending in 3 days
+  console.log(
+    `[stripe webhook] trial_will_end: subscription ${sub.id}` +
+    (userId ? ` (user: ${userId})` : "") +
+    ` | trial ends: ${sub.trial_end ? new Date((sub.trial_end as number) * 1000).toISOString() : "unknown"}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Extract subscription ID from an invoice using the dahlia API's parent field. */
+function resolveSubscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
+  const subDetails = invoice.parent?.subscription_details;
+  if (!subDetails) return null;
+  const sub = subDetails.subscription;
+  return typeof sub === "string" ? sub : sub?.id ?? null;
 }
 
 async function resolveUserFromCustomer(stripeCustomerId: string): Promise<string | null> {
@@ -170,6 +366,13 @@ async function resolveUserFromCustomer(stripeCustomerId: string): Promise<string
 }
 
 function derivePlanFromSubscription(sub: Stripe.Subscription): string {
-  // We only have one plan (pro) for now. If you add tiers later, map by price ID.
+  // Map price IDs to plan tiers. Currently only "pro".
+  // When adding new tiers, map by sub.items.data[0].price.id.
+  const priceId = sub.items?.data?.[0]?.price?.id;
+  if (priceId) {
+    // Future: match against STRIPE_PRICES for tier mapping
+    // For now, any active subscription = pro
+    console.log(`[stripe webhook] derivePlan: priceId=${priceId} → pro`);
+  }
   return "pro";
 }

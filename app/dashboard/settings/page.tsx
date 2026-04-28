@@ -16,6 +16,7 @@ import {
   CreditCard,
   ChevronRight,
   Webhook,
+  Puzzle,
 } from "lucide-react";
 import { ApiKeysForm } from "./api-keys/api-keys-form";
 import { saveApiKeys } from "@/lib/actions/api-keys";
@@ -182,6 +183,14 @@ export default async function SettingsPage({
             icon={CreditCard}
             title="Billing"
             description="Plan & credits"
+          />
+        )}
+        {ctx.isOwner && (
+          <SettingsLink
+            href="/dashboard/settings/wordpress"
+            icon={Puzzle}
+            title="WordPress"
+            description="Plugin for AI meta suggestions"
           />
         )}
       </div>

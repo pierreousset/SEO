@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { resolveAccountContext } from "@/lib/account-context";
 import { processReferralCookie } from "@/lib/actions/referrals";
+import { maybeStartOnboarding } from "@/lib/onboarding-trigger";
 import { CreditsDisplay } from "@/components/credits-display";
 import { ActiveJobsIndicator } from "@/components/active-jobs-indicator";
 import { UsageMeter } from "@/components/usage-meter";
@@ -37,6 +38,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Process referral cookie (fire-and-forget, non-blocking)
   processReferralCookie().catch(() => {});
+
+  // Fire onboarding email sequence for new users (fire-and-forget)
+  maybeStartOnboarding(ctx.sessionUserId, ctx.sessionUserEmail).catch(() => {});
 
   const nav = NAV.filter((item) => {
     if ("ownerOnly" in item && item.ownerOnly && !ctx.isOwner) return false;

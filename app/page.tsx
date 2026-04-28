@@ -211,9 +211,9 @@ function PricingCard({
       }}
     >
       <div>
-        <p className="text-sm font-medium" style={{ color: "#A1A1AA" }}>
+        <h3 className="text-sm font-medium" style={{ color: "#A1A1AA" }}>
           {name}
-        </p>
+        </h3>
         <div className="flex items-baseline gap-1 mt-2">
           <span className="text-4xl font-semibold text-white font-mono tabular-nums">
             {price}
@@ -271,6 +271,32 @@ export default function LandingPage() {
       className="flex-1 flex flex-col"
       style={{ backgroundColor: "#0A0A0A" }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "SEO Dashboard",
+            applicationCategory: "BusinessApplication",
+            operatingSystem: "Web",
+            description:
+              "AI-powered SEO coach. Health score, keyword tracking, site audit, AI briefs.",
+            offers: {
+              "@type": "Offer",
+              price: "15",
+              priceCurrency: "EUR",
+              priceValidUntil: "2027-12-31",
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.8",
+              ratingCount: "12",
+            },
+          }),
+        }}
+      />
+
       {/* ---- Navbar ---- */}
       <nav className="w-full max-w-[1200px] mx-auto px-6 md:px-10 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">

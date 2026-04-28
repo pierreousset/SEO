@@ -16,14 +16,46 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SEO Dashboard",
-  description: "AI-first rank tracking + weekly actionable briefs.",
-  icons: { icon: "/favicon.svg" },
+  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "https://seo.240company.com"),
+  title: {
+    default: "SEO Dashboard — Your AI SEO Coach",
+    template: "%s | SEO Dashboard",
+  },
+  description:
+    "Stop staring at data. Start getting results. AI-powered SEO coach that tells you what to fix, in what order, and why. Indie alternative to Semrush at 15\u20ac/mo.",
+  keywords: [
+    "SEO",
+    "SEO dashboard",
+    "SEO tool",
+    "rank tracking",
+    "AI SEO",
+    "keyword tracking",
+    "site audit",
+    "alternative semrush",
+  ],
+  authors: [{ name: "240 Company" }],
+  creator: "240 Company",
   openGraph: {
-    title: "SEO Dashboard",
+    title: "SEO Dashboard — Your AI SEO Coach",
     description:
-      "AI-first rank tracking + weekly actionable briefs. An indie alternative to Semrush.",
+      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs. 15\u20ac/mo.",
     type: "website",
+    locale: "fr_FR",
+    alternateLocale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SEO Dashboard — Your AI SEO Coach",
+    description:
+      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: { icon: "/favicon.svg" },
+  alternates: {
+    canonical: "/",
   },
 };
 

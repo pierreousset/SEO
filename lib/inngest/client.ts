@@ -18,4 +18,5 @@ export type Events = {
   "audit/run": { data: { userId: string; runId: string; siteId?: string } };
   "meta-crawl/run": { data: { userId: string; runId: string } };
   "content/generate.article": { data: { userId: string; articleId: string; keywordId?: string; topic?: string } };
+  "onboarding/welcome": { data: { userId: string; email: string; name?: string | null } };
 };
