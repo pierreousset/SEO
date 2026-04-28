@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 import {
   Activity,
@@ -247,6 +248,16 @@ function PricingCard({
 /* ------------------------------------------------------------------ */
 
 export default function LandingPage() {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (session && !isPending) {
+      router.push("/dashboard");
+    }
+  }, [session, isPending, router]);
+
   return (
     <main
       className="flex-1 flex flex-col"
@@ -264,22 +275,35 @@ export default function LandingPage() {
           <span className="text-white font-semibold text-lg">SEO Dashboard</span>
         </div>
         <div className="flex items-center gap-3">
-          <a href="#get-started">
-            <Button
-              variant="ghost"
-              className="rounded-full text-sm font-medium"
-            >
-              Log in
-            </Button>
-          </a>
-          <a href="#get-started">
-            <Button
-              className="rounded-full text-white font-medium text-sm"
-              style={{ backgroundColor: "#A855F7" }}
-            >
-              Get started
-            </Button>
-          </a>
+          {session ? (
+            <Link href="/dashboard">
+              <Button
+                className="rounded-full text-white font-medium text-sm"
+                style={{ backgroundColor: "#A855F7" }}
+              >
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <a href="#get-started">
+                <Button
+                  variant="ghost"
+                  className="rounded-full text-sm font-medium"
+                >
+                  Log in
+                </Button>
+              </a>
+              <a href="#get-started">
+                <Button
+                  className="rounded-full text-white font-medium text-sm"
+                  style={{ backgroundColor: "#A855F7" }}
+                >
+                  Get started
+                </Button>
+              </a>
+            </>
+          )}
         </div>
       </nav>
 
