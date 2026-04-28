@@ -225,7 +225,7 @@ export async function triggerBriefNow() {
   // Manual on-demand regeneration costs credits — unless user has their own API key (BYOK).
   const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
   const keyStatus = await getApiKeyStatus(ctx.ownerId);
-  const byok = keyStatus.anthropic;
+  const byok = keyStatus.byokEnabled && keyStatus.anthropic;
 
   if (!byok) {
     try {

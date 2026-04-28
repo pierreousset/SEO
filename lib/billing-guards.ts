@@ -44,17 +44,19 @@ export async function guardMeteredAction(opts: {
     }
   }
 
-  // BYOK: user brings their own API key → skip credit debit
+  // BYOK: user enabled "use my own keys" mode AND has a key for this provider → skip credits
   if (opts.aiProvider) {
     const keyStatus = await getApiKeyStatus(opts.userId);
-    const providerMap: Record<AiProvider, boolean> = {
-      anthropic: keyStatus.anthropic,
-      googleGemini: keyStatus.googleGemini,
-      huggingface: keyStatus.huggingface,
-      nvidia: keyStatus.nvidia,
-    };
-    if (providerMap[opts.aiProvider]) {
-      return { ok: true, byok: true };
+    if (keyStatus.byokEnabled) {
+      const providerMap: Record<AiProvider, boolean> = {
+        anthropic: keyStatus.anthropic,
+        googleGemini: keyStatus.googleGemini,
+        huggingface: keyStatus.huggingface,
+        nvidia: keyStatus.nvidia,
+      };
+      if (providerMap[opts.aiProvider]) {
+        return { ok: true, byok: true };
+      }
     }
   }
 

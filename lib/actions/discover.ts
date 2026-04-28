@@ -364,7 +364,7 @@ export async function suggestKeywordsWithAI(): Promise<{
   // BYOK: skip credits if user has their own Anthropic key
   const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
   const keyStatus = await getApiKeyStatus(ctx.ownerId);
-  if (!keyStatus.anthropic) {
+  if (!(keyStatus.byokEnabled && keyStatus.anthropic)) {
     try {
       await debitCredits({
         userId: ctx.ownerId,

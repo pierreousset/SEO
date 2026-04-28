@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     // BYOK: skip credit debit if user has their own Anthropic key
     const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
     const keyStatus = await getApiKeyStatus(ctx.ownerId);
-    const byok = keyStatus.anthropic;
+    const byok = keyStatus.byokEnabled && keyStatus.anthropic;
 
     if (!byok) {
       try {

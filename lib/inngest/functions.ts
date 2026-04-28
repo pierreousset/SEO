@@ -862,7 +862,7 @@ export const siteAudit = inngest.createFunction(
         // Check BYOK — user has their own Anthropic key → skip credit check
         const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
         const keyStatus = await getApiKeyStatus(userId);
-        if (keyStatus.anthropic) {
+        if (keyStatus.byokEnabled && keyStatus.anthropic) {
           return { run: true, reason: "byok" };
         }
 

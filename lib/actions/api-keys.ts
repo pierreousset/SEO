@@ -23,6 +23,8 @@ export async function saveApiKeys(formData: FormData) {
     values[field] = raw.length > 0 ? encrypt(raw) : null;
   }
 
+  const byokEnabled = formData.get("byokEnabled") === "on";
+
   await db
     .insert(schema.userApiKeys)
     .values({
@@ -31,6 +33,7 @@ export async function saveApiKeys(formData: FormData) {
       googleGeminiKey: values.googleGeminiKey,
       huggingfaceKey: values.huggingfaceKey,
       nvidiaKey: values.nvidiaKey,
+      byokEnabled,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -40,10 +43,12 @@ export async function saveApiKeys(formData: FormData) {
         googleGeminiKey: values.googleGeminiKey,
         huggingfaceKey: values.huggingfaceKey,
         nvidiaKey: values.nvidiaKey,
+        byokEnabled,
         updatedAt: new Date(),
       },
     });
 
+  revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard/settings/api-keys");
 }
 
@@ -90,5 +95,6 @@ export async function getApiKeyStatus(userId: string) {
     googleGemini: !!row?.googleGeminiKey,
     huggingface: !!row?.huggingfaceKey,
     nvidia: !!row?.nvidiaKey,
+    byokEnabled: row?.byokEnabled ?? false,
   };
 }

@@ -52,6 +52,16 @@ export const CREDIT_COSTS = {
   articleGeneration: 5, // full SEO article generation (~$0.15 LLM)
 } as const;
 
+/**
+ * BYOK (Bring Your Own Key) mode.
+ * When enabled, AI actions are free (user pays the provider directly).
+ * User gets monthly DataForSEO credits included so they can still use
+ * competitor discovery, gap scans, etc.
+ */
+export const BYOK_LIMITS = {
+  monthlyDataForSeoCredits: 30, // enough for 1 competitor discovery + 1 gap scan
+};
+
 /** Chat (Haiku 4.5) quotas. Free gets a lifetime trial, Pro a monthly cap. */
 export const CHAT_LIMITS = {
   freeLifetimeMessages: 10, // freemium hook — taste the feature then upgrade

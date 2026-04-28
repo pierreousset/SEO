@@ -7,6 +7,7 @@ type Status = {
   googleGemini: boolean;
   huggingface: boolean;
   nvidia: boolean;
+  byokEnabled: boolean;
 };
 
 type Provider = {
@@ -68,6 +69,25 @@ export function ApiKeysForm({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+      {/* BYOK toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-border bg-background p-4">
+        <div>
+          <div className="text-sm font-medium">Use my own API keys</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            When enabled, AI features use your keys (no credits charged). You get 30 DataForSEO credits/month included.
+          </div>
+        </div>
+        <label className="relative inline-flex cursor-pointer items-center">
+          <input
+            type="checkbox"
+            name="byokEnabled"
+            defaultChecked={status.byokEnabled}
+            className="peer sr-only"
+          />
+          <div className="h-6 w-11 rounded-full bg-border peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
+        </label>
+      </div>
+
       {PROVIDERS.map((p) => (
         <div key={p.key} className="space-y-1.5">
           <div className="flex items-center gap-2">

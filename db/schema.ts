@@ -151,6 +151,7 @@ export const userApiKeys = pgTable("user_api_keys", {
   googleGeminiKey: text("google_gemini_key"), // encrypted
   huggingfaceKey: text("huggingface_key"),   // encrypted
   nvidiaKey: text("nvidia_key"),             // encrypted
+  byokEnabled: boolean("byok_enabled").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
