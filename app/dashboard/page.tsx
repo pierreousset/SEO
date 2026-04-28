@@ -2,12 +2,11 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, and, gte, desc, sql } from "drizzle-orm";
 import Link from "next/link";
-import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target, ListOrdered, MousePointerClick, Eye, Activity } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target, ListOrdered, MousePointerClick, Eye, Activity, TrendingDown, MousePointer, Tag, FileX, ArrowDownRight, EyeOff } from "lucide-react";
 import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
 import { GscStatusBanner } from "@/components/gsc-status-banner";
-import nextDynamic from "next/dynamic";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { SyncGscButton } from "@/components/sync-gsc-button";
 import { RankDelta } from "@/components/rank-delta";
@@ -16,19 +15,11 @@ import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { computeDiagnostic, diagnosticInfo } from "@/lib/diagnostics";
 import { IssueCard, type IssueCardData } from "@/components/issue-card";
 import { SetupChecklist } from "@/components/setup-checklist";
-
-const GscPerformanceChart = nextDynamic(
-  () => import("@/components/gsc-performance-chart").then((m) => ({ default: m.GscPerformanceChart })),
-  { loading: () => <div className="h-[280px] bg-card rounded-2xl animate-pulse" />, ssr: false },
-);
-const CtrPositionScatter = nextDynamic(
-  () => import("@/components/ctr-position-scatter").then((m) => ({ default: m.CtrPositionScatter })),
-  { loading: () => <div className="h-[280px] bg-card rounded-2xl animate-pulse" />, ssr: false },
-);
-const HealthScoreChart = nextDynamic(
-  () => import("@/components/health-score-chart").then((m) => ({ default: m.HealthScoreChart })),
-  { loading: () => <div className="h-[200px] bg-card rounded-2xl animate-pulse" />, ssr: false },
-);
+import {
+  GscPerformanceChart,
+  CtrPositionScatter,
+  HealthScoreChart,
+} from "@/components/dashboard-charts";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +74,23 @@ export default async function DashboardHome() {
   thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
   const cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
 
+  // Shorter windows used by Insights widgets (declining pages, lost queries…)
+  const cutoff28d = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 28);
+    return d.toISOString().slice(0, 10);
+  })();
+  const cutoff7d = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  const cutoff14d = (() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 14);
+    return d.toISOString().slice(0, 10);
+  })();
+
   const [
     gscToken,
     sites,
@@ -98,6 +106,10 @@ export default async function DashboardHome() {
     auditRunRows,
     competitorData,
     kwMetrics,
+    pageAgg28d,
+    pageDelta14d,
+    kwAgg7d,
+    businessProfile,
   ] = await Promise.all([
       t.selectGscToken(),
       t.selectSites(),
@@ -180,6 +192,41 @@ export default async function DashboardHome() {
         .from(schema.gscMetrics)
         .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff)))
         .groupBy(schema.gscMetrics.keywordId),
+      // Page-level aggregate over 28d — for CTR underperformers + as base for declining
+      db
+        .select({
+          url: schema.gscPageMetrics.url,
+          clicks: sql<number>`sum(${schema.gscPageMetrics.clicks})::int`,
+          impressions: sql<number>`sum(${schema.gscPageMetrics.impressions})::int`,
+          avgPosition: sql<number>`avg(${schema.gscPageMetrics.position}::numeric)::float`,
+        })
+        .from(schema.gscPageMetrics)
+        .where(and(eq(schema.gscPageMetrics.userId, ctx.ownerId), gte(schema.gscPageMetrics.date, cutoff28d)))
+        .groupBy(schema.gscPageMetrics.url)
+        .orderBy(desc(sql`sum(${schema.gscPageMetrics.impressions})`))
+        .limit(200),
+      // Page-level last-7d vs prior-7d delta — for declining widget
+      db
+        .select({
+          url: schema.gscPageMetrics.url,
+          clicksRecent: sql<number>`sum(case when ${schema.gscPageMetrics.date} >= ${cutoff7d} then ${schema.gscPageMetrics.clicks} else 0 end)::int`,
+          clicksPrior: sql<number>`sum(case when ${schema.gscPageMetrics.date} < ${cutoff7d} then ${schema.gscPageMetrics.clicks} else 0 end)::int`,
+        })
+        .from(schema.gscPageMetrics)
+        .where(and(eq(schema.gscPageMetrics.userId, ctx.ownerId), gte(schema.gscPageMetrics.date, cutoff14d)))
+        .groupBy(schema.gscPageMetrics.url),
+      // Per-keyword last-7d aggregate — for lost queries detection (had impressions, now zero)
+      db
+        .select({
+          keywordId: schema.gscMetrics.keywordId,
+          clicks: sql<number>`sum(${schema.gscMetrics.clicks})::int`,
+          impressions: sql<number>`sum(${schema.gscMetrics.impressions})::int`,
+        })
+        .from(schema.gscMetrics)
+        .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff7d)))
+        .groupBy(schema.gscMetrics.keywordId),
+      // Business profile — for branded keyword detection
+      t.selectBusinessProfile(),
     ]);
 
   const hasAuditRun = auditRunRows.length > 0;
@@ -365,20 +412,9 @@ export default async function DashboardHome() {
     connected && sites.length > 0 && activeKeywords.length > 0 && totalPositions > 0;
 
   // 28-day GSC aggregate for mini KPI cards
-  const twentyEightDaysAgo = new Date();
-  twentyEightDaysAgo.setUTCDate(twentyEightDaysAgo.getUTCDate() - 28);
-  const cutoff28d = twentyEightDaysAgo.toISOString().slice(0, 10);
   const recent28d = gscChartData.filter((d) => d.date >= cutoff28d);
   const clicks28d = recent28d.reduce((s, d) => s + d.clicks, 0);
   const impressions28d = recent28d.reduce((s, d) => s + d.impressions, 0);
-
-  // Average position delta (compare last 7d avg vs prior 7d avg)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
-  const fourteenDaysAgo = new Date();
-  fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
-  const cutoff7d = sevenDaysAgo.toISOString().slice(0, 10);
-  const cutoff14d = fourteenDaysAgo.toISOString().slice(0, 10);
   const recentPositions = ranked.filter((s) => s.latest !== null).map((s) => s.latest!);
   const prevPositions = ranked.filter((s) => s.prev !== null).map((s) => s.prev!);
   const avgPrev = prevPositions.length > 0
@@ -406,6 +442,85 @@ export default async function DashboardHome() {
       };
     })
     .filter((d) => d.impressions > 10);
+
+  // ── Insights widgets (Vague 1) ──────────────────────────────────────
+  // CTR benchmarks per position (matches lib/seo-score.ts).
+  const expectedCtrFor = (pos: number): number => {
+    if (pos <= 0) return 0;
+    if (pos <= 1) return 0.28;
+    if (pos <= 2) return 0.15;
+    if (pos <= 3) return 0.11;
+    if (pos <= 5) return 0.06;
+    if (pos <= 10) return 0.03;
+    if (pos <= 20) return 0.01;
+    return 0.003;
+  };
+
+  // 1) Striking distance — keywords currently sitting in pos 11-20.
+  const strikingDistance = perKeyword
+    .filter((s) => s.latest != null && s.latest > 10 && s.latest <= 20)
+    .sort((a, b) => (a.latest ?? 99) - (b.latest ?? 99))
+    .slice(0, 6);
+
+  // 2) Branded vs non-branded — split clicks/impressions on businessName match.
+  const brandTokens = (() => {
+    const name = businessProfile?.businessName?.trim().toLowerCase() ?? "";
+    if (!name) return [] as string[];
+    return name.split(/[\s,.\-_]+/).filter((t) => t.length >= 3);
+  })();
+  type BrandSplit = { clicks: number; impressions: number; count: number };
+  const brandSplit = { branded: { clicks: 0, impressions: 0, count: 0 } as BrandSplit, nonBranded: { clicks: 0, impressions: 0, count: 0 } as BrandSplit };
+  for (const k of activeKeywords) {
+    const m = kwMetricsMap.get(k.id);
+    if (!m) continue;
+    const isBranded = brandTokens.length > 0 && brandTokens.some((t) => k.query.toLowerCase().includes(t));
+    const bucket = isBranded ? brandSplit.branded : brandSplit.nonBranded;
+    bucket.clicks += m.clicks;
+    bucket.impressions += m.impressions;
+    bucket.count += 1;
+  }
+  const brandTotalClicks = brandSplit.branded.clicks + brandSplit.nonBranded.clicks;
+
+  // 3) CTR underperformers — pages in top 10 with CTR < expected × 0.5.
+  const ctrUnderperformers = pageAgg28d
+    .filter((p) => p.impressions > 50 && p.avgPosition > 0 && p.avgPosition <= 10)
+    .map((p) => {
+      const actual = p.impressions > 0 ? p.clicks / p.impressions : 0;
+      const expected = expectedCtrFor(p.avgPosition);
+      const ratio = expected > 0 ? actual / expected : 1;
+      return { ...p, actual, expected, ratio };
+    })
+    .filter((p) => p.ratio < 0.5)
+    .sort((a, b) => a.ratio - b.ratio)
+    .slice(0, 5);
+
+  // 4) Lost queries — had impressions in last 28d, zero in last 7d.
+  const kwAgg7dMap = new Map(kwAgg7d.map((m) => [m.keywordId, m]));
+  const keywordLookup = new Map(activeKeywords.map((k) => [k.id, k.query]));
+  const lostQueries = kwMetrics
+    .filter((m) => m.impressions > 20 && keywordLookup.has(m.keywordId))
+    .map((m) => ({
+      keyword: keywordLookup.get(m.keywordId)!,
+      impressions28d: m.impressions,
+      impressions7d: kwAgg7dMap.get(m.keywordId)?.impressions ?? 0,
+    }))
+    .filter((m) => m.impressions7d === 0)
+    .sort((a, b) => b.impressions28d - a.impressions28d)
+    .slice(0, 5);
+
+  // 5) Top declining pages — biggest click drop vs prior 7d (min 5 prior clicks to filter noise).
+  const decliningPages = pageDelta14d
+    .map((p) => ({ ...p, delta: p.clicksRecent - p.clicksPrior }))
+    .filter((p) => p.clicksPrior >= 5 && p.delta < 0)
+    .sort((a, b) => a.delta - b.delta)
+    .slice(0, 5);
+
+  // 6) Zero-click queries — high impressions, zero clicks (broken title/meta or wrong intent).
+  const zeroClickQueries = kwMetrics
+    .filter((m) => m.impressions >= 100 && m.clicks === 0 && keywordLookup.has(m.keywordId))
+    .map((m) => ({ keyword: keywordLookup.get(m.keywordId)!, impressions: m.impressions }))
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 5);
 
   // Score history for health chart
   const scoreHistory = seoScoreRows.slice().reverse().map((s) => ({
@@ -775,6 +890,124 @@ export default async function DashboardHome() {
           <MoverList title="Top down" items={topDown} direction="down" />
         </div>
       )}
+
+      {/* Insights — 6 quick-look widgets */}
+      {(strikingDistance.length > 0 ||
+        brandTotalClicks > 0 ||
+        ctrUnderperformers.length > 0 ||
+        lostQueries.length > 0 ||
+        decliningPages.length > 0 ||
+        zeroClickQueries.length > 0) && (
+        <section className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+            <span className="font-mono text-[11px] text-muted-foreground">insights</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Striking distance */}
+            <InsightCard
+              title="Striking distance"
+              hint="Pos 11-20 — easy wins"
+              icon={<Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />}
+              count={strikingDistance.length}
+              empty="No keywords in pos 11-20"
+              href="/dashboard/keywords"
+            >
+              {strikingDistance.map((s) => (
+                <InsightRow
+                  key={s.id}
+                  primary={s.keyword}
+                  secondary={`#${s.latest}`}
+                />
+              ))}
+            </InsightCard>
+
+            {/* Branded vs non-branded */}
+            <BrandedSplitCard
+              brandName={businessProfile?.businessName ?? null}
+              brandTokens={brandTokens}
+              branded={brandSplit.branded}
+              nonBranded={brandSplit.nonBranded}
+            />
+
+            {/* CTR underperformers (pages) */}
+            <InsightCard
+              title="CTR underperformers"
+              hint="Pages in top 10, CTR < expected"
+              icon={<MousePointer className="h-3.5 w-3.5 text-[#FBBF24]" strokeWidth={1.5} />}
+              count={ctrUnderperformers.length}
+              empty="No CTR underperformers"
+              href="/dashboard/pages"
+            >
+              {ctrUnderperformers.map((p) => (
+                <InsightRow
+                  key={p.url}
+                  primary={shortUrl(p.url)}
+                  secondary={`${(p.actual * 100).toFixed(1)}% / ${(p.expected * 100).toFixed(0)}%`}
+                  tone="warn"
+                />
+              ))}
+            </InsightCard>
+
+            {/* Lost queries */}
+            <InsightCard
+              title="Lost queries"
+              hint="Had impressions, none in 7d"
+              icon={<EyeOff className="h-3.5 w-3.5 text-[#F87171]" strokeWidth={1.5} />}
+              count={lostQueries.length}
+              empty="No lost queries"
+              href="/dashboard/keywords"
+            >
+              {lostQueries.map((q) => (
+                <InsightRow
+                  key={q.keyword}
+                  primary={q.keyword}
+                  secondary={`${q.impressions28d.toLocaleString()} imp 28d`}
+                  tone="down"
+                />
+              ))}
+            </InsightCard>
+
+            {/* Declining pages */}
+            <InsightCard
+              title="Declining pages"
+              hint="Biggest click drop (7d vs prior 7d)"
+              icon={<TrendingDown className="h-3.5 w-3.5 text-[#F87171]" strokeWidth={1.5} />}
+              count={decliningPages.length}
+              empty="No declining pages"
+              href="/dashboard/pages"
+            >
+              {decliningPages.map((p) => (
+                <InsightRow
+                  key={p.url}
+                  primary={shortUrl(p.url)}
+                  secondary={`${p.delta > 0 ? "+" : ""}${p.delta} clicks`}
+                  tone="down"
+                />
+              ))}
+            </InsightCard>
+
+            {/* Zero-click queries */}
+            <InsightCard
+              title="Zero-click queries"
+              hint=">100 imp 28d, 0 clicks"
+              icon={<FileX className="h-3.5 w-3.5 text-[#FBBF24]" strokeWidth={1.5} />}
+              count={zeroClickQueries.length}
+              empty="No zero-click queries"
+              href="/dashboard/keywords"
+            >
+              {zeroClickQueries.map((q) => (
+                <InsightRow
+                  key={q.keyword}
+                  primary={q.keyword}
+                  secondary={`${q.impressions.toLocaleString()} imp`}
+                  tone="warn"
+                />
+              ))}
+            </InsightCard>
+          </div>
+        </section>
+      )}
       {ranked.length > 0 && topUp.length === 0 && topDown.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
           Movers will appear after a second fetch. Daily cron runs at 06:00 UTC.
@@ -1022,6 +1255,154 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon: 
         <div className="font-mono text-[28px] font-semibold leading-tight tabular-nums">{value}</div>
       </div>
       {icon}
+    </div>
+  );
+}
+
+function shortUrl(u: string): string {
+  try {
+    const parsed = new URL(u);
+    const path = parsed.pathname === "/" ? "/" : parsed.pathname;
+    return path.length > 36 ? `…${path.slice(-35)}` : path;
+  } catch {
+    return u.length > 36 ? `…${u.slice(-35)}` : u;
+  }
+}
+
+function InsightCard({
+  title,
+  hint,
+  icon,
+  count,
+  empty,
+  href,
+  children,
+}: {
+  title: string;
+  hint: string;
+  icon: React.ReactNode;
+  count: number;
+  empty: string;
+  href?: string;
+  children: React.ReactNode;
+}) {
+  const body = (
+    <div className="rounded-2xl bg-card p-5 h-full flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            {icon}
+            <span className="font-mono text-[10px] text-muted-foreground">{title.toLowerCase()}</span>
+          </div>
+          <h3 className="text-sm font-semibold mt-1">{title}</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
+        </div>
+        {count > 0 && (
+          <span className="font-mono text-[10px] tabular-nums px-2 py-0.5 rounded-full bg-background text-muted-foreground shrink-0">
+            {count}
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-h-0">
+        {count === 0 ? (
+          <div className="text-[11px] text-muted-foreground py-2">{empty}</div>
+        ) : (
+          <div className="space-y-1">{children}</div>
+        )}
+      </div>
+      {href && count > 0 && (
+        <div className="flex items-center justify-end text-[10px] text-muted-foreground gap-1 pt-1 border-t border-border">
+          <span>view all</span>
+          <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+        </div>
+      )}
+    </div>
+  );
+  return href ? <Link href={href} className="block hover:opacity-95 transition-opacity">{body}</Link> : body;
+}
+
+function InsightRow({
+  primary,
+  secondary,
+  tone,
+}: {
+  primary: string;
+  secondary: string;
+  tone?: "warn" | "down";
+}) {
+  const toneClass = tone === "down"
+    ? "text-[var(--down)]"
+    : tone === "warn"
+      ? "text-[#FBBF24]"
+      : "text-muted-foreground";
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <div className="flex-1 truncate" title={primary}>{primary}</div>
+      <div className={`font-mono tabular-nums text-[11px] shrink-0 ${toneClass}`}>{secondary}</div>
+    </div>
+  );
+}
+
+function BrandedSplitCard({
+  brandName,
+  brandTokens,
+  branded,
+  nonBranded,
+}: {
+  brandName: string | null;
+  brandTokens: string[];
+  branded: { clicks: number; impressions: number; count: number };
+  nonBranded: { clicks: number; impressions: number; count: number };
+}) {
+  const total = branded.clicks + nonBranded.clicks;
+  const brandedPct = total > 0 ? Math.round((branded.clicks / total) * 100) : 0;
+  const noBrand = !brandName || brandTokens.length === 0;
+
+  return (
+    <div className="rounded-2xl bg-card p-5 flex flex-col gap-3">
+      <div>
+        <div className="flex items-center gap-1.5">
+          <Tag className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+          <span className="font-mono text-[10px] text-muted-foreground">branded share</span>
+        </div>
+        <h3 className="text-sm font-semibold mt-1">Branded vs non-branded</h3>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          {noBrand
+            ? "Set your brand name in Business profile"
+            : `Detected: "${brandName}"`}
+        </p>
+      </div>
+      {noBrand ? (
+        <Link
+          href="/dashboard/business"
+          className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+        >
+          Set brand name <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+        </Link>
+      ) : total === 0 ? (
+        <div className="text-[11px] text-muted-foreground">No GSC data yet</div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-background">
+            <div style={{ width: `${brandedPct}%`, backgroundColor: "#A855F7" }} />
+            <div style={{ width: `${100 - brandedPct}%`, backgroundColor: "#34D399" }} />
+          </div>
+          <div className="flex justify-between gap-3 text-[11px]">
+            <div>
+              <div className="font-mono tabular-nums text-base font-semibold" style={{ color: "#A855F7" }}>
+                {brandedPct}%
+              </div>
+              <div className="text-muted-foreground">branded · {branded.clicks.toLocaleString()} clicks</div>
+            </div>
+            <div className="text-right">
+              <div className="font-mono tabular-nums text-base font-semibold" style={{ color: "#34D399" }}>
+                {100 - brandedPct}%
+              </div>
+              <div className="text-muted-foreground">non-branded · {nonBranded.clicks.toLocaleString()} clicks</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
