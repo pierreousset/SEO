@@ -2,7 +2,8 @@ import Link from "next/link";
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { eq, desc } from "drizzle-orm";
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, ExternalLink, Crosshair } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { RunGapScanButton } from "@/components/run-gap-scan-button";
 import { GapStatusBanner } from "@/components/gap-status-banner";
 import { TrackGapKeywordButton } from "@/components/track-gap-keyword-button";
@@ -82,21 +83,60 @@ export default async function GapPage() {
             description="Discover keywords your competitors rank for that you don't track yet. Upgrade to Pro to run gap scans."
           />
         ) : (
-          <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
-            <p className="text-lg">
-              Pull the keywords your <strong>declared competitors</strong> rank for and diff them
-              against your tracked queries. The gap = what they're winning that you don't even
-              track.
-            </p>
-            <p className="text-sm text-muted-foreground mt-4">
-              Requires at least one competitor URL in{" "}
-              <Link href="/dashboard/business" className="underline">
-                your business profile
+          <EmptyState
+            icon={Crosshair}
+            title="No gap scan yet"
+            description="Discover keywords your competitors rank for that you don't. Add competitors in Business settings first."
+            action={
+              <Link
+                href="/dashboard/business"
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2 hover:opacity-90 transition-opacity"
+              >
+                Go to Business settings
               </Link>
-              . Takes 1-3 minutes · ~$0.01/competitor.
-            </p>
-          </div>
+            }
+          />
         )
+      )}
+
+      {/* Actionable intelligence summary */}
+      {latestRun && latestRun.status === "done" && findings.length > 0 && (
+        <section className="rounded-2xl bg-card p-6 md:p-8">
+          <div className="font-mono text-[10px] text-muted-foreground mb-2">intelligence summary</div>
+          <p className="text-lg">
+            Your competitors rank for{" "}
+            <span className="font-mono tabular-nums font-semibold text-[var(--down)]">
+              {findings.length.toLocaleString()}
+            </span>{" "}
+            keywords you don&apos;t track.
+          </p>
+          <div className="mt-4">
+            <div className="font-mono text-[10px] text-muted-foreground mb-3">top 5 by volume</div>
+            <div className="space-y-2">
+              {findings
+                .slice()
+                .sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0))
+                .slice(0, 5)
+                .map((f, i) => (
+                  <div
+                    key={`${f.keyword}-${i}`}
+                    className="flex items-center justify-between gap-4 rounded-[12px] bg-background p-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-[10px] text-muted-foreground w-5 shrink-0">
+                        {i + 1}.
+                      </span>
+                      <span className="text-sm font-medium truncate">{f.keyword}</span>
+                      <span className="font-mono text-[10px] tabular-nums text-muted-foreground shrink-0">
+                        {f.searchVolume?.toLocaleString() ?? "—"} vol
+                      </span>
+                    </div>
+                    <TrackGapKeywordButton keyword={f.keyword} />
+                  </div>
+                ))}
+            </div>
+          </div>
+        </section>
       )}
 
       {latestRun && latestRun.status === "done" && findings.length === 0 && (

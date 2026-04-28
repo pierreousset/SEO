@@ -3,6 +3,8 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { eq, desc } from "drizzle-orm";
 import { GenerateArticleForm } from "@/components/generate-article-form";
+import { PenTool } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -106,12 +108,11 @@ export default async function ContentPage() {
       )}
 
       {articles.length === 0 && (
-        <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
-          <p className="text-lg">
-            No articles generated yet. Use the form above to create your first
-            SEO-optimized article.
-          </p>
-        </div>
+        <EmptyState
+          icon={PenTool}
+          title="No articles generated yet"
+          description="Generate SEO-optimized articles from your tracked keywords. Each article costs 5 credits. Use the form above to get started."
+        />
       )}
     </div>
   );

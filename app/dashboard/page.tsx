@@ -2,7 +2,7 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, and, gte, desc, sql } from "drizzle-orm";
 import Link from "next/link";
-import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target, ListOrdered, MousePointerClick, Eye } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, Clock, ArrowRight, Target, ListOrdered, MousePointerClick, Eye, Activity } from "lucide-react";
 import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
@@ -14,6 +14,10 @@ import { RankDelta } from "@/components/rank-delta";
 import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { computeDiagnostic, diagnosticInfo } from "@/lib/diagnostics";
+import { IssueCard, type IssueCardData } from "@/components/issue-card";
+import { CtrPositionScatter } from "@/components/ctr-position-scatter";
+import { HealthScoreChart } from "@/components/health-score-chart";
+import { SetupChecklist } from "@/components/setup-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +83,7 @@ export default async function DashboardHome() {
     recentGscRuns,
     rawGscMetrics,
     rawGscSiteMetrics,
+    seoScoreRows,
   ] = await Promise.all([
       t.selectGscToken(),
       t.selectSites(),
@@ -126,7 +131,21 @@ export default async function DashboardHome() {
         .select()
         .from(schema.gscSiteMetrics)
         .where(eq(schema.gscSiteMetrics.userId, ctx.ownerId)),
+      db
+        .select()
+        .from(schema.seoScores)
+        .where(eq(schema.seoScores.userId, ctx.ownerId))
+        .orderBy(desc(schema.seoScores.computedAt))
+        .limit(8),
     ]);
+
+  // Check if any audit has been run (for setup checklist)
+  const [firstAuditRun] = await db
+    .select({ id: schema.auditRuns.id })
+    .from(schema.auditRuns)
+    .where(eq(schema.auditRuns.userId, ctx.ownerId))
+    .limit(1);
+  const hasAuditRun = !!firstAuditRun;
 
   // Competitor positions — latest 30 rows, joined with keyword name
   const competitorData = await db
@@ -339,6 +358,47 @@ export default async function DashboardHome() {
     ? (avgPrev - avgCurrent).toFixed(1)
     : null;
 
+  // Per-keyword GSC metrics for CTR scatter plot
+  const kwMetrics = await db
+    .select({
+      keywordId: schema.gscMetrics.keywordId,
+      clicks: sql<number>`sum(${schema.gscMetrics.clicks})::int`,
+      impressions: sql<number>`sum(${schema.gscMetrics.impressions})::int`,
+    })
+    .from(schema.gscMetrics)
+    .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff)))
+    .groupBy(schema.gscMetrics.keywordId);
+
+  const kwMetricsMap = new Map(kwMetrics.map((m) => [m.keywordId, m]));
+
+  const scatterData = perKeyword
+    .filter((s) => s.latest != null)
+    .map((s) => {
+      const m = kwMetricsMap.get(s.id);
+      return {
+        keyword: s.keyword,
+        position: s.latest!,
+        ctr: m && m.impressions > 0 ? m.clicks / m.impressions : 0,
+        impressions: m?.impressions ?? 0,
+      };
+    })
+    .filter((d) => d.impressions > 10);
+
+  // Score history for health chart
+  const scoreHistory = seoScoreRows.slice().reverse().map((s) => ({
+    date: s.computedAt.toISOString().slice(0, 10),
+    score: s.score,
+  }));
+
+  // SEO health score from latest computation
+  const latestScore = seoScoreRows[0] ?? null;
+  const prevScore = seoScoreRows[1] ?? null;
+  const healthScore = latestScore?.score ?? null;
+  const healthDelta = latestScore && prevScore ? latestScore.score - prevScore.score : null;
+  const healthIssues = (latestScore?.issues ?? []) as IssueCardData[];
+  const issueCount = healthIssues.length;
+  const topIssues = healthIssues.slice(0, 3);
+
   // Pipeline state: each step is done/pending/blocked.
   // `action` can be a Link (href + label) or a "fetch-now" sentinel for the inline button.
   type Step = {
@@ -434,40 +494,80 @@ export default async function DashboardHome() {
       <BriefStatusBanner run={briefRunForBanner} />
       <GscStatusBanner run={gscRunForBanner} />
 
+      {/* Top Issues — shown when score has issues */}
+      {topIssues.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-[#F87171]" strokeWidth={1.5} />
+            <span className="font-mono text-[11px] text-muted-foreground">
+              top issues
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {topIssues.map((issue) => (
+              <IssueCard key={issue.type} issue={issue} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Bento Row 1: Hero KPI + Mini KPI Stack */}
       <div className="flex flex-col md:flex-row gap-3 items-stretch">
-        {/* Hero KPI tile */}
+        {/* Hero KPI tile — SEO Health Score */}
         <div className="flex-1 min-h-[200px] bg-card rounded-2xl p-7 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] text-muted-foreground">avg position</span>
-            {avgPosDelta !== null && parseFloat(avgPosDelta) !== 0 && (
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              <span className="font-mono text-[11px] text-muted-foreground">seo health</span>
+            </div>
+            {healthDelta !== null && healthDelta !== 0 && (
               <span
                 className={`font-mono text-[11px] font-medium rounded-full px-2.5 py-1 ${
-                  parseFloat(avgPosDelta) > 0
+                  healthDelta > 0
                     ? "bg-[var(--up)]/15 text-[var(--up)]"
                     : "bg-[var(--down)]/15 text-[var(--down)]"
                 }`}
               >
-                {parseFloat(avgPosDelta) > 0 ? "↑" : "↓"} {Math.abs(parseFloat(avgPosDelta))}
+                {healthDelta > 0 ? "+" : ""}{healthDelta} pts
               </span>
             )}
           </div>
           <div>
-            <div className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums">
-              {avgPosition ?? "—"}
+            <div
+              className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums"
+              style={{
+                color: healthScore === null
+                  ? undefined
+                  : healthScore >= 70
+                    ? "#34D399"
+                    : healthScore >= 40
+                      ? "#FBBF24"
+                      : "#F87171",
+              }}
+            >
+              {healthScore ?? "—"}
             </div>
             <div className="font-mono text-sm text-muted-foreground mt-2">
-              across {ranked.length} ranked keyword{ranked.length !== 1 ? "s" : ""}
+              {issueCount > 0
+                ? `${issueCount} issue${issueCount !== 1 ? "s" : ""} detected`
+                : healthScore !== null
+                  ? "no issues detected"
+                  : "waiting for first score computation"}
             </div>
+            {scoreHistory.length >= 2 && (
+              <div className="mt-3 h-[60px]">
+                <HealthScoreChart data={scoreHistory} />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Mini KPI Stack */}
         <div className="w-full md:w-[280px] flex flex-col gap-3">
           <StatTile
-            label="keywords"
-            value={activeKeywords.length.toLocaleString()}
-            icon={<ListOrdered className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
+            label="avg position"
+            value={avgPosition ?? "—"}
+            icon={<Target className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
           <StatTile
             label="clicks (28d)"
@@ -475,9 +575,9 @@ export default async function DashboardHome() {
             icon={<MousePointerClick className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
           <StatTile
-            label="impressions"
-            value={impressions28d.toLocaleString()}
-            icon={<Eye className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
+            label="keywords"
+            value={activeKeywords.length.toLocaleString()}
+            icon={<ListOrdered className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
         </div>
       </div>
@@ -547,63 +647,17 @@ export default async function DashboardHome() {
         </div>
       </div>
 
-      {/* Setup pipeline — only when incomplete */}
+      {/* Setup checklist — dismissible, with progress bar */}
       {!setupComplete && (
-        <div className="rounded-2xl bg-card overflow-hidden">
-          <div className="px-6 py-5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold">Setup</h2>
-                <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {steps.filter((s) => s.done).length}/{steps.length}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                What&apos;s actually happening.
-              </p>
-            </div>
-          </div>
-          <ul className="px-2 pb-2">
-            {steps.map((step, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 px-4 py-3 rounded-2xl hover:bg-background/60"
-              >
-                <div className="mt-0.5 shrink-0">
-                  {step.done ? (
-                    <CheckCircle2 className="h-4 w-4 text-[var(--up)]" strokeWidth={2} />
-                  ) : (
-                    <Circle className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">{step.label}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 break-words">
-                    {step.hint}
-                  </div>
-                </div>
-                {step.action && "kind" in step.action ? (
-                  <div className="shrink-0">
-                    {step.action.kind === "fetch-now" ? (
-                      <FetchNowButton activeStatus={(latestRun?.status as any) ?? null} />
-                    ) : (
-                      <GenerateBriefButton
-                        activeStatus={(latestBriefRun?.status as any) ?? null}
-                      />
-                    )}
-                  </div>
-                ) : step.action ? (
-                  <Link
-                    href={step.action.href}
-                    className="shrink-0 text-xs font-medium hover:underline"
-                  >
-                    {step.action.label} →
-                  </Link>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <SetupChecklist
+          steps={[
+            { label: "Connect Google Search Console", done: connected },
+            { label: "Add keywords", done: activeKeywords.length > 0 },
+            { label: "First SERP fetch", done: totalPositions > 0 },
+            { label: "First audit", done: hasAuditRun },
+            { label: "First brief", done: latestBrief.length > 0 },
+          ]}
+        />
       )}
 
       {/* Bento Row 3: AI Brief + Distribution */}
@@ -701,6 +755,20 @@ export default async function DashboardHome() {
       {ranked.length > 0 && topUp.length === 0 && topDown.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
           Movers will appear after a second fetch. Daily cron runs at 06:00 UTC.
+        </div>
+      )}
+
+      {/* CTR vs Position scatter plot */}
+      {scatterData.length > 5 && (
+        <div className="bg-card rounded-2xl p-6">
+          <span className="font-mono text-[10px] text-muted-foreground">analysis</span>
+          <h2 className="text-xl font-semibold mt-0.5 mb-4">CTR vs Position</h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Keywords below the benchmark line have poor titles or mismatched intent.
+          </p>
+          <div className="h-[300px]">
+            <CtrPositionScatter data={scatterData} />
+          </div>
         </div>
       )}
 

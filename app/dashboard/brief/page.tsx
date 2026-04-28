@@ -1,6 +1,6 @@
 import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
@@ -8,6 +8,8 @@ import { getUserPlan } from "@/lib/billing-helpers";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { BriefPdfButton } from "@/components/brief-pdf-button";
+import { FileText } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,32 @@ export default async function BriefPage() {
 
   const plan = await getUserPlan(ctx.ownerId);
 
+  // Query latest SEO score for priorities section
+  const [latestScore] = await db
+    .select()
+    .from(schema.seoScores)
+    .where(eq(schema.seoScores.userId, ctx.ownerId))
+    .orderBy(desc(schema.seoScores.computedAt))
+    .limit(1);
+
+  // Query last 4 scores for trend
+  const scoreTrend = await db
+    .select({ score: schema.seoScores.score, computedAt: schema.seoScores.computedAt })
+    .from(schema.seoScores)
+    .where(eq(schema.seoScores.userId, ctx.ownerId))
+    .orderBy(desc(schema.seoScores.computedAt))
+    .limit(4);
+
+  // Build top 3 priorities from seoScore issues
+  const topIssues = latestScore?.issues
+    ? [...latestScore.issues]
+        .sort((a, b) => {
+          const sevOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+          return (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
+        })
+        .slice(0, 3)
+    : [];
+
   if (!latest) {
     return (
       <div className="px-8 lg:px-12 py-10 max-w-[1400px] mx-auto space-y-8">
@@ -62,21 +90,23 @@ export default async function BriefPage() {
             description="Get a weekly AI-generated brief analyzing your keyword movements, top movers, and actionable tickets. Upgrade to Pro to unlock."
           />
         ) : (
-          <div className="rounded-2xl bg-secondary p-8 md:p-10 max-w-2xl">
-            <p className="text-lg text-muted-foreground">
-              {hasData
-                ? "You have data — generate the first brief now, or wait for Monday 09:00 UTC."
-                : "No data yet. Run a SERP fetch first, then generate the brief."}
-            </p>
-            {hasData && (
-              <div className="mt-6">
+          <EmptyState
+            icon={FileText}
+            title="No brief generated yet"
+            description={
+              hasData
+                ? "Once you have position data, generate your first AI brief. It analyzes your SEO and creates a weekly action plan."
+                : "No data yet. Run a SERP fetch first, then generate the brief."
+            }
+            action={
+              hasData ? (
                 <GenerateBriefButton
                   variant="default"
                   activeStatus={(latestBriefRun?.status as any) ?? null}
                 />
-              </div>
-            )}
-          </div>
+              ) : undefined
+            }
+          />
         )}
       </div>
     );
@@ -123,6 +153,52 @@ export default async function BriefPage() {
           />
         </div>
       </header>
+
+      {/* This week's 3 priorities */}
+      {topIssues.length > 0 && (
+        <section>
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">this week&apos;s priorities</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {topIssues.map((issue, i) => (
+              <div key={i} className="rounded-2xl bg-card p-5 flex gap-4">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-mono text-xs font-semibold">
+                  {i + 1}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{issue.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    {issue.impact}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Health score trend */}
+      {scoreTrend.length >= 2 && (
+        <section className="rounded-2xl bg-card p-5">
+          <div className="font-mono text-[10px] text-muted-foreground mb-3">health score trend</div>
+          <div className="flex items-end gap-3 h-16">
+            {[...scoreTrend].reverse().map((s, i) => {
+              const height = Math.max(8, (s.score / 100) * 64);
+              const isLatest = i === scoreTrend.length - 1;
+              return (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <span className={`font-mono text-[10px] tabular-nums ${isLatest ? "text-foreground" : "text-muted-foreground"}`}>
+                    {s.score}
+                  </span>
+                  <div
+                    className={`w-8 rounded-t-md ${isLatest ? "bg-primary" : "bg-primary/30"}`}
+                    style={{ height: `${height}px` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* KPI row */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">

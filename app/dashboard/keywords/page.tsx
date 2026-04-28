@@ -13,8 +13,11 @@ import { ThreatBadge } from "@/components/threat-badge";
 import { PositionSparkline } from "@/components/position-sparkline";
 import { PositionHeatmap } from "@/components/position-heatmap";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
+import { detectKeywordIssues, getKeywordTip } from "@/lib/seo-score";
+import type { KeywordData } from "@/lib/seo-score";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ListOrdered } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { KeywordsFilterBar } from "@/components/keywords-filter-bar";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filters";
@@ -66,21 +69,27 @@ export default async function KeywordsPage({
   if (keywords.length === 0) {
     return (
       <div className="px-8 py-12">
-        <div className="bg-card rounded-2xl p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            {sites.length === 0
-              ? "Connect Google Search Console first to register your site."
-              : "Add a keyword manually, or re-connect GSC to auto-import your top 20 queries."}
-          </p>
-          {sites.length > 0 && (
-            <div className="mt-4">
+        <EmptyState
+          icon={ListOrdered}
+          title="No keywords tracked yet"
+          description={
+            sites.length === 0
+              ? "Connect Google Search Console first, then add keywords to start monitoring your search positions."
+              : "Add keywords to start monitoring your search positions. We'll fetch rankings daily and analyze trends."
+          }
+          action={
+            sites.length > 0 ? (
               <AddKeywordForm />
-            </div>
-          )}
-          <div className="mt-4 font-mono text-[10px] text-muted-foreground">
-            Example: &quot;rank tracker alternative&quot;
-          </div>
-        </div>
+            ) : (
+              <Link
+                href="/dashboard/connect-google"
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2 hover:opacity-90 transition-opacity"
+              >
+                Connect GSC
+              </Link>
+            )
+          }
+        />
       </div>
     );
   }
@@ -109,6 +118,7 @@ export default async function KeywordsPage({
       .select({
         keywordId: schema.gscMetrics.keywordId,
         impressions: schema.gscMetrics.impressions,
+        clicks: schema.gscMetrics.clicks,
       })
       .from(schema.gscMetrics)
       .where(
@@ -119,10 +129,12 @@ export default async function KeywordsPage({
       ),
   ]);
 
-  // Sum GSC impressions per keyword over the last 30 days
+  // Sum GSC impressions + clicks per keyword over the last 30 days
   const gscImpByKw = new Map<string, number>();
+  const gscClicksByKw = new Map<string, number>();
   for (const m of gscMetricsRows) {
     gscImpByKw.set(m.keywordId, (gscImpByKw.get(m.keywordId) ?? 0) + m.impressions);
+    gscClicksByKw.set(m.keywordId, (gscClicksByKw.get(m.keywordId) ?? 0) + m.clicks);
   }
 
   // Build per-keyword latest + delta
@@ -164,6 +176,7 @@ export default async function KeywordsPage({
         bestCompThreat: bestThreat,
         compCount: ranked.length,
         gscImpressions: gscImpByKw.get(k.id) ?? 0,
+        gscClicks: gscClicksByKw.get(k.id) ?? 0,
         sparkline7d: kPos.slice(-7).map((p) => p.position).filter((p): p is number => p != null),
         heatmap7d: (() => {
           const last8 = kPos.slice(-8);
@@ -192,6 +205,57 @@ export default async function KeywordsPage({
     : filteredByFilters;
 
   const unclassifiedCount = rows.filter((r) => r.intentStage == null).length;
+
+  // ── Intelligence summary computations ──────────────────────────
+  const top3Count = rows.filter((r) => r.position != null && r.position <= 3).length;
+  const strikingCount = rows.filter((r) => r.position != null && r.position >= 4 && r.position <= 10).length;
+  const droppingCount = rows.filter(
+    (r) => r.position != null && r.delta7d != null && r.delta7d < 0 && Math.abs(r.delta7d) >= 3,
+  ).length;
+  const quickWinCount = rows.filter(
+    (r) => r.position != null && r.position >= 11 && r.position <= 20 && r.gscImpressions > 100,
+  ).length;
+  const totalActive = rows.length;
+
+  // Build KeywordData array for seo-score functions
+  const keywordDataArray: KeywordData[] = rows.map((r) => ({
+    id: r.id,
+    query: r.keyword,
+    latestPosition: r.position,
+    previousPosition: r.delta1d != null && r.position != null ? r.position + r.delta1d : null,
+    weekAgoPosition: r.delta7d != null && r.position != null ? r.position + r.delta7d : null,
+    impressions28d: r.gscImpressions,
+    clicks28d: r.gscClicks,
+    intentStage: r.intentStage != null ? Number(r.intentStage) : null,
+  }));
+
+  const keywordIssues = detectKeywordIssues(keywordDataArray);
+  const topIssues = keywordIssues.slice(0, 3);
+
+  // Build a map from row id to tip for per-row rendering
+  const tipByKeywordId = new Map<string, ReturnType<typeof getKeywordTip>>();
+  for (const kd of keywordDataArray) {
+    tipByKeywordId.set(kd.id, getKeywordTip(kd));
+  }
+
+  // Best opportunity: highest-impression keyword in positions 4-10
+  const bestOpportunity = rows
+    .filter((r) => r.position != null && r.position >= 4 && r.position <= 10)
+    .sort((a, b) => b.gscImpressions - a.gscImpressions)[0] ?? null;
+
+  const severityColor: Record<string, string> = {
+    high: "#F87171",
+    medium: "#FBBF24",
+    low: "#A855F7",
+  };
+
+  const tipColorClass: Record<string, string> = {
+    green: "text-[var(--up)]",
+    yellow: "text-yellow-400",
+    red: "text-[var(--down)]",
+    purple: "text-primary",
+    gray: "text-muted-foreground",
+  };
 
   return (
     <div className="px-8 py-6">
@@ -224,6 +288,77 @@ export default async function KeywordsPage({
         </div>
       </header>
 
+      {/* ── Keyword Health Summary ──────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        {[
+          { label: "top 3", value: top3Count, color: "#34D399" },
+          { label: "striking distance", value: strikingCount, subtitle: "pos 4-10", color: "#A855F7" },
+          { label: "dropping", value: droppingCount, color: "#F87171" },
+          { label: "quick wins", value: quickWinCount, subtitle: "pos 11-20, high impr", color: "#A855F7" },
+          { label: "total tracked", value: totalActive, color: "#FFFFFF" },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
+            <div className="font-mono text-[10px] text-muted-foreground">
+              {stat.label}
+              {stat.subtitle && (
+                <span className="ml-1 opacity-60">({stat.subtitle})</span>
+              )}
+            </div>
+            <div
+              className="font-mono text-2xl font-semibold tabular-nums mt-0.5"
+              style={{ color: stat.color }}
+            >
+              {stat.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Top Issues ────────────────────────────────────────── */}
+      {topIssues.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+          {topIssues.map((issue, i) => (
+            <div
+              key={i}
+              className="bg-card rounded-2xl p-4"
+              style={{ borderLeft: `3px solid ${severityColor[issue.severity] ?? "#A855F7"}` }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="inline-block h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: severityColor[issue.severity] ?? "#A855F7" }}
+                />
+                <span className="font-mono text-[11px] font-medium truncate">
+                  {issue.title}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {issue.description}
+              </p>
+              <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono">
+                {issue.impact}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Best Opportunity ──────────────────────────────────── */}
+      {bestOpportunity && bestOpportunity.gscImpressions > 50 && (
+        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-5">
+          <p className="text-sm">
+            <span className="mr-1.5">💡</span>
+            <span className="font-medium">Best opportunity:</span>{" "}
+            <span className="font-mono text-xs">{bestOpportunity.keyword}</span> at{" "}
+            <span className="font-mono text-xs font-semibold">#{bestOpportunity.position}</span> with{" "}
+            <span className="font-mono text-xs font-semibold tabular-nums">
+              {bestOpportunity.gscImpressions.toLocaleString()}
+            </span>{" "}
+            monthly impressions. Push to top 3 to capture 3x more clicks.
+          </p>
+        </div>
+      )}
+
       <div className="mb-4">
         <KeywordGroupBar groups={groups} activeGroupId={activeGroupId} />
       </div>
@@ -246,13 +381,14 @@ export default async function KeywordsPage({
               <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Impr 30d</th>
               <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Best comp</th>
               <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Country</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">Tip</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={12} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No keywords match these filters. Click <strong>Reset</strong> above to clear.
                 </td>
               </tr>
@@ -329,6 +465,17 @@ export default async function KeywordsPage({
                 </td>
                 <td className="px-4 py-2.5 text-muted-foreground text-xs font-mono tabular-nums">
                   {r.country.toUpperCase()}
+                </td>
+                <td className="px-3 py-2.5">
+                  {(() => {
+                    const tip = tipByKeywordId.get(r.id);
+                    if (!tip) return null;
+                    return (
+                      <span className={`font-mono text-[11px] leading-snug ${tipColorClass[tip.color] ?? "text-muted-foreground"}`}>
+                        {tip.text}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">

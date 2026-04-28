@@ -75,6 +75,59 @@ export default async function CannibalizationPage() {
 
       <CannibalizationStatusBanner run={banner} />
 
+      {/* Actionable intelligence summary */}
+      {latestRun && latestRun.status === "done" && findings.length > 0 && (
+        <section className="space-y-4">
+          <div className="rounded-2xl bg-card p-5">
+            <div className="font-mono text-[10px] text-muted-foreground mb-2">intelligence summary</div>
+            <p className="text-lg">
+              <span className="font-mono tabular-nums font-semibold text-[var(--down)]">
+                {findings.length}
+              </span>{" "}
+              keyword group{findings.length !== 1 ? "s" : ""} where your pages compete against each other.
+            </p>
+          </div>
+
+          {(() => {
+            const topGroups = [...findings]
+              .sort((a, b) => b.totalImpressions - a.totalImpressions)
+              .slice(0, 3);
+            return topGroups.length > 0 ? (
+              <div>
+                <div className="font-mono text-[10px] text-muted-foreground mb-3">highest impact groups</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {topGroups.map((group, i) => (
+                    <div
+                      key={`${group.query}-${i}`}
+                      className="rounded-2xl bg-card p-4 border-l-[3px] border-l-[var(--down)]"
+                    >
+                      <div className="text-sm font-medium">{group.query}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground mt-2 tabular-nums">
+                        {group.totalImpressions.toLocaleString()} impressions · {group.urls.length} URLs
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        {group.urls.slice(0, 3).map((u) => {
+                          let display = u.page;
+                          try { display = new URL(u.page).pathname || u.page; } catch {}
+                          return (
+                            <div key={u.page} className="font-mono text-[10px] text-muted-foreground truncate" title={u.page}>
+                              {display}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-3 leading-relaxed">
+                        Consolidate these pages or differentiate their content.
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
+        </section>
+      )}
+
       {!latestRun && (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">

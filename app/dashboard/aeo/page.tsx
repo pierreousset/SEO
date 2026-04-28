@@ -3,6 +3,7 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, desc } from "drizzle-orm";
 import { Sparkles, ArrowRight } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { RunAeoCheckButton } from "@/components/run-aeo-check-button";
 import { AeoStatusBanner } from "@/components/aeo-status-banner";
 import { getUserPlan } from "@/lib/billing-helpers";
@@ -179,19 +180,17 @@ export default async function AeoPage() {
             description="Track whether ChatGPT, Perplexity, and Claude cite your domain for your keywords. Upgrade to Pro to run AEO checks."
           />
         ) : (
-          <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
-            <p className="text-lg">
-              Track whether your domain is cited by <strong>ChatGPT</strong>,{" "}
-              <strong>Perplexity</strong>, and <strong>Claude</strong> for your keywords. This is
-              the SEO of 2026 — when people ask an AI instead of Google, are you in the answer?
-            </p>
-            <p className="text-sm text-muted-foreground mt-4">
-              Configure at least one of <code className="font-mono">PERPLEXITY_API_KEY</code>,{" "}
-              <code className="font-mono">ANTHROPIC_API_KEY</code>, or{" "}
-              <code className="font-mono">OPENAI_API_KEY</code> in your env, then tap{" "}
-              <strong>Run first check</strong>.
-            </p>
-          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="No AI visibility check yet"
+            description="See if AI assistants (Claude, Perplexity, ChatGPT) mention your business when answering relevant queries."
+            action={
+              <RunAeoCheckButton
+                label="Run first check"
+                activeStatus={null}
+              />
+            }
+          />
         )
       )}
 

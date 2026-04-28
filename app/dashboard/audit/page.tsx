@@ -1,11 +1,13 @@
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { RunAuditButton } from "@/components/run-audit-button";
 import { AuditStatusBanner } from "@/components/audit-status-banner";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { ShareLinkButton } from "@/components/share-link-button";
+import { Stethoscope } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,47 @@ export default async function AuditPage() {
     } catch {}
   }
 
+  // Query previous completed audit for progress tracking
+  const completedRuns = await db
+    .select()
+    .from(schema.auditRuns)
+    .where(and(eq(schema.auditRuns.userId, ctx.ownerId), eq(schema.auditRuns.status, "done")))
+    .orderBy(desc(schema.auditRuns.finishedAt))
+    .limit(2);
+
+  let issuesFixedSinceLastAudit: number | null = null;
+  if (completedRuns.length === 2) {
+    const prevCount = completedRuns[1].findingsCount ?? 0;
+    const currCount = completedRuns[0].findingsCount ?? 0;
+    issuesFixedSinceLastAudit = prevCount - currCount;
+  }
+
+  // Build "Fix these first" top 3 high-severity findings with impact estimates
+  const highFindings = findings.filter((f) => f.severity === "high");
+  const impactEstimates: Record<string, string> = {
+    title_missing: "Adding titles could improve visibility for affected pages",
+    meta_missing: "Meta descriptions improve CTR by 5-10%",
+    h1_missing: "Missing H1 tags hurt content hierarchy and crawlability",
+    canonical_missing: "Canonicals prevent duplicate content penalties",
+    alt_missing: "Alt text improves image search visibility and accessibility",
+    schema_missing: "Structured data enables rich snippets in SERPs",
+    og_missing: "Open Graph tags improve social media sharing appearance",
+  };
+
+  // Group high findings by checkKey to aggregate counts
+  const highByCheck = new Map<string, { count: number; message: string; checkKey: string }>();
+  for (const f of highFindings) {
+    const existing = highByCheck.get(f.checkKey);
+    if (existing) {
+      existing.count++;
+    } else {
+      highByCheck.set(f.checkKey, { count: 1, message: f.message, checkKey: f.checkKey });
+    }
+  }
+  const topFixFirst = Array.from(highByCheck.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
   // Group findings by URL for the detail table
   const byUrl = new Map<string, typeof findings>();
   for (const f of findings) {
@@ -98,17 +141,75 @@ export default async function AuditPage() {
 
       <AuditStatusBanner run={banner} />
 
+      {/* Actionable intelligence summary */}
+      {findings.length > 0 && (topFixFirst.length > 0 || issuesFixedSinceLastAudit !== null) && (
+        <section className="space-y-4">
+          {issuesFixedSinceLastAudit !== null && (
+            <div className="rounded-2xl bg-card p-5">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`font-mono text-2xl font-semibold tabular-nums ${
+                    issuesFixedSinceLastAudit > 0
+                      ? "text-[var(--up)]"
+                      : issuesFixedSinceLastAudit < 0
+                        ? "text-[var(--down)]"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {issuesFixedSinceLastAudit > 0
+                    ? `${issuesFixedSinceLastAudit} issue${issuesFixedSinceLastAudit !== 1 ? "s" : ""} fixed`
+                    : issuesFixedSinceLastAudit < 0
+                      ? `${Math.abs(issuesFixedSinceLastAudit)} new issue${Math.abs(issuesFixedSinceLastAudit) !== 1 ? "s" : ""}`
+                      : "No change"}
+                </span>
+                <span className="font-mono text-[10px] text-muted-foreground">since last audit</span>
+              </div>
+            </div>
+          )}
+
+          {topFixFirst.length > 0 && (
+            <div>
+              <h2 className="font-mono text-[10px] text-muted-foreground mb-3">fix these first</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {topFixFirst.map((item, i) => {
+                  const borderColor =
+                    i === 0 ? "border-l-[var(--down)]" : i === 1 ? "border-l-yellow-500" : "border-l-[var(--primary)]";
+                  const impact =
+                    impactEstimates[item.checkKey] ??
+                    `Fixing this could improve SEO for ${item.count} page${item.count !== 1 ? "s" : ""}`;
+                  return (
+                    <div
+                      key={item.checkKey}
+                      className={`rounded-2xl bg-card p-4 border-l-[3px] ${borderColor}`}
+                    >
+                      <div className="text-sm font-medium">{item.message}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground mt-2">
+                        {item.count} page{item.count !== 1 ? "s" : ""} affected
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                        {impact}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {!latestRun && (
-        <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
-          <p className="text-lg text-muted-foreground">
-            Crawl your homepage + top 10 pages from sitemap, run 14 SEO checks on both raw HTML
-            <strong> and JS-rendered DOM</strong> (so we see what Google sees post-hydration),
-            then let the AI prioritize the fixes. Takes 1-2 minutes.
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Click <strong>Run first audit</strong> in the header to start.
-          </p>
-        </div>
+        <EmptyState
+          icon={Stethoscope}
+          title="No audit run yet"
+          description="Run a site audit to check your pages for SEO issues. We crawl your site and check titles, meta descriptions, H1s, schema, and more."
+          action={
+            <RunAuditButton
+              label="Run first audit"
+              activeStatus={null}
+            />
+          }
+        />
       )}
 
       {/* Free / out-of-credits notice when checks ran but synthesis was skipped */}

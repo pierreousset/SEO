@@ -779,6 +779,28 @@ export const auditLog = pgTable("audit_log", {
   index("audit_log_created_idx").on(t.createdAt),
 ]);
 
+// SEO health scores — recomputed after every daily fetch.
+export const seoScores = pgTable("seo_scores", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  siteId: text("site_id").references(() => sites.id, { onDelete: "set null" }),
+  score: integer("score").notNull(), // 0-100
+  breakdown: jsonb("breakdown").$type<Record<string, number>>().notNull(),
+  issues: jsonb("issues").$type<Array<{
+    type: string;
+    severity: string;
+    title: string;
+    description: string;
+    impact: string;
+    whyItMatters?: string;
+    affectedPages?: string[];
+    affectedKeywords?: string[];
+  }>>().notNull(),
+  computedAt: timestamp("computed_at").notNull().defaultNow(),
+}, (t) => [
+  index("seo_scores_user_idx").on(t.userId),
+]);
+
 // Relations (for Drizzle query helpers)
 export const usersRelations = relations(users, ({ many, one }) => ({
   sessions: many(sessions),

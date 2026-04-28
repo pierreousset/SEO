@@ -195,6 +195,12 @@ export const userDailyFetch = inngest.createFunction(
         checkAndFireAlerts(userId),
       );
 
+      // Recompute SEO health score after positions are saved
+      const scoreResult = await step.run("recompute-seo-score", async () => {
+        const { recomputeSeoScore } = await import("@/lib/seo-score-recompute");
+        return recomputeSeoScore(userId);
+      });
+
       await step.run("mark-done", async () =>
         db
           .update(schema.fetchRuns)
@@ -206,7 +212,7 @@ export const userDailyFetch = inngest.createFunction(
           .where(eq(schema.fetchRuns.id, runId!)),
       );
 
-      return { processed: allTaskIds.length, saved, date, alerts: alertResult };
+      return { processed: allTaskIds.length, saved, date, alerts: alertResult, score: scoreResult?.score };
     } catch (err: any) {
       await step.run("mark-failed", async () =>
         db
