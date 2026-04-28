@@ -24,3 +24,29 @@ export async function getNvidiaApiKey(userId: string): Promise<string | undefine
   const keys = await getDecryptedApiKeys(userId);
   return keys.nvidiaKey ?? process.env.NVIDIA_API_KEY ?? undefined;
 }
+
+/**
+ * Get Ollama config. Returns null if not configured.
+ * Ollama exposes an OpenAI-compatible API at /v1.
+ */
+export async function getOllamaConfig(userId: string): Promise<{ baseUrl: string; model: string } | null> {
+  const keys = await getDecryptedApiKeys(userId);
+  if (!keys.ollamaUrl) return null;
+  return {
+    baseUrl: keys.ollamaUrl.replace(/\/$/, ""),
+    model: keys.ollamaModel || "llama3",
+  };
+}
+
+/**
+ * Get LM Studio config. Returns null if not configured.
+ * LM Studio exposes an OpenAI-compatible API at /v1.
+ */
+export async function getLmStudioConfig(userId: string): Promise<{ baseUrl: string; model: string } | null> {
+  const keys = await getDecryptedApiKeys(userId);
+  if (!keys.lmStudioUrl) return null;
+  return {
+    baseUrl: keys.lmStudioUrl.replace(/\/$/, ""),
+    model: keys.lmStudioModel || "local-model",
+  };
+}

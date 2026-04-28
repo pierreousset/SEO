@@ -7,6 +7,8 @@ type Status = {
   googleGemini: boolean;
   huggingface: boolean;
   nvidia: boolean;
+  ollama: boolean;
+  lmStudio: boolean;
   byokEnabled: boolean;
 };
 
@@ -113,6 +115,61 @@ export function ApiKeysForm({
           />
         </div>
       ))}
+
+      {/* Local models section */}
+      <div className="border-t border-[#2A2A2A] pt-5 mt-5">
+        <div className="text-xs font-medium text-neutral-400 uppercase tracking-wider mb-4">Local Models</div>
+
+        {/* Ollama */}
+        <div className="space-y-3 mb-5">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 rounded-full ${status.ollama ? "bg-emerald-500" : "bg-neutral-600"}`} />
+            <span className="text-sm font-medium text-neutral-300">Ollama</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              name="ollamaUrl"
+              type="text"
+              autoComplete="off"
+              placeholder={status.ollama ? "configured" : "http://localhost:11434"}
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            />
+            <input
+              name="ollamaModel"
+              type="text"
+              autoComplete="off"
+              placeholder="llama3"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            />
+          </div>
+          <p className="text-[11px] text-neutral-500">URL + model name. Ollama exposes an OpenAI-compatible API.</p>
+        </div>
+
+        {/* LM Studio */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block h-2 w-2 rounded-full ${status.lmStudio ? "bg-emerald-500" : "bg-neutral-600"}`} />
+            <span className="text-sm font-medium text-neutral-300">LM Studio</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              name="lmStudioUrl"
+              type="text"
+              autoComplete="off"
+              placeholder={status.lmStudio ? "configured" : "http://localhost:1234"}
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            />
+            <input
+              name="lmStudioModel"
+              type="text"
+              autoComplete="off"
+              placeholder="local-model"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            />
+          </div>
+          <p className="text-[11px] text-neutral-500">URL + model name. LM Studio exposes an OpenAI-compatible API.</p>
+        </div>
+      </div>
 
       <div className="flex items-center gap-3 pt-2">
         <button

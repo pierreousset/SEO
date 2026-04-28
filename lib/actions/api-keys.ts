@@ -15,14 +15,19 @@ export async function saveApiKeys(formData: FormData) {
   const ctx = await requireAccountContext();
   if (!ctx.isOwner) redirect("/dashboard");
 
-  const fields = ["anthropicKey", "googleGeminiKey", "huggingfaceKey", "nvidiaKey"] as const;
+  const encryptedFields = ["anthropicKey", "googleGeminiKey", "huggingfaceKey", "nvidiaKey"] as const;
 
   const values: Record<string, string | null> = {};
-  for (const field of fields) {
+  for (const field of encryptedFields) {
     const raw = (formData.get(field) ?? "").toString().trim();
     values[field] = raw.length > 0 ? encrypt(raw) : null;
   }
 
+  // Plain text fields (URLs + model names — not secrets)
+  const ollamaUrl = (formData.get("ollamaUrl") ?? "").toString().trim() || null;
+  const ollamaModel = (formData.get("ollamaModel") ?? "").toString().trim() || null;
+  const lmStudioUrl = (formData.get("lmStudioUrl") ?? "").toString().trim() || null;
+  const lmStudioModel = (formData.get("lmStudioModel") ?? "").toString().trim() || null;
   const byokEnabled = formData.get("byokEnabled") === "on";
 
   await db
@@ -33,6 +38,10 @@ export async function saveApiKeys(formData: FormData) {
       googleGeminiKey: values.googleGeminiKey,
       huggingfaceKey: values.huggingfaceKey,
       nvidiaKey: values.nvidiaKey,
+      ollamaUrl,
+      ollamaModel,
+      lmStudioUrl,
+      lmStudioModel,
       byokEnabled,
       updatedAt: new Date(),
     })
@@ -43,6 +52,10 @@ export async function saveApiKeys(formData: FormData) {
         googleGeminiKey: values.googleGeminiKey,
         huggingfaceKey: values.huggingfaceKey,
         nvidiaKey: values.nvidiaKey,
+        ollamaUrl,
+        ollamaModel,
+        lmStudioUrl,
+        lmStudioModel,
         byokEnabled,
         updatedAt: new Date(),
       },
@@ -69,6 +82,10 @@ export async function getDecryptedApiKeys(userId: string) {
       googleGeminiKey: null as string | null,
       huggingfaceKey: null as string | null,
       nvidiaKey: null as string | null,
+      ollamaUrl: null as string | null,
+      ollamaModel: null as string | null,
+      lmStudioUrl: null as string | null,
+      lmStudioModel: null as string | null,
     };
   }
 
@@ -77,6 +94,10 @@ export async function getDecryptedApiKeys(userId: string) {
     googleGeminiKey: row.googleGeminiKey ? decrypt(row.googleGeminiKey) : null,
     huggingfaceKey: row.huggingfaceKey ? decrypt(row.huggingfaceKey) : null,
     nvidiaKey: row.nvidiaKey ? decrypt(row.nvidiaKey) : null,
+    ollamaUrl: row.ollamaUrl,
+    ollamaModel: row.ollamaModel,
+    lmStudioUrl: row.lmStudioUrl,
+    lmStudioModel: row.lmStudioModel,
   };
 }
 
@@ -95,6 +116,8 @@ export async function getApiKeyStatus(userId: string) {
     googleGemini: !!row?.googleGeminiKey,
     huggingface: !!row?.huggingfaceKey,
     nvidia: !!row?.nvidiaKey,
+    ollama: !!row?.ollamaUrl,
+    lmStudio: !!row?.lmStudioUrl,
     byokEnabled: row?.byokEnabled ?? false,
   };
 }

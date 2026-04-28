@@ -11,7 +11,7 @@ export type GuardResult =
  * When the user has their own key for this provider, credits are skipped (BYOK).
  * Actions that use DataForSEO (not AI) should NOT pass aiProvider — they always cost credits.
  */
-export type AiProvider = "anthropic" | "googleGemini" | "huggingface" | "nvidia";
+export type AiProvider = "anthropic" | "googleGemini" | "huggingface" | "nvidia" | "ollama" | "lmStudio";
 
 /**
  * Standard guard for any metered action. Debits credits atomically.
@@ -53,6 +53,8 @@ export async function guardMeteredAction(opts: {
         googleGemini: keyStatus.googleGemini,
         huggingface: keyStatus.huggingface,
         nvidia: keyStatus.nvidia,
+        ollama: keyStatus.ollama,
+        lmStudio: keyStatus.lmStudio,
       };
       if (providerMap[opts.aiProvider]) {
         return { ok: true, byok: true };
