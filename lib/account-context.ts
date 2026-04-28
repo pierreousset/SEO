@@ -84,10 +84,22 @@ export async function resolveAccountContext(): Promise<AccountContext> {
   let effectiveOwnerId = sessionUserId; // default: own account
 
   if (activeAccountId && ownerIds.includes(activeAccountId)) {
+    // Explicit cookie choice — use it
     effectiveOwnerId = activeAccountId;
-  } else if (accounts.length > 0 && !accounts.some((a) => a.isOwnAccount)) {
-    // User is ONLY a member (no own account data — edge case, shouldn't happen normally)
-    effectiveOwnerId = accounts[0].ownerId;
+  } else if (memberships.length > 0) {
+    // User is a member of at least one other account.
+    // If they have no sites of their own (empty account), auto-switch
+    // to the first team they belong to. This is the common case for
+    // invited members who just signed up.
+    const ownSites = await db
+      .select({ id: schema.sites.id })
+      .from(schema.sites)
+      .where(eq(schema.sites.userId, sessionUserId))
+      .limit(1);
+
+    if (ownSites.length === 0) {
+      effectiveOwnerId = memberships[0].ownerId;
+    }
   }
 
   return {
