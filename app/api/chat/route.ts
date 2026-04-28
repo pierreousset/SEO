@@ -84,25 +84,32 @@ export async function POST(req: NextRequest) {
   const freeTrial = plan === "free" && lifetimeUsed < CHAT_LIMITS.freeLifetimeMessages;
 
   if (!proIncluded && !freeTrial) {
-    try {
-      await debitCredits({
-        userId: ctx.ownerId,
-        amount: CREDIT_COSTS.chatMessageOverage,
-        reason: "chat_overage",
-        metadata: { monthUsed, lifetimeUsed, plan },
-      });
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) {
-        const msg =
-          plan === "free"
-            ? `You've used your ${CHAT_LIMITS.freeLifetimeMessages} free trial messages and have no credits. Subscribe to Pro for ${CHAT_LIMITS.proMonthlyIncluded}/month included.`
-            : `Monthly quota reached (${CHAT_LIMITS.proMonthlyIncluded}) and no credits left. Buy a pack on /dashboard/billing.`;
-        return new Response(
-          JSON.stringify({ error: msg }),
-          { status: 402, headers: { "Content-Type": "application/json" } },
-        );
+    // BYOK: skip credit debit if user has their own Anthropic key
+    const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
+    const keyStatus = await getApiKeyStatus(ctx.ownerId);
+    const byok = keyStatus.anthropic;
+
+    if (!byok) {
+      try {
+        await debitCredits({
+          userId: ctx.ownerId,
+          amount: CREDIT_COSTS.chatMessageOverage,
+          reason: "chat_overage",
+          metadata: { monthUsed, lifetimeUsed, plan },
+        });
+      } catch (e) {
+        if (e instanceof InsufficientCreditsError) {
+          const msg =
+            plan === "free"
+              ? `You've used your ${CHAT_LIMITS.freeLifetimeMessages} free trial messages and have no credits. Subscribe to Pro for ${CHAT_LIMITS.proMonthlyIncluded}/month included, or add your own API key in Settings.`
+              : `Monthly quota reached (${CHAT_LIMITS.proMonthlyIncluded}) and no credits left. Buy a pack on /dashboard/billing, or add your own API key in Settings.`;
+          return new Response(
+            JSON.stringify({ error: msg }),
+            { status: 402, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        throw e;
       }
-      throw e;
     }
   }
 

@@ -222,25 +222,29 @@ export async function triggerGscHistoryPull(days = 90) {
 export async function triggerBriefNow() {
   const ctx = await requireAccountContext();
 
-  // Manual on-demand regeneration costs credits. Weekly auto-cron is Pro-only
-  // (the subscription perk), but an ad-hoc regen is available to anyone with
-  // credits in their wallet — including cancelled Pros burning their balance.
-  try {
-    await debitCredits({
-      userId: ctx.ownerId,
-      amount: CREDIT_COSTS.briefManual,
-      reason: "brief_manual",
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      const plan = await getUserPlan(ctx.ownerId);
-      const msg =
-        plan === "free"
-          ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs.`
-          : `Need ${e.required} credits to regenerate. You have ${e.available}. Buy a pack on /dashboard/billing.`;
-      return { error: msg } as const;
+  // Manual on-demand regeneration costs credits — unless user has their own API key (BYOK).
+  const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
+  const keyStatus = await getApiKeyStatus(ctx.ownerId);
+  const byok = keyStatus.anthropic;
+
+  if (!byok) {
+    try {
+      await debitCredits({
+        userId: ctx.ownerId,
+        amount: CREDIT_COSTS.briefManual,
+        reason: "brief_manual",
+      });
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) {
+        const plan = await getUserPlan(ctx.ownerId);
+        const msg =
+          plan === "free"
+            ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs, or add your own API key in Settings.`
+            : `Need ${e.required} credits to regenerate. You have ${e.available}. Buy a pack on /dashboard/billing, or add your own API key in Settings.`;
+        return { error: msg } as const;
     }
     throw e;
+    }
   }
 
   const runId = randomUUID();

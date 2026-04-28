@@ -34,6 +34,7 @@ export async function triggerArticleGeneration(keywordId?: string, topic?: strin
     credits: CREDIT_COSTS.articleGeneration,
     reason: "article_generation",
     metadata: { keywordId, topic },
+    aiProvider: "anthropic",
   });
   if (!guard.ok) return { error: guard.error };
 

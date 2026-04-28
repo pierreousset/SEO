@@ -361,22 +361,27 @@ export async function suggestKeywordsWithAI(): Promise<{
     };
   }
 
-  try {
-    await debitCredits({
-      userId: ctx.ownerId,
-      amount: CREDIT_COSTS.aiSuggestions,
-      reason: "ai_suggestions",
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      const plan = await getUserPlan(ctx.ownerId);
-      const msg =
-        plan === "free"
-          ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs.`
-          : `Need ${e.required} credits, you have ${e.available}. Buy a pack on /dashboard/billing.`;
-      return { suggestions: [], error: msg };
+  // BYOK: skip credits if user has their own Anthropic key
+  const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
+  const keyStatus = await getApiKeyStatus(ctx.ownerId);
+  if (!keyStatus.anthropic) {
+    try {
+      await debitCredits({
+        userId: ctx.ownerId,
+        amount: CREDIT_COSTS.aiSuggestions,
+        reason: "ai_suggestions",
+      });
+    } catch (e) {
+      if (e instanceof InsufficientCreditsError) {
+        const plan = await getUserPlan(ctx.ownerId);
+        const msg =
+          plan === "free"
+            ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs, or add your own API key in Settings.`
+            : `Need ${e.required} credits, you have ${e.available}. Buy a pack on /dashboard/billing, or add your own API key in Settings.`;
+        return { suggestions: [], error: msg };
+      }
+      throw e;
     }
-    throw e;
   }
 
   // Pull a sample of the user's GSC top queries as "already seen" signal to the LLM

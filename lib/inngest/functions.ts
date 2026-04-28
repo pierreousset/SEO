@@ -856,15 +856,18 @@ export const siteAudit = inngest.createFunction(
         }
       });
 
-      // AI synthesis is opt-in: fires for anyone holding enough credits,
-      // regardless of current plan (credits are stored value — a cancelled
-      // Pro should still burn their balance). Free users without credits
-      // just get the raw findings.
+      // AI synthesis: BYOK users skip credits, others need enough balance.
       let synthesis: Awaited<ReturnType<typeof synthesizeAudit>> | null = null;
       const synthesisDecision = await step.run("synthesis-eligibility", async () => {
+        // Check BYOK — user has their own Anthropic key → skip credit check
+        const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
+        const keyStatus = await getApiKeyStatus(userId);
+        if (keyStatus.anthropic) {
+          return { run: true, reason: "byok" };
+        }
+
         const balance = await getCreditsBalance(userId);
         if (balance < CREDIT_COSTS.audit) return { run: false, reason: "insufficient_credits", balance };
-        // Debit upfront — atomic guard
         try {
           await debitCredits({
             userId,

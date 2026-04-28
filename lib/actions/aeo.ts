@@ -30,6 +30,7 @@ export async function runAeoCheck(keywordIds?: string[]) {
     credits: CREDIT_COSTS.aeoCheck,
     reason: "aeo_check",
     metadata: { engines, keywordCount: keywordIds?.length ?? 0 },
+    aiProvider: "anthropic",
   });
   if (!guard.ok) return { error: guard.error };
 

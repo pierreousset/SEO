@@ -27,6 +27,7 @@ export async function triggerContentBrief(keywordId: string) {
     credits: CREDIT_COSTS.contentBrief,
     reason: "content_brief",
     metadata: { keywordId },
+    aiProvider: "anthropic",
   });
   if (!guard.ok) return { error: guard.error };
 
