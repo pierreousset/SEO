@@ -15,6 +15,7 @@ import {
   Briefcase,
   CreditCard,
   ChevronRight,
+  Webhook,
 } from "lucide-react";
 import { ApiKeysForm } from "./api-keys/api-keys-form";
 import { saveApiKeys } from "@/lib/actions/api-keys";
@@ -167,6 +168,14 @@ export default async function SettingsPage({
           title="Team"
           description={`${members.length} member${members.length !== 1 ? "s" : ""}${pendingInvites.length > 0 ? ` · ${pendingInvites.length} pending` : ""}`}
         />
+        {ctx.isOwner && (
+          <SettingsLink
+            href="/dashboard/settings/webhooks"
+            icon={Webhook}
+            title="Webhooks & API"
+            description="Notifications & REST API keys"
+          />
+        )}
         {ctx.isOwner && (
           <SettingsLink
             href="/dashboard/billing"

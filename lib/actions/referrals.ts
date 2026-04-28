@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { cookies } from "next/headers";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { requireAccountContext } from "@/lib/account-context";
@@ -130,4 +131,30 @@ export async function claimReferralReward(referredUserId: string): Promise<void>
     .update(schema.referrals)
     .set({ creditsAwarded: true })
     .where(eq(schema.referrals.id, referral.id));
+}
+
+/**
+ * Process referral cookie after sign-in. Reads the ref_code cookie,
+ * records the referral, then clears the cookie.
+ */
+export async function processReferralCookie(): Promise<void> {
+  const ctx = await requireAccountContext();
+  const cookieStore = await cookies();
+  const refCode = cookieStore.get("ref_code")?.value;
+
+  if (!refCode) return;
+
+  // Get user's email
+  const [user] = await db
+    .select({ email: schema.users.email })
+    .from(schema.users)
+    .where(eq(schema.users.id, ctx.sessionUserId))
+    .limit(1);
+
+  if (!user) return;
+
+  await recordReferral(decodeURIComponent(refCode), user.email, ctx.sessionUserId);
+
+  // Clear the cookie
+  cookieStore.set("ref_code", "", { path: "/", maxAge: 0 });
 }

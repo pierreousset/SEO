@@ -2,6 +2,32 @@ import { randomUUID } from "node:crypto";
 import { eq, and, sql } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 
+/** Check if auto-refill threshold is hit and log a warning. */
+async function checkAutoRefillThreshold(userId: string, newBalance: number): Promise<void> {
+  try {
+    const [settings] = await db
+      .select({
+        enabled: schema.userApiKeys.autoRefillEnabled,
+        threshold: schema.userApiKeys.autoRefillThreshold,
+        packPriceId: schema.userApiKeys.autoRefillPackPriceId,
+      })
+      .from(schema.userApiKeys)
+      .where(eq(schema.userApiKeys.userId, userId))
+      .limit(1);
+
+    if (!settings?.enabled) return;
+    if (newBalance >= (settings.threshold ?? 10)) return;
+
+    // v1: log for now. In v2, send an email reminder or auto-charge.
+    console.warn(
+      `[credits] User ${userId} balance (${newBalance}) dropped below auto-refill threshold (${settings.threshold}). Pack: ${settings.packPriceId}`,
+    );
+    // TODO: send email reminder with link to buy credits
+  } catch {
+    // Non-critical — don't break the debit flow
+  }
+}
+
 export class InsufficientCreditsError extends Error {
   constructor(public required: number, public available: number) {
     super(`Insufficient credits: need ${required}, have ${available}`);
@@ -71,7 +97,12 @@ export async function debitCredits(opts: {
     metadata: opts.metadata ?? {},
   });
 
-  return { newBalance: updated[0].balance };
+  const newBalance = updated[0].balance;
+
+  // Check auto-refill threshold (non-blocking)
+  checkAutoRefillThreshold(userId, newBalance).catch(() => {});
+
+  return { newBalance };
 }
 
 /** Add credits (purchase, refund, bonus). Idempotent on stripeEventId. */

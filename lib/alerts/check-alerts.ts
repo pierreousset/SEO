@@ -1,6 +1,7 @@
 import { db, schema } from "@/db/client";
 import { eq, and, desc } from "drizzle-orm";
 import { sendPositionAlertEmail } from "@/lib/email/position-alert";
+import { fireWebhook } from "@/lib/webhooks";
 
 type AlertRow = typeof schema.positionAlerts.$inferSelect;
 
@@ -89,6 +90,15 @@ export async function checkAndFireAlerts(userId: string): Promise<{
       .update(schema.positionAlerts)
       .set({ lastTriggeredAt: new Date() })
       .where(eq(schema.positionAlerts.id, alert.id));
+
+    // Fire webhook for alert
+    void fireWebhook(userId, "alert_triggered", {
+      message: `Alert: "${keyword?.query ?? "Unknown"}" ${alert.condition.replace(/_/g, " ")} (${previous.position ?? "n/a"} -> ${latest.position ?? "n/a"}).`,
+      keyword: keyword?.query ?? "Unknown",
+      condition: alert.condition,
+      oldPosition: previous.position,
+      newPosition: latest.position,
+    });
 
     fired++;
   }

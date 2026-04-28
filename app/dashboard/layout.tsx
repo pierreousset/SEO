@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { resolveAccountContext } from "@/lib/account-context";
+import { processReferralCookie } from "@/lib/actions/referrals";
 import { CreditsDisplay } from "@/components/credits-display";
 import { ActiveJobsIndicator } from "@/components/active-jobs-indicator";
 import { UsageMeter } from "@/components/usage-meter";
@@ -33,6 +34,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   } catch {
     redirect("/");
   }
+
+  // Process referral cookie (fire-and-forget, non-blocking)
+  processReferralCookie().catch(() => {});
 
   const nav = NAV.filter((item) => {
     if ("ownerOnly" in item && item.ownerOnly && !ctx.isOwner) return false;

@@ -30,8 +30,16 @@ function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "";
+  const refCode = searchParams.get("ref") || "";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Store referral code in cookie for post-signup processing
+  useEffect(() => {
+    if (refCode) {
+      document.cookie = `ref_code=${encodeURIComponent(refCode)};path=/;max-age=${60 * 60 * 24 * 30}`;
+    }
+  }, [refCode]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

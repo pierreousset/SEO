@@ -13,6 +13,7 @@ import { getCreditsBalance, debitCredits } from "@/lib/credits";
 import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { generateBrief } from "@/lib/llm/brief";
 import { checkAndFireAlerts } from "@/lib/alerts/check-alerts";
+import { fireWebhook } from "@/lib/webhooks";
 import { randomUUID } from "node:crypto";
 
 // -------------------------------------------------------------------
@@ -409,6 +410,16 @@ export const weeklyBrief = inngest.createFunction(
           .update(schema.briefRuns)
           .set({ status: "done", finishedAt: new Date(), briefId })
           .where(eq(schema.briefRuns.id, runId!)),
+      );
+
+      // Fire webhook for brief ready
+      await step.run("webhook-brief-ready", () =>
+        fireWebhook(userId, "brief_ready", {
+          message: `Weekly AI brief ready for ${ps} - ${pe}.`,
+          briefId,
+          periodStart: ps,
+          periodEnd: pe,
+        }),
       );
 
       // Send weekly brief email (opt-out via business profile).
@@ -910,6 +921,16 @@ export const siteAudit = inngest.createFunction(
               : `synthesis_skipped:${(synthesisDecision as any).reason}`,
           })
           .where(eq(schema.auditRuns.id, runId)),
+      );
+
+      // Fire webhook for audit completion
+      await step.run("webhook-audit-complete", () =>
+        fireWebhook(userId, "audit_complete", {
+          message: `Audit complete: ${allFindings.length} findings (${high} high severity) across ${urls.length} pages.`,
+          findings: allFindings.length,
+          highSeverity: high,
+          pages: urls.length,
+        }),
       );
 
       return {
@@ -1819,6 +1840,16 @@ export const fullMetaCrawl = inngest.createFunction(
             orphanPages: result.orphanCount,
           })
           .where(eq(schema.metaCrawlRuns.id, runId)),
+      );
+
+      // Fire webhook for crawl completion
+      await step.run("webhook-crawl-complete", () =>
+        fireWebhook(userId, "crawl_complete", {
+          message: `Meta crawl complete: ${result.pages.length} pages crawled, ${result.sitemapUrlCount} sitemap URLs, ${result.orphanCount} orphan pages.`,
+          pages: result.pages.length,
+          sitemapUrls: result.sitemapUrlCount,
+          orphans: result.orphanCount,
+        }),
       );
 
       return {

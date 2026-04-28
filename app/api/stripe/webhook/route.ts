@@ -5,6 +5,7 @@ import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import { db, schema } from "@/db/client";
 import { addCredits } from "@/lib/credits";
 import { CREDIT_PACK_AMOUNTS } from "@/lib/billing-constants";
+import { claimReferralReward } from "@/lib/actions/referrals";
 
 // Stripe webhooks need the raw body to verify the signature. Disable Next.js body parsing.
 export const dynamic = "force-dynamic";
@@ -35,6 +36,22 @@ export async function POST(req: NextRequest) {
         break;
 
       case "customer.subscription.created":
+        await handleSubscriptionChange(event);
+        // Award referral credits when a referred user subscribes
+        {
+          const sub = event.data.object as Stripe.Subscription;
+          const subUserId =
+            sub.metadata?.userId ??
+            (typeof sub.customer === "string"
+              ? await resolveUserFromCustomer(sub.customer)
+              : null);
+          if (subUserId) {
+            await claimReferralReward(subUserId).catch((err) =>
+              console.warn("[stripe webhook] referral claim error:", err),
+            );
+          }
+        }
+        break;
       case "customer.subscription.updated":
         await handleSubscriptionChange(event);
         break;
