@@ -48,17 +48,25 @@ export default async function ConnectGooglePage({
               </p>
             )}
           </div>
-          {authUrl && (
-            <a
-              href={authUrl}
-              className="shrink-0 inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90"
-            >
-              {gsc ? "Re-connect" : "Connect"}
-            </a>
-          )}
-          {!authUrl && (
+          {ctx.isOwner ? (
+            <>
+              {authUrl && (
+                <a
+                  href={authUrl}
+                  className="shrink-0 inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90"
+                >
+                  {gsc ? "Re-connect" : "Connect"}
+                </a>
+              )}
+              {!authUrl && (
+                <div className="shrink-0 text-xs text-muted-foreground max-w-[200px] text-right">
+                  Set <code>GOOGLE_CLIENT_ID</code> in .env to enable
+                </div>
+              )}
+            </>
+          ) : (
             <div className="shrink-0 text-xs text-muted-foreground max-w-[200px] text-right">
-              Set <code>GOOGLE_CLIENT_ID</code> in .env to enable
+              {gsc ? "Connected by the account owner." : "Only the account owner can connect GSC."}
             </div>
           )}
         </div>
