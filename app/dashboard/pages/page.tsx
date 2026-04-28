@@ -5,6 +5,10 @@ import { and, eq, gte, desc, sql } from "drizzle-orm";
 import { ExternalLink, FileText, ArrowRight } from "lucide-react";
 import { detectPageIssues, type PageData, type Issue } from "@/lib/seo-score";
 import { IssueCard, type IssueCardData } from "@/components/issue-card";
+import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
+import { detectContentDecay, type DecayingPage } from "@/lib/content-decay";
+import { DecayMiniChart } from "@/components/decay-mini-chart";
+import { CheckVitalsButton } from "@/components/check-vitals-button";
 
 export const dynamic = "force-dynamic";
 
@@ -116,6 +120,35 @@ export default async function PagesPage() {
       .limit(1),
   ]);
 
+  // Content decay: fetch raw daily page metrics for the last 28 days
+  const decayCutoff = new Date();
+  decayCutoff.setUTCDate(decayCutoff.getUTCDate() - 28);
+  const decayCutoffStr = decayCutoff.toISOString().slice(0, 10);
+
+  const dailyPageMetrics = await db
+    .select({
+      url: schema.gscPageMetrics.url,
+      date: schema.gscPageMetrics.date,
+      clicks: schema.gscPageMetrics.clicks,
+    })
+    .from(schema.gscPageMetrics)
+    .where(
+      and(
+        eq(schema.gscPageMetrics.userId, ctx.ownerId),
+        gte(schema.gscPageMetrics.date, decayCutoffStr),
+      ),
+    );
+
+  const decayingPages = detectContentDecay(dailyPageMetrics);
+
+  // Core Web Vitals — latest 20 results for this user
+  const vitals = await db
+    .select()
+    .from(schema.webVitals)
+    .where(eq(schema.webVitals.userId, ctx.ownerId))
+    .orderBy(desc(schema.webVitals.fetchedAt))
+    .limit(20);
+
   // Build prev clicks map
   const prevClicksMap = new Map<string, number>();
   for (const p of prevAggregated) {
@@ -226,9 +259,155 @@ export default async function PagesPage() {
                 <h2 className="text-xl font-semibold mt-0.5">Issues detected</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {topIssues.map((issue) => (
-                  <IssueCard key={issue.type} issue={issue} />
-                ))}
+                {topIssues.map((issue) => {
+                  const showMetaCta =
+                    issue.type === "title_missing" ||
+                    issue.type === "title_short" ||
+                    issue.type === "meta_missing" ||
+                    issue.type === "low_ctr_for_position";
+                  const firstPage = issue.affectedPages?.[0];
+                  return (
+                    <IssueCard key={issue.type} issue={issue}>
+                      {showMetaCta && firstPage && (
+                        <MetaSuggestionButton url={firstPage} />
+                      )}
+                    </IssueCard>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Core Web Vitals */}
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  core web vitals
+                </span>
+                <h2 className="text-xl font-semibold mt-0.5">Performance</h2>
+              </div>
+              <CheckVitalsButton />
+            </div>
+            {vitals.length > 0 ? (
+              <div className="rounded-2xl bg-card p-6 md:p-8">
+                <div className="rounded-[12px] bg-background overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Score</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">LCP</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">FCP</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">CLS</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">TTFB</th>
+                        <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Checked</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vitals.map((v) => {
+                        let display = v.url;
+                        try {
+                          const u = new URL(v.url);
+                          display = `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`;
+                        } catch {}
+                        const score = v.performanceScore ?? 0;
+                        const scoreColor =
+                          score >= 90
+                            ? "text-[#34D399]"
+                            : score >= 50
+                              ? "text-[#FBBF24]"
+                              : "text-[#F87171]";
+                        return (
+                          <tr key={v.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
+                            <td className="px-4 py-3 font-mono tabular text-xs truncate max-w-[300px]" title={v.url}>
+                              {display}
+                            </td>
+                            <td className={`px-3 py-3 text-right font-mono tabular font-semibold ${scoreColor}`}>
+                              {score}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono tabular">
+                              {v.lcp != null ? `${(v.lcp / 1000).toFixed(1)}s` : "—"}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono tabular">
+                              {v.fcp != null ? `${(v.fcp / 1000).toFixed(1)}s` : "—"}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono tabular">
+                              {v.cls != null ? v.cls.toFixed(3) : "—"}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono tabular">
+                              {v.ttfb != null ? `${v.ttfb}ms` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono tabular text-xs text-muted-foreground">
+                              {new Date(v.fetchedAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground">
+                No vitals data yet. Click &ldquo;Check vitals&rdquo; to scan your top pages via PageSpeed Insights.
+              </div>
+            )}
+          </section>
+
+          {/* Content Decay */}
+          {decayingPages.length > 0 && (
+            <section className="space-y-3">
+              <div>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  content decay
+                </span>
+                <h2 className="text-xl font-semibold mt-0.5">
+                  Pages losing traffic gradually
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {decayingPages.map((page) => {
+                  let display = page.url;
+                  try {
+                    const u = new URL(page.url);
+                    display = `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`;
+                  } catch {}
+                  const severityColor =
+                    page.severity === "high"
+                      ? "bg-[var(--down)]/15 text-[var(--down)]"
+                      : page.severity === "medium"
+                        ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+                        : "bg-muted text-muted-foreground";
+                  return (
+                    <div
+                      key={page.url}
+                      className="rounded-[12px] bg-card p-5 space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <a
+                          href={page.url}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="font-mono tabular text-xs truncate hover:underline max-w-[80%]"
+                          title={page.url}
+                        >
+                          {display}
+                        </a>
+                        <span
+                          className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full shrink-0 ${severityColor}`}
+                        >
+                          {page.severity}
+                        </span>
+                      </div>
+                      <DecayMiniChart weeks={page.weeklyClickTrend} />
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono tabular">
+                        <span>{page.decayRate}% per week</span>
+                        <span>~{page.totalClicksLost} clicks lost over 4 weeks</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}

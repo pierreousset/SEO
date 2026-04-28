@@ -26,6 +26,7 @@ import {
   Radio,
   PenTool,
   KeyRound,
+  Link2,
   Menu,
   X,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "credit-card": CreditCard,
   "pen-tool": PenTool,
   "key-round": KeyRound,
+  link: Link2,
   settings: Settings,
 };
 

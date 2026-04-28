@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, boolean, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, boolean, jsonb, uniqueIndex, index, real } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // Better Auth core tables
@@ -805,6 +805,38 @@ export const seoScores = pgTable("seo_scores", {
   computedAt: timestamp("computed_at").notNull().defaultNow(),
 }, (t) => [
   index("seo_scores_user_idx").on(t.userId),
+]);
+
+// SERP features detected per keyword per day. Tracks which SERP features
+// appear for a keyword and whether the user's page shows in any of them.
+export const serpFeatures = pgTable("serp_features", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  keywordId: text("keyword_id").notNull().references(() => keywords.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  features: jsonb("features").$type<string[]>().notNull().default([]), // array of feature names detected
+  hasFeature: boolean("has_feature").notNull().default(false), // does user's page appear in a feature
+  featureType: text("feature_type"), // which feature the user appears in, if any
+}, (t) => [
+  uniqueIndex("serp_features_unique").on(t.keywordId, t.date),
+  index("serp_features_user_idx").on(t.userId),
+  index("serp_features_keyword_idx").on(t.keywordId),
+]);
+
+// Core Web Vitals — PageSpeed Insights results per URL.
+export const webVitals = pgTable("web_vitals", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  performanceScore: integer("performance_score"),
+  lcp: integer("lcp"), // Largest Contentful Paint (ms)
+  fcp: integer("fcp"), // First Contentful Paint (ms)
+  cls: real("cls"), // Cumulative Layout Shift
+  ttfb: integer("ttfb"), // Time to First Byte (ms)
+  fetchedAt: timestamp("fetched_at").notNull(),
+}, (t) => [
+  index("web_vitals_user_idx").on(t.userId),
+  index("web_vitals_fetched_idx").on(t.fetchedAt),
 ]);
 
 // Relations (for Drizzle query helpers)

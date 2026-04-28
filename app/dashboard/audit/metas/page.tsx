@@ -6,6 +6,9 @@ import { Check, X, AlertTriangle, Globe, MapPin, Unlink } from "lucide-react";
 import { RunMetaCrawlButton } from "@/components/run-meta-crawl-button";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
+import { BulkMetaSuggestionButton } from "@/components/bulk-meta-suggestion-button";
+import { SchemaGeneratorButton } from "@/components/schema-generator-button";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +70,7 @@ export default async function MetasPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {pages.length > 0 && <BulkMetaSuggestionButton />}
           <ExportCsvButton type="metas" />
           <RunMetaCrawlButton
             label={latestRun ? "Re-crawl site" : "Crawl all pages"}
@@ -158,6 +162,8 @@ export default async function MetasPage() {
                     <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">H1</th>
                     <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Sitemap</th>
                     <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Index</th>
+                    <th className="text-center px-3 py-2.5 w-28 font-mono text-[9px] text-muted-foreground font-normal">AI</th>
+                    <th className="text-center px-3 py-2.5 w-20 font-mono text-[9px] text-muted-foreground font-normal">Schema</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,6 +247,14 @@ export default async function MetasPage() {
                               strokeWidth={2}
                             />
                           )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {(!m.title || (m.titleLength ?? 0) < 30 || !m.metaDescription || (m.metaDescriptionLength ?? 0) < 80) && (
+                            <MetaSuggestionButton url={m.url} />
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <SchemaGeneratorButton url={m.url} />
                         </td>
                       </tr>
                     );

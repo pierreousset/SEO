@@ -18,6 +18,7 @@ const NAV = [
   { href: "/dashboard/aeo", label: "AEO", iconName: "sparkles" as const },
   { href: "/dashboard/audit", label: "Audit", iconName: "stethoscope" as const },
   { href: "/dashboard/audit/metas", label: "Metas", iconName: "tags" as const },
+  { href: "/dashboard/internal-links", label: "Links", iconName: "link" as const },
   { href: "/dashboard/cannibalization", label: "Cannibalization", iconName: "split" as const },
   { href: "/dashboard/gap", label: "Gap", iconName: "crosshair" as const },
   { href: "/dashboard/content", label: "Content", iconName: "pen-tool" as const },

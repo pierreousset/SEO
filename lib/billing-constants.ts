@@ -50,6 +50,9 @@ export const CREDIT_COSTS = {
   extraSitePerMonth: 50, // 5€/mo extra site
   chatMessageOverage: 1, // per message beyond PRO_CHAT_MONTHLY_INCLUDED
   articleGeneration: 5, // full SEO article generation (~$0.15 LLM)
+  metaSuggestion: 1, // single page meta title/desc suggestion (~$0.02 Haiku)
+  metaSuggestionBulk: 3, // bulk meta suggestions for all pages with issues
+  schemaGeneration: 1, // JSON-LD schema.org markup via Claude Haiku
 } as const;
 
 /**

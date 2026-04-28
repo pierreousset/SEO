@@ -9,6 +9,11 @@ import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PositionAlerts } from "@/components/position-alerts";
 import { listAlerts } from "@/lib/actions/alerts";
+import {
+  SERP_FEATURE_LABELS,
+  SERP_FEATURE_COLORS,
+  type SerpFeature,
+} from "@/lib/serp-features";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +59,22 @@ export default async function KeywordBriefPage({
     .limit(1);
 
   const alerts = await listAlerts(id);
+
+  const [latestSerpFeature] = await db
+    .select()
+    .from(schema.serpFeatures)
+    .where(
+      and(
+        eq(schema.serpFeatures.keywordId, id),
+        eq(schema.serpFeatures.userId, ctx.ownerId),
+      ),
+    )
+    .orderBy(desc(schema.serpFeatures.date))
+    .limit(1);
+
+  const serpFeatureList = (latestSerpFeature?.features ?? []) as SerpFeature[];
+  const userInFeature = latestSerpFeature?.hasFeature ?? false;
+  const userFeatureType = latestSerpFeature?.featureType as SerpFeature | null;
 
   const status = (latestBrief?.status ?? null) as
     | "queued"
@@ -346,6 +367,49 @@ export default async function KeywordBriefPage({
           )}
         </>
       )}
+
+      {/* SERP Features */}
+      <section className="rounded-2xl bg-card p-6 md:p-8">
+        <div className="font-mono text-[10px] text-muted-foreground">
+          serp features
+        </div>
+        <h2 className="text-xl font-semibold mt-0.5">SERP Features</h2>
+        {serpFeatureList.length > 0 ? (
+          <>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {serpFeatureList.map((feature) => (
+                <span
+                  key={feature}
+                  className={`inline-block text-xs px-3 py-1.5 rounded-full font-medium ${SERP_FEATURE_COLORS[feature] ?? "bg-muted text-muted-foreground"}`}
+                >
+                  {SERP_FEATURE_LABELS[feature] ?? feature}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4 text-sm">
+              {userInFeature && userFeatureType ? (
+                <p className="text-[var(--up)]">
+                  Your page appears in:{" "}
+                  <strong>{SERP_FEATURE_LABELS[userFeatureType] ?? userFeatureType}</strong>
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Not in any SERP feature
+                </p>
+              )}
+            </div>
+            {latestSerpFeature && (
+              <p className="mt-2 text-xs text-muted-foreground font-mono tabular">
+                as of {latestSerpFeature.date}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            SERP feature detection will be available after the next SERP fetch
+          </p>
+        )}
+      </section>
 
       {/* Position alerts */}
       <PositionAlerts keywordId={id} initialAlerts={alerts} />

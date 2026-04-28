@@ -26,7 +26,7 @@ const severityDot: Record<string, string> = {
   low: "bg-[#71717A]",
 };
 
-export function IssueCard({ issue }: { issue: IssueCardData }) {
+export function IssueCard({ issue, children }: { issue: IssueCardData; children?: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
 
   const affectedCount =
@@ -77,6 +77,7 @@ export function IssueCard({ issue }: { issue: IssueCardData }) {
               {issue.whyItMatters}
             </p>
           )}
+          {children && <div className="mt-3">{children}</div>}
         </div>
       </div>
     </div>
