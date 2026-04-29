@@ -8,6 +8,8 @@ import { ExportCsvButton } from "@/components/export-csv-button";
 import { ShareLinkButton } from "@/components/share-link-button";
 import { Stethoscope } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,8 @@ const SEVERITY_TONE: Record<string, string> = {
 
 export default async function AuditPage() {
   const ctx = await resolveAccountContext();
+  const lng = await getLocale();
+  const i = locale[lng];
 
   const [latestRun] = await db
     .select()
@@ -89,15 +93,6 @@ export default async function AuditPage() {
 
   // Build "Fix these first" top 3 high-severity findings with impact estimates
   const highFindings = findings.filter((f) => f.severity === "high");
-  const impactEstimates: Record<string, string> = {
-    title_missing: "Adding titles could improve visibility for affected pages",
-    meta_missing: "Meta descriptions improve CTR by 5-10%",
-    h1_missing: "Missing H1 tags hurt content hierarchy and crawlability",
-    canonical_missing: "Canonicals prevent duplicate content penalties",
-    alt_missing: "Alt text improves image search visibility and accessibility",
-    schema_missing: "Structured data enables rich snippets in SERPs",
-    og_missing: "Open Graph tags improve social media sharing appearance",
-  };
 
   // Group high findings by checkKey to aggregate counts
   const highByCheck = new Map<string, { count: number; message: string; checkKey: string }>();
@@ -124,8 +119,8 @@ export default async function AuditPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Site audit</p>
-          <h1 className="font-display text-[40px] mt-2">Audit</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.headerKicker}</p>
+          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {latestRun && (
@@ -133,7 +128,7 @@ export default async function AuditPage() {
           )}
           <ExportCsvButton type="audit" />
           <RunAuditButton
-            label={latestRun ? "Run new audit" : "Run first audit"}
+            label={latestRun ? i.runNewAudit : i.runFirstAudit}
             activeStatus={(latestRun?.status as any) ?? null}
           />
         </div>
@@ -157,26 +152,25 @@ export default async function AuditPage() {
                   }`}
                 >
                   {issuesFixedSinceLastAudit > 0
-                    ? `${issuesFixedSinceLastAudit} issue${issuesFixedSinceLastAudit !== 1 ? "s" : ""} fixed`
+                    ? i.issuesFixed(issuesFixedSinceLastAudit)
                     : issuesFixedSinceLastAudit < 0
-                      ? `${Math.abs(issuesFixedSinceLastAudit)} new issue${Math.abs(issuesFixedSinceLastAudit) !== 1 ? "s" : ""}`
-                      : "No change"}
+                      ? i.newIssues(Math.abs(issuesFixedSinceLastAudit))
+                      : i.noChange}
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground">since last audit</span>
+                <span className="font-mono text-[10px] text-muted-foreground">{i.sinceLastAudit}</span>
               </div>
             </div>
           )}
 
           {topFixFirst.length > 0 && (
             <div>
-              <h2 className="font-mono text-[10px] text-muted-foreground mb-3">fix these first</h2>
+              <h2 className="font-mono text-[10px] text-muted-foreground mb-3">{i.fixFirst}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {topFixFirst.map((item, i) => {
+                {topFixFirst.map((item, idx) => {
                   const borderColor =
-                    i === 0 ? "border-l-[var(--down)]" : i === 1 ? "border-l-yellow-500" : "border-l-[var(--primary)]";
+                    idx === 0 ? "border-l-[var(--down)]" : idx === 1 ? "border-l-yellow-500" : "border-l-[var(--primary)]";
                   const impact =
-                    impactEstimates[item.checkKey] ??
-                    `Fixing this could improve SEO for ${item.count} page${item.count !== 1 ? "s" : ""}`;
+                    i.impactEstimates[item.checkKey] ?? i.defaultImpact(item.count);
                   return (
                     <div
                       key={item.checkKey}
@@ -184,7 +178,7 @@ export default async function AuditPage() {
                     >
                       <div className="text-sm font-medium">{item.message}</div>
                       <div className="font-mono text-[10px] text-muted-foreground mt-2">
-                        {item.count} page{item.count !== 1 ? "s" : ""} affected
+                        {i.pagesAffected(item.count)}
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
                         {impact}
@@ -201,11 +195,11 @@ export default async function AuditPage() {
       {!latestRun && (
         <EmptyState
           icon={Stethoscope}
-          title="No audit run yet"
-          description="Run a site audit to check your pages for SEO issues. We crawl your site and check titles, meta descriptions, H1s, schema, and more."
+          title={i.emptyTitle}
+          description={i.emptyDesc}
           action={
             <RunAuditButton
-              label="Run first audit"
+              label={i.runFirstAudit}
               activeStatus={null}
             />
           }
@@ -218,17 +212,17 @@ export default async function AuditPage() {
         latestRun.error?.startsWith("synthesis_skipped:") && (
           <section className="rounded-2xl border border-dashed border-border p-6 max-w-3xl">
             <p className="text-sm">
-              <strong>AI synthesis skipped.</strong>{" "}
+              <strong>{i.synthesisSkippedTitle}</strong>{" "}
               {latestRun.error.includes("free_plan")
-                ? "Free plan only delivers raw findings. Upgrade to Pro to get prioritized AI actions."
+                ? i.synthesisFreePlan
                 : latestRun.error.includes("insufficient_credits")
-                  ? "Not enough credits to run AI synthesis (4 needed). Buy a credit pack to unlock."
-                  : "Synthesis couldn't run on this audit."}
+                  ? i.synthesisInsufficientCredits
+                  : i.synthesisFallback}
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              All findings are still listed below.{" "}
+              {i.findingsBelow}{" "}
               <a href="/dashboard/billing" className="underline">
-                Manage billing →
+                {i.manageBilling}
               </a>
             </p>
           </section>
@@ -237,26 +231,26 @@ export default async function AuditPage() {
       {synthesis && (
         <section className="rounded-2xl bg-card p-6 md:p-8">
           <div className="font-mono text-[10px] text-muted-foreground">
-            ai synthesis
+            {i.aiSynthesisKicker}
           </div>
-          <h2 className="font-display text-2xl md:text-3xl mt-2">Top actions</h2>
+          <h2 className="font-display text-2xl md:text-3xl mt-2">{i.topActions}</h2>
           <p className="mt-4 text-base leading-relaxed">{synthesis.summary}</p>
 
           <div className="mt-6 space-y-2">
-            {synthesis.top_actions.map((a, i) => (
-              <div key={i} className="rounded-[12px] bg-background p-4">
+            {synthesis.top_actions.map((a, idx) => (
+              <div key={idx} className="rounded-[12px] bg-background p-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <PriorityPill priority={a.priority} />
                   <span className="text-sm font-medium">{a.action}</span>
                 </div>
                 {a.target_url && (
                   <div className="text-xs text-muted-foreground mt-2 font-mono tabular truncate">
-                    {a.target_url} · ~{a.estimated_effort_min}min
+                    {a.target_url} · {i.effortMin(a.estimated_effort_min)}
                   </div>
                 )}
                 {!a.target_url && (
                   <div className="text-xs text-muted-foreground mt-2 font-mono tabular">
-                    site-wide · ~{a.estimated_effort_min}min
+                    {i.siteWide} · {i.effortMin(a.estimated_effort_min)}
                   </div>
                 )}
                 <div className="text-sm text-muted-foreground mt-2 leading-relaxed">{a.why}</div>
@@ -269,7 +263,7 @@ export default async function AuditPage() {
       {findings.length > 0 && (
         <section>
           <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
-            all findings ({findings.length})
+            {i.allFindings(findings.length)}
           </h2>
           <div className="space-y-4">
             {Array.from(byUrl.entries()).map(([url, items]) => (
@@ -279,7 +273,7 @@ export default async function AuditPage() {
                     {url}
                   </div>
                   <div className="text-xs text-muted-foreground shrink-0">
-                    {items.length} finding{items.length > 1 ? "s" : ""}
+                    {i.findingCount(items.length)}
                   </div>
                 </div>
                 <div className="divide-y divide-border">
