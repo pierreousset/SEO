@@ -1,6 +1,6 @@
 import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { GenerateBriefButton } from "@/components/generate-brief-button";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
@@ -10,12 +10,16 @@ import { ShareLinkButton } from "@/components/share-link-button";
 import { BriefPdfButton } from "@/components/brief-pdf-button";
 import { FileText } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
 export default async function BriefPage() {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const lng = await getLocale();
+  const i = locale[lng];
   const [latest] = await t.selectLatestBrief();
   const positionsCount = await db
     .select({ c: schema.positions.id })
@@ -81,22 +85,22 @@ export default async function BriefPage() {
       <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <BriefStatusBanner run={briefRunBanner} />
         <header>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Weekly</p>
-          <h1 className="font-display text-[40px] mt-2">Brief</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.weekly}</p>
+          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
         </header>
         {plan === "free" ? (
           <UpgradePrompt
-            feature="Weekly AI Brief"
-            description="Get a weekly AI-generated brief analyzing your keyword movements, top movers, and actionable tickets. Upgrade to Pro to unlock."
+            feature={i.upgradeFeature}
+            description={i.upgradeDescription}
           />
         ) : (
           <EmptyState
             icon={FileText}
-            title="No brief generated yet"
+            title={i.emptyTitle}
             description={
               hasData
-                ? "Once you have position data, generate your first AI brief. It analyzes your SEO and creates a weekly action plan."
-                : "No data yet. Run a SERP fetch first, then generate the brief."
+                ? i.emptyDescWithData
+                : i.emptyDescNoData
             }
             action={
               hasData ? (
@@ -127,7 +131,7 @@ export default async function BriefPage() {
   }>;
   const warnings = (latest.warnings as string[]) ?? [];
 
-  const highPriorityCount = tickets.filter((t) => t.priority === "high").length;
+  const highPriorityCount = tickets.filter((tk) => tk.priority === "high").length;
 
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
@@ -137,9 +141,9 @@ export default async function BriefPage() {
       <header className="flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-3xl">
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground font-mono tabular">
-            Week of {latest.periodStart} → {latest.periodEnd}
+            {i.weekOf(latest.periodStart, latest.periodEnd)}
           </p>
-          <h1 className="font-display text-[40px] mt-2">Weekly brief</h1>
+          <h1 className="font-display text-[40px] mt-2">{i.weeklyBrief}</h1>
           <p className="mt-6 text-lg md:text-xl leading-relaxed text-muted-foreground">
             {latest.summary}
           </p>
@@ -148,7 +152,7 @@ export default async function BriefPage() {
           <BriefPdfButton briefId={latest.id} />
           <ShareLinkButton resourceType="brief" resourceId={latest.id} />
           <GenerateBriefButton
-            label="Regenerate"
+            label={i.regenerate}
             activeStatus={(latestBriefRun?.status as any) ?? null}
           />
         </div>
@@ -157,12 +161,12 @@ export default async function BriefPage() {
       {/* This week's 3 priorities */}
       {topIssues.length > 0 && (
         <section>
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">this week&apos;s priorities</h2>
+          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">{i.prioritiesKicker}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {topIssues.map((issue, i) => (
-              <div key={i} className="rounded-2xl bg-card p-5 flex gap-4">
+            {topIssues.map((issue, idx) => (
+              <div key={idx} className="rounded-2xl bg-card p-5 flex gap-4">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-mono text-xs font-semibold">
-                  {i + 1}
+                  {idx + 1}
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{issue.title}</div>
@@ -179,13 +183,13 @@ export default async function BriefPage() {
       {/* Health score trend */}
       {scoreTrend.length >= 2 && (
         <section className="rounded-2xl bg-card p-5">
-          <div className="font-mono text-[10px] text-muted-foreground mb-3">health score trend</div>
+          <div className="font-mono text-[10px] text-muted-foreground mb-3">{i.healthTrend}</div>
           <div className="flex items-end gap-3 h-16">
-            {[...scoreTrend].reverse().map((s, i) => {
+            {[...scoreTrend].reverse().map((s, idx) => {
               const height = Math.max(8, (s.score / 100) * 64);
-              const isLatest = i === scoreTrend.length - 1;
+              const isLatest = idx === scoreTrend.length - 1;
               return (
-                <div key={i} className="flex flex-col items-center gap-1">
+                <div key={idx} className="flex flex-col items-center gap-1">
                   <span className={`font-mono text-[10px] tabular-nums ${isLatest ? "text-foreground" : "text-muted-foreground"}`}>
                     {s.score}
                   </span>
@@ -202,10 +206,10 @@ export default async function BriefPage() {
 
       {/* KPI row */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatTile label="Movers analysed" value={topMovers.length.toString()} />
-        <StatTile label="Actions queued" value={tickets.length.toString()} />
+        <StatTile label={i.statMoversAnalysed} value={topMovers.length.toString()} />
+        <StatTile label={i.statActionsQueued} value={tickets.length.toString()} />
         <StatTile
-          label="High priority"
+          label={i.statHighPriority}
           value={highPriorityCount.toString()}
           muted={highPriorityCount === 0}
         />
@@ -218,22 +222,21 @@ export default async function BriefPage() {
           <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
               <div className="font-mono text-[10px] text-muted-foreground">
-                this week
+                {i.thisWeek}
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mt-2">Actions</h2>
+              <h2 className="font-display text-2xl md:text-3xl mt-2">{i.actionsTitle}</h2>
               <p className="text-sm text-muted-foreground mt-2">
-                {tickets.length} ticket{tickets.length > 1 ? "s" : ""} generated from the movers
-                above.
+                {i.ticketCount(tickets.length)}
               </p>
             </div>
             <div className="space-y-2">
-              {tickets.map((ticket, i) => (
-                <div key={i} className="rounded-[12px] bg-background p-4">
+              {tickets.map((ticket, idx) => (
+                <div key={idx} className="rounded-[12px] bg-background p-4">
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       className="mt-1 accent-foreground"
-                      aria-label={`Mark ticket as done: ${ticket.action}`}
+                      aria-label={i.markDoneAria(ticket.action)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -241,7 +244,7 @@ export default async function BriefPage() {
                         <span className="text-sm font-medium">{ticket.action}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 font-mono tabular">
-                        {ticket.target} · ~{ticket.estimated_effort_min}min
+                        {ticket.target} · {i.effortMin(ticket.estimated_effort_min)}
                       </div>
                       <div className="text-sm text-muted-foreground mt-2 leading-relaxed">
                         {ticket.why}
@@ -259,9 +262,9 @@ export default async function BriefPage() {
           <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
               <div className="font-mono text-[10px] text-muted-foreground">
-                this week
+                {i.thisWeek}
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mt-2">Top movers</h2>
+              <h2 className="font-display text-2xl md:text-3xl mt-2">{i.moversTitle}</h2>
             </div>
             <div className="space-y-2">
               {topMovers.map((m) => (
@@ -290,7 +293,7 @@ export default async function BriefPage() {
                   </div>
                   {m.confidence < 0.5 && (
                     <Badge variant="outline" className="shrink-0 text-[10px] rounded-full">
-                      hypothèse
+                      {i.hypothesisBadge}
                     </Badge>
                   )}
                 </div>
@@ -301,11 +304,11 @@ export default async function BriefPage() {
           {warnings.length > 0 && (
             <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6">
               <h2 className="font-mono text-[10px] text-[var(--down)] mb-3">
-                warnings
+                {i.warningsKicker}
               </h2>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
-                {warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
+                {warnings.map((w, idx) => (
+                  <li key={idx}>{w}</li>
                 ))}
               </ul>
             </div>
