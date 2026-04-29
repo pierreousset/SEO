@@ -470,6 +470,14 @@ export default async function DashboardHome() {
   };
   const actionList: Action[] = [];
 
+  // Route a health issue to the right page based on its type prefix.
+  const issueHref = (type: string): string => {
+    if (type.startsWith("keyword_")) return "/dashboard/keywords";
+    if (type === "missing_business_profile") return "/dashboard/business";
+    if (type === "no_audit") return "/dashboard/audit";
+    return "/dashboard/pages";
+  };
+
   for (const issue of healthIssues.slice(0, 3)) {
     const priority = issue.severity === "high" ? 110 : issue.severity === "medium" ? 90 : 75;
     actionList.push({
@@ -477,7 +485,7 @@ export default async function DashboardHome() {
       priority,
       title: issue.title,
       subtitle: issue.impact,
-      href: "/dashboard",
+      href: issueHref(issue.type),
       iconKey: "alert",
       tone: issue.severity === "high" ? "down" : "warn",
     });
@@ -504,7 +512,7 @@ export default async function DashboardHome() {
       priority: 70,
       title: `Lost: "${lostTop.keyword}"`,
       subtitle: `${lostTop.impressions28d.toLocaleString()} impressions in 28d, none in last 7d`,
-      href: "/dashboard/keywords",
+      href: `/dashboard/keywords?q=${encodeURIComponent(lostTop.keyword)}`,
       iconKey: "lost",
       tone: "down",
     });
@@ -530,7 +538,7 @@ export default async function DashboardHome() {
       priority: 50,
       title: `Push "${strikeTop.keyword}" to page 1`,
       subtitle: `Currently #${strikeTop.latest} — top of page 2`,
-      href: "/dashboard/keywords",
+      href: `/dashboard/keywords?q=${encodeURIComponent(strikeTop.keyword)}`,
       iconKey: "target",
       tone: "default",
     });
@@ -543,7 +551,7 @@ export default async function DashboardHome() {
       priority: 40,
       title: `Zero clicks: "${zeroTop.keyword}"`,
       subtitle: `${zeroTop.impressions.toLocaleString()} impressions, 0 clicks · title or intent mismatch`,
-      href: "/dashboard/keywords",
+      href: `/dashboard/keywords?q=${encodeURIComponent(zeroTop.keyword)}`,
       iconKey: "filex",
       tone: "warn",
     });
