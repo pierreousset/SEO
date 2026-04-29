@@ -7,6 +7,8 @@ import { requireAccountContext } from "@/lib/account-context";
 import { guardMeteredAction } from "@/lib/billing-guards";
 import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { getAnthropicApiKey } from "@/lib/ai-provider";
+import { fetchPage } from "@/lib/audit/crawler";
+import { extractPageMeta } from "@/lib/audit/checks";
 
 export type MetaSuggestion = {
   title: string;
@@ -98,8 +100,6 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
     .orderBy(desc(schema.metaCrawlRuns.queuedAt))
     .limit(1);
 
-  if (!latestRun) return { ok: false, error: "No completed crawl found. Run a site crawl first." };
-
   // GSC and the crawler store URLs that almost match — slash, www, http/https, case can
   // all differ. Try the exact match first, then fall back to a normalized comparison
   // across the whole run.
@@ -115,21 +115,10 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
   };
 
   type PageRow = { url: string; title: string | null; h1: string | null; wordCount: number | null };
-  const exactMatch = await db
-    .select({
-      url: schema.metaCrawlPages.url,
-      title: schema.metaCrawlPages.title,
-      h1: schema.metaCrawlPages.h1,
-      wordCount: schema.metaCrawlPages.wordCount,
-    })
-    .from(schema.metaCrawlPages)
-    .where(and(eq(schema.metaCrawlPages.runId, latestRun.id), eq(schema.metaCrawlPages.url, url)))
-    .limit(1);
-  let page: PageRow | undefined = exactMatch[0];
+  let page: PageRow | undefined;
 
-  if (!page) {
-    const target = normalize(url);
-    const allPages = await db
+  if (latestRun) {
+    const exactMatch = await db
       .select({
         url: schema.metaCrawlPages.url,
         title: schema.metaCrawlPages.title,
@@ -137,11 +126,41 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
         wordCount: schema.metaCrawlPages.wordCount,
       })
       .from(schema.metaCrawlPages)
-      .where(eq(schema.metaCrawlPages.runId, latestRun.id));
-    page = allPages.find((p) => normalize(p.url) === target);
+      .where(and(eq(schema.metaCrawlPages.runId, latestRun.id), eq(schema.metaCrawlPages.url, url)))
+      .limit(1);
+    page = exactMatch[0];
+
+    if (!page) {
+      const target = normalize(url);
+      const allPages = await db
+        .select({
+          url: schema.metaCrawlPages.url,
+          title: schema.metaCrawlPages.title,
+          h1: schema.metaCrawlPages.h1,
+          wordCount: schema.metaCrawlPages.wordCount,
+        })
+        .from(schema.metaCrawlPages)
+        .where(eq(schema.metaCrawlPages.runId, latestRun.id));
+      page = allPages.find((p) => normalize(p.url) === target);
+    }
   }
 
-  if (!page) return { ok: false, error: "Page not found in latest crawl. Run a fresh site audit if this URL was added recently." };
+  // Fallback: page isn't in the crawl (or there is no crawl). Fetch it live.
+  // The user is asking for a meta suggestion right now — we have everything we need
+  // by hitting the URL directly.
+  if (!page) {
+    try {
+      const fetched = await fetchPage(url);
+      if (fetched.status >= 200 && fetched.status < 400 && fetched.html) {
+        const meta = extractPageMeta(fetched.finalUrl, fetched.html);
+        page = { url: meta.url, title: meta.title, h1: meta.h1, wordCount: meta.wordCount };
+      }
+    } catch {
+      // Swallow — fall through to the error below.
+    }
+  }
+
+  if (!page) return { ok: false, error: "Could not fetch this URL. Check that the page is live and reachable." };
 
   // Load tracked keywords
   const keywords = await db
