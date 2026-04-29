@@ -13,6 +13,8 @@ import { computeDiagnostic } from "@/lib/diagnostics";
 import { type IssueCardData } from "@/components/issue-card";
 import { SetupChecklist } from "@/components/setup-checklist";
 import { GscPerformanceChart, HealthScoreChart } from "@/components/dashboard-charts";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,8 @@ function formatUntil(iso: string): string {
 export default async function DashboardHome() {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const lng = await getLocale();
+  const i = locale[lng];
 
   // 30-day window for distribution + delta computation
   const thirtyDaysAgo = new Date();
@@ -497,8 +501,8 @@ export default async function DashboardHome() {
     actionList.push({
       key: "ctr",
       priority: 80,
-      title: `Fix CTR on ${shortUrl(ctrTop.url)}`,
-      subtitle: `~${recoverable.toLocaleString()} clicks/mo recoverable · pos ${ctrTop.avgPosition.toFixed(1)}`,
+      title: i.actions.fixCtrOn(shortUrl(ctrTop.url)),
+      subtitle: i.actions.fixCtrSubtitle(recoverable.toLocaleString(), ctrTop.avgPosition.toFixed(1)),
       href: "/dashboard/pages",
       iconKey: "ctr",
       tone: "warn",
@@ -510,8 +514,8 @@ export default async function DashboardHome() {
     actionList.push({
       key: "lost",
       priority: 70,
-      title: `Lost: "${lostTop.keyword}"`,
-      subtitle: `${lostTop.impressions28d.toLocaleString()} impressions in 28d, none in last 7d`,
+      title: i.actions.lostQuery(lostTop.keyword),
+      subtitle: i.actions.lostQuerySubtitle(lostTop.impressions28d.toLocaleString()),
       href: `/dashboard/keywords?q=${encodeURIComponent(lostTop.keyword)}`,
       iconKey: "lost",
       tone: "down",
@@ -523,8 +527,8 @@ export default async function DashboardHome() {
     actionList.push({
       key: "dec",
       priority: 60,
-      title: `Declining: ${shortUrl(decTop.url)}`,
-      subtitle: `${decTop.delta} clicks vs prior 7d`,
+      title: i.actions.decliningPage(shortUrl(decTop.url)),
+      subtitle: i.actions.decliningSubtitle(decTop.delta),
       href: "/dashboard/pages",
       iconKey: "decline",
       tone: "down",
@@ -532,12 +536,12 @@ export default async function DashboardHome() {
   }
 
   const strikeTop = strikingDistance[0];
-  if (strikeTop) {
+  if (strikeTop && strikeTop.latest != null) {
     actionList.push({
       key: "strike",
       priority: 50,
-      title: `Push "${strikeTop.keyword}" to page 1`,
-      subtitle: `Currently #${strikeTop.latest} — top of page 2`,
+      title: i.actions.pushToPage1(strikeTop.keyword),
+      subtitle: i.actions.pushSubtitle(strikeTop.latest),
       href: `/dashboard/keywords?q=${encodeURIComponent(strikeTop.keyword)}`,
       iconKey: "target",
       tone: "default",
@@ -549,8 +553,8 @@ export default async function DashboardHome() {
     actionList.push({
       key: "zero",
       priority: 40,
-      title: `Zero clicks: "${zeroTop.keyword}"`,
-      subtitle: `${zeroTop.impressions.toLocaleString()} impressions, 0 clicks · title or intent mismatch`,
+      title: i.actions.zeroClicks(zeroTop.keyword),
+      subtitle: i.actions.zeroClicksSubtitle(zeroTop.impressions.toLocaleString()),
       href: `/dashboard/keywords?q=${encodeURIComponent(zeroTop.keyword)}`,
       iconKey: "filex",
       tone: "warn",
@@ -567,7 +571,7 @@ export default async function DashboardHome() {
           <p className="font-mono text-[11px] text-muted-foreground">
             {ctx.sessionUserEmail}
           </p>
-          <h1 className="text-[36px] font-semibold leading-tight">Overview</h1>
+          <h1 className="text-[36px] font-semibold leading-tight">{i.title}</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {connected && (
@@ -591,14 +595,14 @@ export default async function DashboardHome() {
         <section className="bg-card rounded-2xl p-6">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
-              <span className="font-mono text-[10px] text-muted-foreground">today's actions</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{i.actionsCard.label}</span>
               <h2 className="text-lg font-semibold mt-0.5">
-                {topActions.length === 1 ? "1 thing to focus on" : `${topActions.length} things to focus on`}
+                {topActions.length === 1 ? i.actionsCard.titleSingular : i.actionsCard.titlePlural(topActions.length)}
               </h2>
             </div>
             {issueCount > topActions.length && (
               <span className="font-mono text-[10px] text-muted-foreground">
-                +{issueCount - topActions.length} more
+                {i.actionsCard.moreCount(issueCount - topActions.length)}
               </span>
             )}
           </div>
@@ -630,7 +634,7 @@ export default async function DashboardHome() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" strokeWidth={1.5} />
-              <span className="font-mono text-[11px] text-muted-foreground">seo health</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{i.bento.seoHealth}</span>
             </div>
             {healthDelta !== null && healthDelta !== 0 && (
               <span
@@ -661,10 +665,10 @@ export default async function DashboardHome() {
             </div>
             <div className="font-mono text-sm text-muted-foreground mt-2">
               {issueCount > 0
-                ? `${issueCount} issue${issueCount !== 1 ? "s" : ""} detected`
+                ? i.bento.issuesDetected(issueCount)
                 : healthScore !== null
-                  ? "no issues detected"
-                  : "waiting for first score computation"}
+                  ? i.bento.noIssues
+                  : i.bento.waitingFirstScore}
             </div>
             {scoreHistory.length >= 2 && (
               <div className="mt-3 h-[60px]">
@@ -677,17 +681,17 @@ export default async function DashboardHome() {
         {/* Mini KPI Stack */}
         <div className="w-full md:w-[280px] flex flex-col gap-3">
           <StatTile
-            label="avg position"
+            label={i.bento.avgPosition}
             value={avgPosition ?? "—"}
             icon={<Target className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
           <StatTile
-            label="clicks (28d)"
+            label={i.bento.clicks28d}
             value={clicks28d.toLocaleString()}
             icon={<MousePointerClick className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
           <StatTile
-            label="keywords"
+            label={i.bento.keywords}
             value={activeKeywords.length.toLocaleString()}
             icon={<ListOrdered className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
           />
@@ -699,15 +703,15 @@ export default async function DashboardHome() {
         {/* Chart tile */}
         <div className="flex-1 min-h-[240px] md:h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
           <div className="mb-3">
-            <span className="font-mono text-[10px] text-muted-foreground">performance</span>
-            <h2 className="text-xl font-semibold">Search Console</h2>
+            <span className="font-mono text-[10px] text-muted-foreground">{i.bento.performance}</span>
+            <h2 className="text-xl font-semibold">{i.bento.searchConsole}</h2>
           </div>
           <div className="flex-1 min-h-0">
             {connected ? (
               <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} compact />
             ) : (
               <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                Connect GSC to see performance data
+                {i.bento.connectGsc}
               </div>
             )}
           </div>
@@ -718,18 +722,18 @@ export default async function DashboardHome() {
           <div className="px-6 pt-5 pb-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
-              <span className="font-mono text-[10px] text-muted-foreground">gap zone</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{i.bento.gapZone}</span>
             </div>
-            <h2 className="text-lg font-semibold">Highest ROI</h2>
+            <h2 className="text-lg font-semibold">{i.bento.highestRoi}</h2>
           </div>
           <div className="flex-1 overflow-auto">
             {gapZone.length > 0 ? (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">keyword</th>
-                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">pos</th>
-                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">7d</th>
+                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colKeyword}</th>
+                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colPos}</th>
+                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.col7d}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -752,7 +756,7 @@ export default async function DashboardHome() {
               </table>
             ) : (
               <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-6">
-                Keywords in positions 5-20 will appear here
+                {i.bento.gapEmpty}
               </div>
             )}
           </div>
@@ -782,7 +786,7 @@ export default async function DashboardHome() {
           >
             <div className="flex items-start justify-between">
               <span className="font-mono text-[10px] text-[#71717A]">
-                latest ai brief · {latestBrief[0].periodStart} → {latestBrief[0].periodEnd}
+                {i.bento.latestBriefAt(latestBrief[0].periodStart, latestBrief[0].periodEnd)}
               </span>
               <ArrowRight className="h-4 w-4 text-[#0A0A0A] shrink-0" strokeWidth={1.5} />
             </div>
@@ -792,16 +796,16 @@ export default async function DashboardHome() {
           </Link>
         ) : (
           <div className="flex-1 h-[180px] rounded-2xl bg-card p-6 flex flex-col justify-between">
-            <span className="font-mono text-[10px] text-muted-foreground">ai brief</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{i.bento.aiBrief}</span>
             <p className="text-sm text-muted-foreground">
-              Generate your first brief to see a preview here.
+              {i.bento.aiBriefEmpty}
             </p>
           </div>
         )}
 
         {/* Distribution tile */}
         <div className="w-full md:w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
-          <span className="font-mono text-[10px] text-muted-foreground">position distribution</span>
+          <span className="font-mono text-[10px] text-muted-foreground">{i.bento.positionDistribution}</span>
 
           {/* Bar */}
           {ranked.length > 0 ? (
@@ -835,7 +839,7 @@ export default async function DashboardHome() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-              No position data yet
+              {i.bento.noPositionData}
             </div>
           )}
 
@@ -843,13 +847,13 @@ export default async function DashboardHome() {
           <div className="space-y-2 mt-auto">
             <div className="flex items-center gap-2 text-[11px]">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-[#A1A1AA]">SERP fetch</span>
+              <span className="text-[#A1A1AA]">{i.bento.serpFetch}</span>
               <span className="flex-1 border-b border-border" />
               <span className="font-mono font-medium">{formatUntil(nextDailyFetch())}</span>
             </div>
             <div className="flex items-center gap-2 text-[11px]">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-              <span className="text-[#A1A1AA]">AI brief</span>
+              <span className="text-[#A1A1AA]">{i.bento.aiBriefShort}</span>
               <span className="flex-1 border-b border-border" />
               <span className="font-mono font-medium">{formatUntil(nextMondayBrief())}</span>
             </div>

@@ -20,6 +20,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("locale", locale);
+    // Mirror to a cookie so server components can read the user's choice.
+    document.cookie = `locale=${locale};path=/;max-age=${60 * 60 * 24 * 365};samesite=lax`;
   }, [locale]);
 
   return (
