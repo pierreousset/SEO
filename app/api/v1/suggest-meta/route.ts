@@ -9,7 +9,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 
-const MODEL = "claude-haiku-4-5-20250414";
+const MODEL = "claude-haiku-4-5-20251001";
 
 const SYSTEM_PROMPT = `You are an SEO expert. Given a page URL, current title, current H1, word count, and the user's tracked keywords, suggest an optimized title tag (30-60 chars) and meta description (120-160 chars).
 The title should include the primary keyword naturally.
