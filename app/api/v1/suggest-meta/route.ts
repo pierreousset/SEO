@@ -58,7 +58,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No completed crawl found. Run a site crawl first." }, { status: 404 });
   }
 
-  const [page] = await db
+  // GSC URLs and crawler URLs sometimes differ on trailing slash / www / case.
+  // Try exact match first, then fall back to a normalized compare across the run.
+  const normalize = (u: string): string => {
+    try {
+      const p = new URL(u);
+      const host = p.hostname.replace(/^www\./, "").toLowerCase();
+      const path = p.pathname.replace(/\/+$/, "") || "/";
+      return `${host}${path}`;
+    } catch {
+      return u.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+    }
+  };
+
+  type PageRow = { url: string; title: string | null; h1: string | null; wordCount: number | null };
+  const exactMatch = await db
     .select({
       url: schema.metaCrawlPages.url,
       title: schema.metaCrawlPages.title,
@@ -68,9 +82,24 @@ export async function POST(req: Request) {
     .from(schema.metaCrawlPages)
     .where(and(eq(schema.metaCrawlPages.runId, latestRun.id), eq(schema.metaCrawlPages.url, url)))
     .limit(1);
+  let page: PageRow | undefined = exactMatch[0];
 
   if (!page) {
-    return NextResponse.json({ error: "Page not found in latest crawl." }, { status: 404 });
+    const target = normalize(url);
+    const allPages = await db
+      .select({
+        url: schema.metaCrawlPages.url,
+        title: schema.metaCrawlPages.title,
+        h1: schema.metaCrawlPages.h1,
+        wordCount: schema.metaCrawlPages.wordCount,
+      })
+      .from(schema.metaCrawlPages)
+      .where(eq(schema.metaCrawlPages.runId, latestRun.id));
+    page = allPages.find((p) => normalize(p.url) === target);
+  }
+
+  if (!page) {
+    return NextResponse.json({ error: "Page not found in latest crawl. Run a fresh site audit if this URL was added recently." }, { status: 404 });
   }
 
   // Load tracked keywords

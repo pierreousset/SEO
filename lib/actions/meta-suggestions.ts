@@ -100,7 +100,22 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
 
   if (!latestRun) return { ok: false, error: "No completed crawl found. Run a site crawl first." };
 
-  const [page] = await db
+  // GSC and the crawler store URLs that almost match — slash, www, http/https, case can
+  // all differ. Try the exact match first, then fall back to a normalized comparison
+  // across the whole run.
+  const normalize = (u: string): string => {
+    try {
+      const p = new URL(u);
+      const host = p.hostname.replace(/^www\./, "").toLowerCase();
+      const path = p.pathname.replace(/\/+$/, "") || "/";
+      return `${host}${path}`;
+    } catch {
+      return u.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+    }
+  };
+
+  type PageRow = { url: string; title: string | null; h1: string | null; wordCount: number | null };
+  const exactMatch = await db
     .select({
       url: schema.metaCrawlPages.url,
       title: schema.metaCrawlPages.title,
@@ -110,8 +125,23 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
     .from(schema.metaCrawlPages)
     .where(and(eq(schema.metaCrawlPages.runId, latestRun.id), eq(schema.metaCrawlPages.url, url)))
     .limit(1);
+  let page: PageRow | undefined = exactMatch[0];
 
-  if (!page) return { ok: false, error: "Page not found in latest crawl." };
+  if (!page) {
+    const target = normalize(url);
+    const allPages = await db
+      .select({
+        url: schema.metaCrawlPages.url,
+        title: schema.metaCrawlPages.title,
+        h1: schema.metaCrawlPages.h1,
+        wordCount: schema.metaCrawlPages.wordCount,
+      })
+      .from(schema.metaCrawlPages)
+      .where(eq(schema.metaCrawlPages.runId, latestRun.id));
+    page = allPages.find((p) => normalize(p.url) === target);
+  }
+
+  if (!page) return { ok: false, error: "Page not found in latest crawl. Run a fresh site audit if this URL was added recently." };
 
   // Load tracked keywords
   const keywords = await db
