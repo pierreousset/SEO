@@ -3,12 +3,14 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { and, eq, gte, desc, sql } from "drizzle-orm";
 import { ExternalLink, FileText, ArrowRight } from "lucide-react";
-import { detectPageIssues, type PageData, type Issue } from "@/lib/seo-score";
+import { detectPageIssues, type PageData } from "@/lib/seo-score";
 import { IssueCard, type IssueCardData } from "@/components/issue-card";
 import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
-import { detectContentDecay, type DecayingPage } from "@/lib/content-decay";
+import { detectContentDecay } from "@/lib/content-decay";
 import { DecayMiniChart } from "@/components/decay-mini-chart";
 import { CheckVitalsButton } from "@/components/check-vitals-button";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,8 @@ const healthDotColor: Record<RowHealth, string> = {
 
 export default async function PagesPage() {
   const ctx = await resolveAccountContext();
+  const lng = await getLocale();
+  const i = locale[lng];
 
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - WINDOW_DAYS);
@@ -156,7 +160,7 @@ export default async function PagesPage() {
   }
 
   // If there's a crawl, get meta data for those pages
-  let crawlMetaMap = new Map<string, {
+  const crawlMetaMap = new Map<string, {
     title: string | null;
     titleLength: number | null;
     metaDescription: string | null;
@@ -229,22 +233,21 @@ export default async function PagesPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
-          Indexed pages · last {WINDOW_DAYS} days
+          {i.headerKicker(WINDOW_DAYS)}
         </p>
-        <h1 className="font-display text-[40px] mt-2">Pages</h1>
+        <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
       </header>
 
       {totalPages === 0 ? (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
-            No pages yet. Run a GSC history pull from the Overview page — the data shows up
-            here 30-60s later.
+            {i.emptyTitle}
           </p>
           <Link
             href="/dashboard"
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
           >
-            Pull GSC history <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
+            {i.emptyCta} <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
           </Link>
         </div>
       ) : (
@@ -254,9 +257,9 @@ export default async function PagesPage() {
             <section className="space-y-3">
               <div>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  page intelligence
+                  {i.intelligenceKicker}
                 </span>
-                <h2 className="text-xl font-semibold mt-0.5">Issues detected</h2>
+                <h2 className="text-xl font-semibold mt-0.5">{i.issuesDetected}</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {topIssues.map((issue) => {
@@ -283,9 +286,9 @@ export default async function PagesPage() {
             <div className="flex items-end justify-between gap-4">
               <div>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  core web vitals
+                  {i.vitalsKicker}
                 </span>
-                <h2 className="text-xl font-semibold mt-0.5">Performance</h2>
+                <h2 className="text-xl font-semibold mt-0.5">{i.vitalsTitle}</h2>
               </div>
               <CheckVitalsButton />
             </div>
@@ -295,13 +298,13 @@ export default async function PagesPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr>
-                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Score</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">LCP</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">FCP</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">CLS</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">TTFB</th>
-                        <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Checked</th>
+                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThUrl}</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThScore}</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThLcp}</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThFcp}</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThCls}</th>
+                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThTtfb}</th>
+                        <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThChecked}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -350,7 +353,7 @@ export default async function PagesPage() {
               </div>
             ) : (
               <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground">
-                No vitals data yet. Click &ldquo;Check vitals&rdquo; to scan your top pages via PageSpeed Insights.
+                {i.vitalsEmpty}
               </div>
             )}
           </section>
@@ -360,10 +363,10 @@ export default async function PagesPage() {
             <section className="space-y-3">
               <div>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  content decay
+                  {i.decayKicker}
                 </span>
                 <h2 className="text-xl font-semibold mt-0.5">
-                  Pages losing traffic gradually
+                  {i.decayTitle}
                 </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -402,8 +405,8 @@ export default async function PagesPage() {
                       </div>
                       <DecayMiniChart weeks={page.weeklyClickTrend} />
                       <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono tabular">
-                        <span>{page.decayRate}% per week</span>
-                        <span>~{page.totalClicksLost} clicks lost over 4 weeks</span>
+                        <span>{i.decayPerWeek(page.decayRate)}</span>
+                        <span>{i.decayClicksLost(page.totalClicksLost)}</span>
                       </div>
                     </div>
                   );
@@ -413,29 +416,28 @@ export default async function PagesPage() {
           )}
 
           <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatTile label="Pages indexed" value={totalPages.toLocaleString()} />
-            <StatTile label="Total clicks" value={totalClicks.toLocaleString()} />
-            <StatTile label="Total impressions" value={totalImpressions.toLocaleString()} />
-            <StatTile label="Avg CTR" value={`${avgCtr.toFixed(2)}%`} />
+            <StatTile label={i.statPagesIndexed} value={totalPages.toLocaleString()} />
+            <StatTile label={i.statTotalClicks} value={totalClicks.toLocaleString()} />
+            <StatTile label={i.statTotalImpressions} value={totalImpressions.toLocaleString()} />
+            <StatTile label={i.statAvgCtr} value={`${avgCtr.toFixed(2)}%`} />
           </section>
 
           <section className="rounded-2xl bg-card p-6 md:p-8">
-            <h2 className="font-display text-2xl md:text-3xl">Top pages</h2>
+            <h2 className="font-display text-2xl md:text-3xl">{i.topPagesTitle}</h2>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
-              Any URL with at least one Google impression in the last {WINDOW_DAYS} days counts
-              as indexed here. Sorted by clicks.
+              {i.topPagesSubtitle(WINDOW_DAYS)}
             </p>
             <div className="rounded-[12px] bg-background overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
                     <th className="text-center px-2 py-3 font-mono text-[9px] text-muted-foreground font-normal w-8"></th>
-                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Clicks</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Impr.</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">CTR</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Avg pos</th>
-                    <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Last seen</th>
+                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thUrl}</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thClicks}</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thImpr}</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thCtr}</th>
+                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thAvgPos}</th>
+                    <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thLastSeen}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -454,10 +456,10 @@ export default async function PagesPage() {
                             className={`inline-block h-2 w-2 rounded-full ${healthDotColor[health]}`}
                             title={
                               health === "red"
-                                ? "Critical issues"
+                                ? i.healthCritical
                                 : health === "yellow"
-                                  ? "Warnings"
-                                  : "Healthy"
+                                  ? i.healthWarnings
+                                  : i.healthHealthy
                             }
                           />
                         </td>
@@ -503,7 +505,7 @@ export default async function PagesPage() {
             </div>
             {totalPages >= 300 && (
               <p className="mt-4 text-xs text-muted-foreground">
-                Showing top 300 by clicks. Re-pull GSC to refresh.
+                {i.showingTop300}
               </p>
             )}
           </section>
@@ -514,10 +516,9 @@ export default async function PagesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">next</div>
+                <div className="font-mono text-[10px] opacity-70">{i.ctaKicker}</div>
                 <p className="mt-3 text-lg leading-snug">
-                  See which of these pages are losing ground week after week — the Refresh
-                  radar surfaces candidates for a content update.
+                  {i.ctaText}
                 </p>
               </div>
               <ArrowRight className="h-5 w-5 shrink-0 mt-1" strokeWidth={1.5} />
