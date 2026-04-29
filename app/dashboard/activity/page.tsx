@@ -12,6 +12,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { buildCompetitorFeed, type CompetitorEvent } from "@/lib/competitor-feed";
+import { getLocale } from "@/lib/i18n-server";
+import { locale, type PageLocale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,8 @@ const WINDOW_DAYS = 7;
 export default async function ActivityPage() {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const lng = await getLocale();
+  const i = locale[lng];
 
   const keywords = (await t.selectKeywords()).filter((k) => !k.removedAt);
   const keywordById = new Map(keywords.map((k) => [k.id, { id: k.id, query: k.query }]));
@@ -78,62 +82,61 @@ export default async function ActivityPage() {
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
-            Competitor activity · last {WINDOW_DAYS} days
+            {i.headerKicker(WINDOW_DAYS)}
           </p>
-          <h1 className="font-display text-[40px] mt-2">Activity</h1>
+          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
         </div>
       </header>
 
       {keywords.length === 0 ? (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
-            Track some keywords first — the feed surfaces what your competitors did on
-            <strong> your </strong>SERP in the last week.
+            {i.emptyKeywordsTitle}
+            <strong> {i.emptyKeywordsTitleEmphasis} </strong>
+            {i.emptyKeywordsTitleSuffix}
           </p>
           <Link
             href="/dashboard/keywords"
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
           >
-            Add keywords <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
+            {i.emptyKeywordsCta} <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
           </Link>
         </div>
       ) : events.length === 0 ? (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
           <p className="text-lg">
-            <strong>All quiet on the competitive front.</strong> No big moves detected in the
-            last {WINDOW_DAYS} days.
+            <strong>{i.emptyEventsTitle}</strong> {i.emptyEventsBody(WINDOW_DAYS)}
           </p>
           <p className="text-sm text-muted-foreground mt-3">
-            The feed needs at least two daily SERP fetches per keyword. If your tracking is
-            fresh, check back in a few days.
+            {i.emptyEventsHint}
           </p>
         </div>
       ) : (
         <>
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatTile
-              label="Moves up"
+              label={i.statMovesUp}
               value={upCount.toString()}
-              subtitle="competitors gained rank or entered top 20"
+              subtitle={i.statMovesUpSubtitle}
               accent="up"
             />
             <StatTile
-              label="Moves down"
+              label={i.statMovesDown}
               value={downCount.toString()}
-              subtitle="competitors lost rank or dropped out"
+              subtitle={i.statMovesDownSubtitle}
               accent="down"
             />
             <StatTile
-              label="Most active"
+              label={i.statMostActive}
               value={mostActive?.[0] ?? "—"}
-              subtitle={mostActive ? `${mostActive[1]} event${mostActive[1] > 1 ? "s" : ""}` : "nobody yet"}
+              subtitle={mostActive ? i.statEventCount(mostActive[1]) : i.statNobody}
               muted={!mostActive}
             />
           </section>
 
           <section className="space-y-3">
-            {events.map((e, i) => (
-              <EventCard key={`${e.keywordId}-${e.competitorDomain}-${e.type}-${i}`} event={e} />
+            {events.map((e, idx) => (
+              <EventCard key={`${e.keywordId}-${e.competitorDomain}-${e.type}-${idx}`} event={e} i={i} />
             ))}
           </section>
 
@@ -143,11 +146,9 @@ export default async function ActivityPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">dig deeper</div>
+                <div className="font-mono text-[10px] opacity-70">{i.ctaKicker}</div>
                 <p className="mt-3 text-lg leading-snug">
-                  Ask the chat <em>"Why did [competitor] jump 10 positions on [keyword] this
-                  week?"</em> — it has access to the SERP snapshot, GSC data, and your history
-                  to reason about it.
+                  {i.ctaText}
                 </p>
               </div>
               <ArrowRight className="h-5 w-5 shrink-0 mt-1" strokeWidth={1.5} />
@@ -159,12 +160,12 @@ export default async function ActivityPage() {
       {/* Audit log timeline */}
       {auditRows.length > 0 && (
         <section className="space-y-0">
-          <h2 className="font-display text-xl mb-4">Audit log</h2>
+          <h2 className="font-display text-xl mb-4">{i.auditLogTitle}</h2>
           <div className="rounded-2xl bg-card overflow-hidden">
-            {auditRows.map((row, i) => (
+            {auditRows.map((row, idx) => (
               <div
                 key={row.id}
-                className={`flex items-start gap-4 px-5 py-3 ${i < auditRows.length - 1 ? "border-b border-border" : ""}`}
+                className={`flex items-start gap-4 px-5 py-3 ${idx < auditRows.length - 1 ? "border-b border-border" : ""}`}
               >
                 <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap tabular-nums pt-0.5">
                   {row.createdAt ? formatAuditDate(row.createdAt) : "—"}
@@ -173,7 +174,7 @@ export default async function ActivityPage() {
                   {row.actorEmail}
                 </span>
                 <span className="text-sm flex-1">
-                  {ACTION_LABELS[row.action] ?? row.action}
+                  {i.actionLabels[row.action] ?? row.action}
                   {row.detail && (
                     <span className="text-muted-foreground ml-1.5 text-xs font-mono">
                       {formatDetail(row.detail)}
@@ -189,7 +190,7 @@ export default async function ActivityPage() {
   );
 }
 
-function EventCard({ event }: { event: CompetitorEvent }) {
+function EventCard({ event, i }: { event: CompetitorEvent; i: PageLocale }) {
   const config = EVENT_CONFIG[event.type];
   const Icon = config.icon;
 
@@ -205,7 +206,7 @@ function EventCard({ event }: { event: CompetitorEvent }) {
           <span
             className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${config.pillClass}`}
           >
-            {config.label}
+            {i.eventLabels[event.type]}
           </span>
           <span className="font-mono tabular text-xs text-muted-foreground">
             {event.competitorDomain}
@@ -214,12 +215,12 @@ function EventCard({ event }: { event: CompetitorEvent }) {
         </div>
         <h3 className="font-display text-lg md:text-xl mt-2 break-words">{event.keyword}</h3>
         <div className="mt-3 flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
-          <PositionBadge position={event.fromPosition} />
+          <PositionBadge position={event.fromPosition} notInTop100Label={i.notInTop100} />
           <span>→</span>
-          <PositionBadge position={event.toPosition} highlight />
+          <PositionBadge position={event.toPosition} highlight notInTop100Label={i.notInTop100} />
           {event.type === "url_swap" && event.toUrl && event.fromUrl && (
             <span className="text-xs font-mono tabular">
-              pivoted URL
+              {i.pivotedUrl}
             </span>
           )}
         </div>
@@ -243,12 +244,14 @@ function EventCard({ event }: { event: CompetitorEvent }) {
 function PositionBadge({
   position,
   highlight,
+  notInTop100Label,
 }: {
   position: number | null;
   highlight?: boolean;
+  notInTop100Label: string;
 }) {
   if (position == null) {
-    return <span className="text-xs font-mono tabular text-muted-foreground">not in top 100</span>;
+    return <span className="text-xs font-mono tabular text-muted-foreground">{notInTop100Label}</span>;
   }
   return (
     <span
@@ -305,18 +308,6 @@ function safePath(url: string): string {
   }
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  keyword_added: "Added keyword",
-  keyword_removed: "Removed keyword",
-  audit_triggered: "Ran site audit",
-  brief_triggered: "Generated brief",
-  crawl_triggered: "Ran meta crawl",
-  invite_sent: "Sent invite",
-  member_joined: "Member joined",
-  settings_updated: "Updated settings",
-  article_generated: "Generated article",
-};
-
 function formatAuditDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
     month: "short",
@@ -343,7 +334,6 @@ function formatDetail(raw: string): string {
 const EVENT_CONFIG: Record<
   CompetitorEvent["type"],
   {
-    label: string;
     icon: typeof ArrowUp;
     iconBg: string;
     iconColor: string;
@@ -351,35 +341,30 @@ const EVENT_CONFIG: Record<
   }
 > = {
   big_up: {
-    label: "Big move up",
     icon: TrendingUp,
     iconBg: "bg-[var(--up)]/15",
     iconColor: "text-[var(--up)]",
     pillClass: "bg-[var(--up)]/15 text-[var(--up)]",
   },
   big_down: {
-    label: "Big drop",
     icon: TrendingDown,
     iconBg: "bg-[var(--down)]/15",
     iconColor: "text-[var(--down)]",
     pillClass: "bg-[var(--down)]/15 text-[var(--down)]",
   },
   new_entry: {
-    label: "New entry",
     icon: ArrowUp,
     iconBg: "bg-[var(--up)]/15",
     iconColor: "text-[var(--up)]",
     pillClass: "bg-[var(--up)]/15 text-[var(--up)]",
   },
   lost: {
-    label: "Lost rank",
     icon: ArrowDown,
     iconBg: "bg-muted",
     iconColor: "text-muted-foreground",
     pillClass: "bg-muted text-muted-foreground",
   },
   url_swap: {
-    label: "URL pivot",
     icon: Repeat,
     iconBg: "bg-foreground/10",
     iconColor: "text-foreground",
