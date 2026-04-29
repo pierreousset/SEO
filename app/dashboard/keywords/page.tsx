@@ -10,7 +10,6 @@ import { ClassifyAllButton } from "@/components/classify-all-button";
 import { DiagnosticBadge } from "@/components/diagnostic-badge";
 import { computeDiagnostic } from "@/lib/diagnostics";
 import { ThreatBadge } from "@/components/threat-badge";
-import { PositionSparkline } from "@/components/position-sparkline";
 import { PositionHeatmap } from "@/components/position-heatmap";
 import { classifyCompetitorUrl } from "@/lib/competitor-threat";
 import { detectKeywordIssues, getKeywordTip } from "@/lib/seo-score";
@@ -24,6 +23,8 @@ import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filter
 import { listGroups, listAllMemberships } from "@/lib/actions/keyword-groups";
 import { KeywordGroupBar } from "@/components/keyword-group-bar";
 import { KeywordGroupPicker } from "@/components/keyword-group-picker";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,8 @@ export default async function KeywordsPage({
 }) {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const lng = await getLocale();
+  const i = locale[lng];
   const keywords = await t.selectKeywords();
   const sites = await t.selectSites();
   const sp = await searchParams;
@@ -71,11 +74,11 @@ export default async function KeywordsPage({
       <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <EmptyState
           icon={ListOrdered}
-          title="No keywords tracked yet"
+          title={i.emptyTitle}
           description={
             sites.length === 0
-              ? "Connect Google Search Console first, then add keywords to start monitoring your search positions."
-              : "Add keywords to start monitoring your search positions. We'll fetch rankings daily and analyze trends."
+              ? i.emptyDescNoSites
+              : i.emptyDescWithSites
           }
           action={
             sites.length > 0 ? (
@@ -85,7 +88,7 @@ export default async function KeywordsPage({
                 href="/dashboard/connect-google"
                 className="inline-flex items-center gap-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2 hover:opacity-90 transition-opacity"
               >
-                Connect GSC
+                {i.connectGsc}
               </Link>
             )
           }
@@ -294,9 +297,9 @@ export default async function KeywordsPage({
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">rank tracking</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.headerKicker}</p>
           <h1 className="font-display text-[40px] mt-2">
-            Keywords{" "}
+            {i.title}{" "}
             {sites[0] && (
               <span className="text-muted-foreground font-normal text-base font-mono tabular">
                 · {sites[0].domain}
@@ -304,7 +307,7 @@ export default async function KeywordsPage({
             )}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {rows.length} tracked · {filteredRows.length} shown. Data lags 0-1 day.
+            {i.subtitle(rows.length, filteredRows.length)}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -313,7 +316,7 @@ export default async function KeywordsPage({
             className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full border border-border bg-background hover:bg-muted/40"
           >
             <Search className="h-3 w-3" strokeWidth={1.5} />
-            Discover keywords
+            {i.discoverKeywords}
           </Link>
           <AddKeywordForm />
           {unclassifiedCount > 0 && <ClassifyAllButton />}
@@ -325,11 +328,11 @@ export default async function KeywordsPage({
       {/* ── Keyword Health Summary ──────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         {[
-          { label: "top 3", value: top3Count, color: "#34D399" },
-          { label: "striking distance", value: strikingCount, subtitle: "pos 4-10", color: "#A855F7" },
-          { label: "dropping", value: droppingCount, color: "#F87171" },
-          { label: "quick wins", value: quickWinCount, subtitle: "pos 11-20, high impr", color: "#A855F7" },
-          { label: "total tracked", value: totalActive, color: "#FFFFFF" },
+          { label: i.stats.top3, value: top3Count, color: "#34D399" },
+          { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#A855F7" },
+          { label: i.stats.dropping, value: droppingCount, color: "#F87171" },
+          { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#A855F7" },
+          { label: i.stats.totalTracked, value: totalActive, color: "#FFFFFF" },
         ].map((stat) => (
           <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
             <div className="font-mono text-[10px] text-muted-foreground">
@@ -351,9 +354,9 @@ export default async function KeywordsPage({
       {/* ── Top Issues ────────────────────────────────────────── */}
       {topIssues.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          {topIssues.map((issue, i) => (
+          {topIssues.map((issue, idx) => (
             <div
-              key={i}
+              key={idx}
               className="bg-card rounded-2xl p-4"
               style={{ borderLeft: `3px solid ${severityColor[issue.severity] ?? "#A855F7"}` }}
             >
@@ -381,9 +384,9 @@ export default async function KeywordsPage({
       {(topUp.length > 0 || topDown.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
           <div className="bg-card rounded-2xl p-5">
-            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">top up · 1d</h3>
+            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">{i.topUp}</h3>
             {topUp.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground py-2">No upward movers in last fetch</p>
+              <p className="text-[11px] text-muted-foreground py-2">{i.noUpMovers}</p>
             ) : (
               <div className="space-y-1">
                 {topUp.map((r) => (
@@ -397,9 +400,9 @@ export default async function KeywordsPage({
             )}
           </div>
           <div className="bg-card rounded-2xl p-5">
-            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">top down · 1d</h3>
+            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">{i.topDown}</h3>
             {topDown.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground py-2">No downward movers in last fetch</p>
+              <p className="text-[11px] text-muted-foreground py-2">{i.noDownMovers}</p>
             ) : (
               <div className="space-y-1">
                 {topDown.map((r) => (
@@ -420,13 +423,13 @@ export default async function KeywordsPage({
         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-5">
           <p className="text-sm">
             <span className="mr-1.5">💡</span>
-            <span className="font-medium">Best opportunity:</span>{" "}
-            <span className="font-mono text-xs">{bestOpportunity.keyword}</span> at{" "}
-            <span className="font-mono text-xs font-semibold">#{bestOpportunity.position}</span> with{" "}
+            <span className="font-medium">{i.bestOpportunityLabel}</span>{" "}
+            <span className="font-mono text-xs">{bestOpportunity.keyword}</span> {i.bestOpportunityAt}{" "}
+            <span className="font-mono text-xs font-semibold">#{bestOpportunity.position}</span> {i.bestOpportunityWith}{" "}
             <span className="font-mono text-xs font-semibold tabular-nums">
               {bestOpportunity.gscImpressions.toLocaleString()}
             </span>{" "}
-            monthly impressions. Push to top 3 to capture 3x more clicks.
+            {i.bestOpportunitySuffix(bestOpportunity.gscImpressions.toLocaleString())}
           </p>
         </div>
       )}
@@ -443,17 +446,17 @@ export default async function KeywordsPage({
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal w-12">Intent</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">Diagnostic</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Position</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">1d Δ</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">7d Δ</th>
-              <th className="px-2 py-2 font-mono text-[9px] text-muted-foreground font-normal text-center">7d</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Impr 30d</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Best comp</th>
-              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">Country</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">Tip</th>
+              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thKeyword}</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal w-12">{i.thIntent}</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thDiagnostic}</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thPosition}</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.th1d}</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.th7d}</th>
+              <th className="px-2 py-2 font-mono text-[9px] text-muted-foreground font-normal text-center">{i.th7dShort}</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thImpr}</th>
+              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thBestComp}</th>
+              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thCountry}</th>
+              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thTip}</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
           </thead>
@@ -461,7 +464,7 @@ export default async function KeywordsPage({
             {filteredRows.length === 0 && (
               <tr>
                 <td colSpan={12} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  No keywords match these filters. Click <strong>Reset</strong> above to clear.
+                  {i.noFilterMatch} <strong>{i.noFilterMatchReset}</strong> {i.noFilterMatchEnd}
                 </td>
               </tr>
             )}
@@ -567,7 +570,7 @@ export default async function KeywordsPage({
 
       {rows.some((r) => r.history.length < 28) && (
         <div className="mt-4 inline-flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-900 dark:text-yellow-200 px-3 py-1.5 rounded text-xs">
-          Collecting data. Charts partial until 4 weeks of history.
+          {i.collectingData}
         </div>
       )}
     </div>
