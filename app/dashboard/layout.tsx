@@ -8,7 +8,6 @@ import { UsageMeter } from "@/components/usage-meter";
 import { AccountSwitcher } from "@/components/account-switcher";
 import { ExpandableSidebar } from "@/components/expandable-sidebar";
 import { CommandPalette } from "@/components/command-palette";
-import { WelcomeTour } from "@/components/welcome-tour";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", iconName: "layout-dashboard" as const },
@@ -73,7 +72,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <main className="flex-1 min-w-0">{children}</main>
       </div>
       <CommandPalette />
-      <WelcomeTour />
     </div>
   );
 }

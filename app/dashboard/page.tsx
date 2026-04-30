@@ -13,6 +13,7 @@ import { computeDiagnostic } from "@/lib/diagnostics";
 import { type IssueCardData } from "@/components/issue-card";
 import { SetupChecklist } from "@/components/setup-checklist";
 import { GscPerformanceChart, HealthScoreChart } from "@/components/dashboard-charts";
+import { WelcomeTour } from "@/components/welcome-tour";
 import { getLocale } from "@/lib/i18n-server";
 import { locale } from "./locale";
 
@@ -565,6 +566,7 @@ export default async function DashboardHome() {
 
   return (
     <div className="py-5 px-4 md:py-7 md:px-9 max-w-[1400px] mx-auto space-y-3">
+      <WelcomeTour />
       {/* Header */}
       <header className="flex items-end justify-between gap-6 flex-wrap mb-4">
         <div>
