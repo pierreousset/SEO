@@ -55,3 +55,6 @@ Thumbs.db
 # inngest
 .inngest/
 .gstack/
+
+# generated artifacts (night-runner outputs, etc.)
+outputs/
