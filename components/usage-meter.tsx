@@ -29,7 +29,7 @@ export async function UsageMeter({ userId }: { userId: string }) {
           className="h-full rounded-full transition-all"
           style={{
             width: `${pct}%`,
-            backgroundColor: isWarning ? "var(--down)" : "hsl(var(--primary))",
+            backgroundColor: isWarning ? "var(--down)" : "var(--primary)",
           }}
         />
       </div>
