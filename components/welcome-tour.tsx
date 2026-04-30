@@ -124,7 +124,7 @@ export function WelcomeTour() {
       <div
         className={`absolute z-50 pointer-events-auto ${positionClasses[current.position]}`}
       >
-        <div ref={cardRef} className="bg-card border border-primary/30 rounded-2xl p-6 max-w-[360px] shadow-xl">
+        <div ref={cardRef} className="bg-card border border-primary/30 rounded-2xl p-6 max-w-[360px]">
           {/* Progress dots */}
           <div className="flex items-center gap-1.5 mb-4">
             {STEPS.map((_, i) => (
@@ -166,7 +166,7 @@ export function WelcomeTour() {
               )}
               <button
                 onClick={next}
-                className="text-xs font-medium bg-primary text-primary-foreground rounded-lg px-4 py-1.5 hover:opacity-90 transition-opacity"
+                className="text-xs font-medium bg-primary text-primary-foreground rounded-full px-4 py-1.5 hover:opacity-90 transition-opacity"
               >
                 {isLast ? "Get started" : "Next"}
               </button>
