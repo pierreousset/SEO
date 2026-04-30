@@ -58,3 +58,4 @@ Thumbs.db
 
 # generated artifacts (night-runner outputs, etc.)
 outputs/
+.gstack-design-audit/
