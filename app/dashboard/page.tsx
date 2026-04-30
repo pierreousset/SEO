@@ -729,13 +729,19 @@ export default async function DashboardHome() {
             <h2 className="text-xl font-semibold">{i.bento.highestRoi}</h2>
           </div>
           <div className="flex-1 overflow-auto">
-            {gapZone.length > 0 ? (
+            {gapZone.length > 0 ? (() => {
+              const hasAny7d = gapZone.some(
+                (g) => g.weekAgo != null && g.latest != null,
+              );
+              return (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colKeyword}</th>
                     <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colPos}</th>
-                    <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.col7d}</th>
+                    {hasAny7d && (
+                      <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.col7d}</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -748,15 +754,18 @@ export default async function DashboardHome() {
                           {g.keyword}
                         </td>
                         <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{g.latest}</td>
-                        <td className="px-4 py-2 text-right">
-                          <RankDelta value={delta7d} />
-                        </td>
+                        {hasAny7d && (
+                          <td className="px-4 py-2 text-right">
+                            <RankDelta value={delta7d} />
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            ) : (
+              );
+            })() : (
               <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-6">
                 {i.bento.gapEmpty}
               </div>
