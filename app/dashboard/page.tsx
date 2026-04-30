@@ -650,31 +650,39 @@ export default async function DashboardHome() {
               </span>
             )}
           </div>
-          <div>
-            <div
-              className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums"
-              style={{
-                color: healthScore === null
-                  ? undefined
-                  : healthScore >= 70
-                    ? "#34D399"
-                    : healthScore >= 40
-                      ? "#FBBF24"
-                      : "#F87171",
-              }}
-            >
-              {healthScore ?? "—"}
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <div
+                className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums"
+                style={{
+                  color: healthScore === null
+                    ? undefined
+                    : healthScore >= 70
+                      ? "#34D399"
+                      : healthScore >= 40
+                        ? "#FBBF24"
+                        : "#F87171",
+                }}
+              >
+                {healthScore ?? "—"}
+              </div>
+              <div className="font-mono text-sm text-muted-foreground mt-2">
+                {issueCount > 0
+                  ? i.bento.issuesDetected(issueCount)
+                  : healthScore !== null
+                    ? i.bento.noIssues
+                    : i.bento.waitingFirstScore}
+              </div>
             </div>
-            <div className="font-mono text-sm text-muted-foreground mt-2">
-              {issueCount > 0
-                ? i.bento.issuesDetected(issueCount)
-                : healthScore !== null
-                  ? i.bento.noIssues
-                  : i.bento.waitingFirstScore}
-            </div>
-            {scoreHistory.length >= 2 && (
-              <div className="mt-3 h-[60px]">
+            {scoreHistory.length >= 2 ? (
+              <div className="flex-1 max-w-[60%] h-[80px]">
                 <HealthScoreChart data={scoreHistory} />
+              </div>
+            ) : (
+              <div className="text-right font-mono text-[10px] text-muted-foreground/60 leading-relaxed">
+                <div>history</div>
+                <div>builds after</div>
+                <div>each fetch</div>
               </div>
             )}
           </div>
