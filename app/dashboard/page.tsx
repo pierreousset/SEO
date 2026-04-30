@@ -931,8 +931,8 @@ function actionIcon(key: "alert" | "ctr" | "lost" | "decline" | "target" | "file
 
 function actionToneBg(tone: "default" | "warn" | "down") {
   switch (tone) {
-    case "down": return "bg-[#F87171]/10";
-    case "warn": return "bg-[#FBBF24]/10";
-    default: return "bg-background";
+    case "down": return "bg-[#F87171]/15 ring-1 ring-inset ring-[#F87171]/30";
+    case "warn": return "bg-[#FBBF24]/15 ring-1 ring-inset ring-[#FBBF24]/30";
+    default: return "bg-primary/10 ring-1 ring-inset ring-primary/25";
   }
 }
