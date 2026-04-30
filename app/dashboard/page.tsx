@@ -598,7 +598,7 @@ export default async function DashboardHome() {
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <span className="font-mono text-[10px] text-muted-foreground">{i.actionsCard.label}</span>
-              <h2 className="text-lg font-semibold mt-0.5">
+              <h2 className="text-xl font-semibold mt-0.5">
                 {topActions.length === 1 ? i.actionsCard.titleSingular : i.actionsCard.titlePlural(topActions.length)}
               </h2>
             </div>
@@ -726,7 +726,7 @@ export default async function DashboardHome() {
               <Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
               <span className="font-mono text-[10px] text-muted-foreground">{i.bento.gapZone}</span>
             </div>
-            <h2 className="text-lg font-semibold">{i.bento.highestRoi}</h2>
+            <h2 className="text-xl font-semibold">{i.bento.highestRoi}</h2>
           </div>
           <div className="flex-1 overflow-auto">
             {gapZone.length > 0 ? (
