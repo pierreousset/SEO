@@ -279,10 +279,15 @@ export default async function KeywordsPage({
     .sort((a, b) => (a.delta1d as number) - (b.delta1d as number))
     .slice(0, 5);
 
-  const severityColor: Record<string, string> = {
-    high: "#f200ca",
-    medium: "#f200ca",
-    low: "#0098f2",
+  const severityBadge: Record<string, string> = {
+    high: "bg-hot-pink/10 text-hot-pink",
+    medium: "bg-vivid-violet/10 text-vivid-violet",
+    low: "bg-sky-teal/10 text-sky-teal",
+  };
+  const severityLabel: Record<string, string> = {
+    high: i.severity?.high ?? "high",
+    medium: i.severity?.medium ?? "medium",
+    low: i.severity?.low ?? "low",
   };
 
   const tipColorClass: Record<string, string> = {
@@ -332,7 +337,7 @@ export default async function KeywordsPage({
           { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#0098f2" },
           { label: i.stats.dropping, value: droppingCount, color: "#f200ca" },
           { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#0098f2" },
-          { label: i.stats.totalTracked, value: totalActive, color: "#FFFFFF" },
+          { label: i.stats.totalTracked, value: totalActive, color: "#0d111b" },
         ].map((stat) => (
           <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
             <div className="text-caption text-ash-gray">
@@ -342,7 +347,7 @@ export default async function KeywordsPage({
               )}
             </div>
             <div
-              className="font-mono text-2xl font-semibold tabular-nums mt-0.5"
+              className="text-subheading font-semibold tabular-nums mt-0.5"
               style={{ color: stat.color }}
             >
               {stat.value}
@@ -355,24 +360,21 @@ export default async function KeywordsPage({
       {topIssues.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
           {topIssues.map((issue, idx) => (
-            <div
-              key={idx}
-              className="bg-card rounded-2xl p-4"
-              style={{ borderLeft: `3px solid ${severityColor[issue.severity] ?? "#0098f2"}` }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="inline-block h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: severityColor[issue.severity] ?? "#0098f2" }}
-                />
-                <span className="text-caption font-medium truncate">
+            <div key={idx} className="bg-card rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <span className="text-sm font-semibold leading-snug truncate">
                   {issue.title}
                 </span>
+                <span
+                  className={`shrink-0 inline-block text-caption px-2.5 py-0.5 rounded-full ${severityBadge[issue.severity] ?? "bg-subtle-cream text-ash-gray"}`}
+                >
+                  {severityLabel[issue.severity] ?? issue.severity}
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">
+              <p className="text-body-sm text-muted-foreground leading-snug">
                 {issue.description}
               </p>
-              <p className="text-[10px] text-muted-foreground/70 mt-1 font-mono">
+              <p className="text-caption text-sky-teal mt-1.5 tabular-nums">
                 {issue.impact}
               </p>
             </div>
@@ -390,7 +392,7 @@ export default async function KeywordsPage({
             ) : (
               <div className="space-y-1">
                 {topUp.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-background/60 text-sm">
+                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-subtle-cream text-sm">
                     <div className="flex-1 truncate" title={r.keyword}>{r.keyword}</div>
                     <div className="font-mono tabular-nums text-muted-foreground text-xs shrink-0">#{r.position}</div>
                     <div className="shrink-0 w-12 text-right"><RankDelta value={r.delta1d ?? 0} /></div>
@@ -406,7 +408,7 @@ export default async function KeywordsPage({
             ) : (
               <div className="space-y-1">
                 {topDown.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-background/60 text-sm">
+                  <div key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-[12px] hover:bg-subtle-cream text-sm">
                     <div className="flex-1 truncate" title={r.keyword}>{r.keyword}</div>
                     <div className="font-mono tabular-nums text-muted-foreground text-xs shrink-0">#{r.position}</div>
                     <div className="shrink-0 w-12 text-right"><RankDelta value={r.delta1d ?? 0} /></div>
