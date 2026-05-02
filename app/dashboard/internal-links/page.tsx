@@ -7,6 +7,8 @@ import { suggestInternalLinks } from "@/lib/internal-linking";
 import type { CrawlPage, Keyword } from "@/lib/internal-linking";
 import { SortableHeader } from "@/components/sortable-header";
 import { parseSort, sortRows } from "@/lib/table-sort";
+import { getLocale } from "@/lib/i18n-server";
+import { locale, type PageLocale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -19,17 +21,23 @@ function stripOrigin(url: string): string {
   }
 }
 
-function ImpactBadge({ impact }: { impact: "high" | "medium" | "low" }) {
+function ImpactBadge({
+  impact,
+  label,
+}: {
+  impact: "high" | "medium" | "low";
+  label: string;
+}) {
   const styles = {
-    high: "bg-[var(--up)]/10 text-[var(--up)]",
+    high: "bg-sky-teal/10 text-sky-teal",
     medium: "bg-vivid-violet/10 text-vivid-violet",
-    low: "bg-muted-foreground/10 text-muted-foreground",
+    low: "bg-subtle-cream text-ash-gray",
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${styles[impact]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-caption font-medium ${styles[impact]}`}
     >
-      {impact}
+      {label}
     </span>
   );
 }
@@ -41,6 +49,8 @@ export default async function InternalLinksPage({
 }) {
   const ctx = await resolveAccountContext();
   const sp = await searchParams;
+  const lng = await getLocale();
+  const i = locale[lng];
 
   // Get latest completed crawl run
   const [latestRun] = await db
@@ -95,14 +105,11 @@ export default async function InternalLinksPage({
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <Breadcrumbs />
-        <p className="text-caption text-ash-gray">
-          internal links
-        </p>
-        <h1 className="text-heading-lg mt-2">Link Suggestions</h1>
+        <p className="text-caption text-ash-gray">{i.headerKicker}</p>
+        <h1 className="text-heading-lg mt-2">{i.title}</h1>
         {suggestions.length > 0 && (
           <p className="text-xs text-muted-foreground mt-2 font-mono tabular">
-            {suggestions.length} suggestion{suggestions.length !== 1 ? "s" : ""} to improve your
-            internal linking
+            {i.subtitle(suggestions.length)}
           </p>
         )}
       </header>
@@ -111,11 +118,11 @@ export default async function InternalLinksPage({
       {pages.length === 0 && (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl text-sm">
           <p className="text-muted-foreground">
-            Run a meta crawl first to get link suggestions. Go to{" "}
+            {i.emptyNoCrawlIntro}{" "}
             <a href="/dashboard/audit/metas" className="text-sky-teal hover:underline">
-              Audit &rarr; Metas
+              {i.emptyNoCrawlLink}
             </a>{" "}
-            and crawl your site.
+            {i.emptyNoCrawlOutro}
           </p>
         </div>
       )}
@@ -124,40 +131,40 @@ export default async function InternalLinksPage({
       {suggestions.length > 0 && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <SummaryCard label="Total" value={suggestions.length} />
-            <SummaryCard label="High impact" value={highCount} highlight />
-            <SummaryCard label="Medium" value={mediumCount} />
-            <SummaryCard label="Low" value={lowCount} />
+            <SummaryCard label={i.cardTotal} value={suggestions.length} />
+            <SummaryCard label={i.cardHighImpact} value={highCount} highlight />
+            <SummaryCard label={i.cardMedium} value={mediumCount} />
+            <SummaryCard label={i.cardLow} value={lowCount} />
           </div>
 
           {/* Suggestions table */}
           <section>
             <h2 className="text-caption text-ash-gray mb-3">
-              suggestions ({suggestions.length})
+              {i.sectionHeading(suggestions.length)}
             </h2>
             <div className="bg-card rounded-2xl overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
                     <th className="text-left px-4 py-2.5">
-                      <SortableHeader field="from" label="From" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                      <SortableHeader field="from" label={i.thFrom} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                     <th className="w-8" />
                     <th className="text-left px-4 py-2.5">
-                      <SortableHeader field="to" label="To" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                      <SortableHeader field="to" label={i.thTo} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                     <th className="text-left px-4 py-2.5">
-                      <SortableHeader field="reason" label="Reason" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                      <SortableHeader field="reason" label={i.thReason} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                     <th className="text-center px-4 py-2.5 w-24">
-                      <SortableHeader field="impact" label="Impact" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                      <SortableHeader field="impact" label={i.thImpact} align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {suggestions.map((s, i) => (
+                  {suggestions.map((s, idx) => (
                     <tr
-                      key={i}
+                      key={idx}
                       className="border-b border-border last:border-0 hover:bg-secondary/50"
                     >
                       <td className="px-4 py-3 max-w-[200px]">
@@ -193,7 +200,16 @@ export default async function InternalLinksPage({
                         <span className="line-clamp-2">{s.reason}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <ImpactBadge impact={s.impact} />
+                        <ImpactBadge
+                          impact={s.impact}
+                          label={
+                            s.impact === "high"
+                              ? i.impactHigh
+                              : s.impact === "medium"
+                                ? i.impactMedium
+                                : i.impactLow
+                          }
+                        />
                       </td>
                     </tr>
                   ))}
@@ -207,13 +223,11 @@ export default async function InternalLinksPage({
       {/* Crawl exists but no suggestions */}
       {pages.length > 0 && suggestions.length === 0 && (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl text-sm">
-          <div className="flex items-center gap-2 text-[var(--up)] mb-2">
+          <div className="flex items-center gap-2 text-sky-teal mb-2">
             <Link2 className="h-4 w-4" strokeWidth={1.5} />
-            <span className="font-semibold text-sm">Looking good</span>
+            <span className="font-semibold text-sm">{i.lookingGood}</span>
           </div>
-          <p className="text-muted-foreground">
-            No internal linking issues found. Your pages are well cross-linked.
-          </p>
+          <p className="text-muted-foreground">{i.noSuggestions}</p>
         </div>
       )}
     </div>
