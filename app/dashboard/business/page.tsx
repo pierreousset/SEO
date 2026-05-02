@@ -106,10 +106,10 @@ export default async function BusinessPage() {
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1100px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           Business context
         </p>
-        <h1 className="font-display text-[40px] mt-2">Business</h1>
+        <h1 className="text-heading-lg mt-2">Business</h1>
         <p className="mt-4 text-base text-muted-foreground max-w-2xl">
           Fill this once. Every AI brief uses it as system context, so recommendations are
           specific to your business instead of generic SEO advice. Declared competitors also
@@ -152,7 +152,7 @@ export default async function BusinessPage() {
       {/* Brand visibility — branded vs non-branded GSC traffic split */}
       {profile?.businessName && (
         <section>
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">brand visibility</h2>
+          <h2 className="text-caption text-ash-gray mb-3">brand visibility</h2>
           <div className="bg-card rounded-2xl p-5">
             {brandedTotal === 0 ? (
               <p className="text-[12px] text-muted-foreground">
@@ -173,7 +173,7 @@ export default async function BusinessPage() {
                     <div className="font-mono text-2xl font-semibold tabular-nums" style={{ color: "#0098f2" }}>
                       {brandedPct}%
                     </div>
-                    <div className="font-mono text-[10px] text-muted-foreground">branded share</div>
+                    <div className="text-caption text-ash-gray">branded share</div>
                   </div>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden bg-background mb-3">
@@ -201,7 +201,7 @@ export default async function BusinessPage() {
       )}
 
       <section>
-        <h2 className="font-mono text-[10px] text-muted-foreground mb-3">email digest</h2>
+        <h2 className="text-caption text-ash-gray mb-3">email digest</h2>
         <div className="border border-border rounded-md bg-card p-5">
           <EmailDigestForm
             currentFrequency={profile?.emailDigestFrequency ?? "weekly"}

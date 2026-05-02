@@ -127,12 +127,12 @@ export function ProPlanCard() {
       <div className="mt-2 flex items-baseline gap-2">
         {billing === "monthly" ? (
           <>
-            <span className="font-display text-5xl">15&euro;</span>
+            <span className="text-display">15&euro;</span>
             <span className="text-muted-foreground">/mois</span>
           </>
         ) : (
           <>
-            <span className="font-display text-5xl">150&euro;</span>
+            <span className="text-display">150&euro;</span>
             <span className="text-muted-foreground">/an</span>
             <span className="text-xs text-[var(--up)] ml-2">save 30&euro;</span>
           </>

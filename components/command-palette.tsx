@@ -192,7 +192,7 @@ export function CommandPalette() {
 
           {pages.length > 0 && (
             <>
-              <div className="px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="px-4 py-1.5 text-caption uppercase tracking-wider text-muted-foreground">
                 Pages
               </div>
               {pages.map((item) => {
@@ -217,7 +217,7 @@ export function CommandPalette() {
 
           {actions.length > 0 && (
             <>
-              <div className="px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="px-4 py-1.5 text-caption uppercase tracking-wider text-muted-foreground">
                 Actions
               </div>
               {actions.map((item) => {
@@ -242,7 +242,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border px-4 py-2 font-mono text-[10px] text-muted-foreground">
+        <div className="border-t border-border px-4 py-2 text-caption text-ash-gray">
           <span>↑↓ navigate</span>
           <span className="mx-2">·</span>
           <span>↵ open</span>

@@ -570,7 +570,7 @@ export default async function DashboardHome() {
       {/* Header */}
       <header className="flex items-end justify-between gap-6 flex-wrap mb-4">
         <div>
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             {ctx.sessionUserEmail}
           </p>
           <h1 className="text-[36px] font-semibold leading-tight">{i.title}</h1>
@@ -597,13 +597,13 @@ export default async function DashboardHome() {
         <section className="bg-card rounded-2xl p-6">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
-              <span className="font-mono text-[10px] text-muted-foreground">{i.actionsCard.label}</span>
+              <span className="text-caption text-ash-gray">{i.actionsCard.label}</span>
               <h2 className="text-xl font-semibold mt-0.5">
                 {topActions.length === 1 ? i.actionsCard.titleSingular : i.actionsCard.titlePlural(topActions.length)}
               </h2>
             </div>
             {issueCount > topActions.length && (
-              <span className="font-mono text-[10px] text-muted-foreground">
+              <span className="text-caption text-ash-gray">
                 {i.actionsCard.moreCount(issueCount - topActions.length)}
               </span>
             )}
@@ -636,11 +636,11 @@ export default async function DashboardHome() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-sky-teal" strokeWidth={1.5} />
-              <span className="font-mono text-[11px] text-muted-foreground">{i.bento.seoHealth}</span>
+              <span className="text-caption text-muted-foreground">{i.bento.seoHealth}</span>
             </div>
             {healthDelta !== null && healthDelta !== 0 && (
               <span
-                className={`font-mono text-[11px] font-medium rounded-full px-2.5 py-1 ${
+                className={`text-caption font-medium rounded-full px-2.5 py-1 ${
                   healthDelta > 0
                     ? "bg-[var(--up)]/15 text-[var(--up)]"
                     : "bg-[var(--down)]/15 text-[var(--down)]"
@@ -679,7 +679,7 @@ export default async function DashboardHome() {
                 <HealthScoreChart data={scoreHistory} />
               </div>
             ) : (
-              <div className="text-right font-mono text-[10px] text-muted-foreground/60 leading-relaxed">
+              <div className="text-right text-caption text-ash-gray/60 leading-relaxed">
                 <div>history</div>
                 <div>builds after</div>
                 <div>each fetch</div>
@@ -713,7 +713,7 @@ export default async function DashboardHome() {
         {/* Chart tile */}
         <div className="flex-1 min-h-[240px] md:h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
           <div className="mb-3">
-            <span className="font-mono text-[10px] text-muted-foreground">{i.bento.performance}</span>
+            <span className="text-caption text-ash-gray">{i.bento.performance}</span>
             <h2 className="text-xl font-semibold">{i.bento.searchConsole}</h2>
           </div>
           <div className="flex-1 min-h-0">
@@ -732,7 +732,7 @@ export default async function DashboardHome() {
           <div className="px-6 pt-5 pb-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Target className="h-3.5 w-3.5 text-sky-teal" strokeWidth={1.5} />
-              <span className="font-mono text-[10px] text-muted-foreground">{i.bento.gapZone}</span>
+              <span className="text-caption text-ash-gray">{i.bento.gapZone}</span>
             </div>
             <h2 className="text-xl font-semibold">{i.bento.highestRoi}</h2>
           </div>
@@ -745,10 +745,10 @@ export default async function DashboardHome() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colKeyword}</th>
-                    <th className="text-right px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.colPos}</th>
+                    <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.bento.colKeyword}</th>
+                    <th className="text-right px-3 py-2 text-caption text-ash-gray">{i.bento.colPos}</th>
                     {hasAny7d && (
-                      <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.bento.col7d}</th>
+                      <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.bento.col7d}</th>
                     )}
                   </tr>
                 </thead>
@@ -815,7 +815,7 @@ export default async function DashboardHome() {
           </Link>
         ) : (
           <div className="flex-1 h-[180px] rounded-2xl bg-card p-6 flex flex-col justify-between">
-            <span className="font-mono text-[10px] text-muted-foreground">{i.bento.aiBrief}</span>
+            <span className="text-caption text-ash-gray">{i.bento.aiBrief}</span>
             <p className="text-sm text-muted-foreground">
               {i.bento.aiBriefEmpty}
             </p>
@@ -824,7 +824,7 @@ export default async function DashboardHome() {
 
         {/* Distribution tile */}
         <div className="w-full md:w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
-          <span className="font-mono text-[10px] text-muted-foreground">{i.bento.positionDistribution}</span>
+          <span className="text-caption text-ash-gray">{i.bento.positionDistribution}</span>
 
           {/* Bar */}
           {ranked.length > 0 ? (
@@ -890,7 +890,7 @@ function Bucket({ label, value, color }: { label: string; value: number; color: 
       <div className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
-      <div className="font-mono text-[9px] text-muted-foreground">{label}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
     </div>
   );
 }
@@ -899,7 +899,7 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon: 
   return (
     <div className="flex-1 bg-card rounded-2xl px-5 py-4 flex items-center justify-between">
       <div>
-        <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+        <div className="text-caption text-ash-gray">{label}</div>
         <div className="font-mono text-[28px] font-semibold leading-tight tabular-nums">{value}</div>
       </div>
       {icon}

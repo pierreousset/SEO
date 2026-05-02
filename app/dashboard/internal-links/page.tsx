@@ -20,7 +20,7 @@ function stripOrigin(url: string): string {
 function ImpactBadge({ impact }: { impact: "high" | "medium" | "low" }) {
   const styles = {
     high: "bg-[var(--up)]/10 text-[var(--up)]",
-    medium: "bg-yellow-500/10 text-yellow-500",
+    medium: "bg-vivid-violet/10 text-vivid-violet",
     low: "bg-muted-foreground/10 text-muted-foreground",
   };
   return (
@@ -79,10 +79,10 @@ export default async function InternalLinksPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
         <Breadcrumbs />
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           internal links
         </p>
-        <h1 className="font-display text-[40px] mt-2">Link Suggestions</h1>
+        <h1 className="text-heading-lg mt-2">Link Suggestions</h1>
         {suggestions.length > 0 && (
           <p className="text-xs text-muted-foreground mt-2 font-mono tabular">
             {suggestions.length} suggestion{suggestions.length !== 1 ? "s" : ""} to improve your
@@ -116,24 +116,24 @@ export default async function InternalLinksPage() {
 
           {/* Suggestions table */}
           <section>
-            <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+            <h2 className="text-caption text-ash-gray mb-3">
               suggestions ({suggestions.length})
             </h2>
             <div className="bg-card rounded-2xl overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
                       From
                     </th>
                     <th className="w-8" />
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
                       To
                     </th>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
                       Reason
                     </th>
-                    <th className="text-center px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal w-24">
+                    <th className="text-center px-4 py-2.5 text-caption text-ash-gray w-24">
                       Impact
                     </th>
                   </tr>
@@ -215,9 +215,9 @@ function SummaryCard({
 }) {
   return (
     <div className="rounded-2xl bg-card p-5">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
       <div
-        className={`font-display text-3xl mt-2 tabular ${
+        className={`text-heading mt-2 tabular ${
           highlight && value > 0 ? "text-[var(--up)]" : ""
         }`}
       >

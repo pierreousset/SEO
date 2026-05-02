@@ -16,10 +16,10 @@ export default async function ApiKeysPage() {
     <div className="px-4 md:px-9 py-7 max-w-2xl mx-auto space-y-8">
       <Breadcrumbs />
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           settings
         </p>
-        <h1 className="font-display text-[40px] mt-2">API Keys</h1>
+        <h1 className="text-heading-lg mt-2">API Keys</h1>
       </header>
 
       {/* Form card */}

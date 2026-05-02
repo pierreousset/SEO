@@ -262,10 +262,10 @@ function MarkdownBody({ content }: { content: string }) {
         components={{
           p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
           h1: ({ children }) => (
-            <h1 className="font-display text-xl mt-4 mb-2 first:mt-0">{children}</h1>
+            <h1 className="text-xl mt-4 mb-2 first:mt-0">{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="font-display text-lg mt-4 mb-2 first:mt-0">{children}</h2>
+            <h2 className="text-lg mt-4 mb-2 first:mt-0">{children}</h2>
           ),
           h3: ({ children }) => (
             <h3 className="font-semibold text-base mt-3 mb-1 first:mt-0">{children}</h3>

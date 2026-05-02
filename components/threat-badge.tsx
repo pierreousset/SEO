@@ -2,7 +2,7 @@ import { type ThreatTier } from "@/lib/competitor-threat";
 
 const CLS: Record<ThreatTier, { label: string; cls: string }> = {
   HIGH: { label: "HI", cls: "bg-[var(--down)]/10 text-[var(--down)]" },
-  MEDIUM: { label: "MED", cls: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300" },
+  MEDIUM: { label: "MED", cls: "bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet" },
   LOW: { label: "LO", cls: "bg-[var(--up)]/10 text-[var(--up)]" },
 };
 

@@ -2,7 +2,7 @@ import { type Diagnostic, diagnosticInfo } from "@/lib/diagnostics";
 
 const TONE_CLS: Record<string, string> = {
   good: "bg-[var(--up)]/10 text-[var(--up)]",
-  warn: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
+  warn: "bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet",
   bad: "bg-[var(--down)]/10 text-[var(--down)]",
   neutral: "bg-muted text-muted-foreground",
 };

@@ -287,7 +287,7 @@ export default async function KeywordsPage({
 
   const tipColorClass: Record<string, string> = {
     green: "text-[var(--up)]",
-    yellow: "text-yellow-400",
+    yellow: "text-vivid-violet",
     red: "text-[var(--down)]",
     purple: "text-sky-teal",
     gray: "text-muted-foreground",
@@ -297,8 +297,8 @@ export default async function KeywordsPage({
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.headerKicker}</p>
-          <h1 className="font-display text-[40px] mt-2">
+          <p className="text-caption text-ash-gray">{i.headerKicker}</p>
+          <h1 className="text-heading-lg mt-2">
             {i.title}{" "}
             {sites[0] && (
               <span className="text-muted-foreground font-normal text-base font-mono tabular">
@@ -335,7 +335,7 @@ export default async function KeywordsPage({
           { label: i.stats.totalTracked, value: totalActive, color: "#FFFFFF" },
         ].map((stat) => (
           <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
-            <div className="font-mono text-[10px] text-muted-foreground">
+            <div className="text-caption text-ash-gray">
               {stat.label}
               {stat.subtitle && (
                 <span className="ml-1 opacity-60">({stat.subtitle})</span>
@@ -365,7 +365,7 @@ export default async function KeywordsPage({
                   className="inline-block h-2 w-2 rounded-full shrink-0"
                   style={{ backgroundColor: severityColor[issue.severity] ?? "#0098f2" }}
                 />
-                <span className="font-mono text-[11px] font-medium truncate">
+                <span className="text-caption font-medium truncate">
                   {issue.title}
                 </span>
               </div>
@@ -384,7 +384,7 @@ export default async function KeywordsPage({
       {(topUp.length > 0 || topDown.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
           <div className="bg-card rounded-2xl p-5">
-            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">{i.topUp}</h3>
+            <h3 className="text-caption text-ash-gray mb-3">{i.topUp}</h3>
             {topUp.length === 0 ? (
               <p className="text-[11px] text-muted-foreground py-2">{i.noUpMovers}</p>
             ) : (
@@ -400,7 +400,7 @@ export default async function KeywordsPage({
             )}
           </div>
           <div className="bg-card rounded-2xl p-5">
-            <h3 className="font-mono text-[10px] text-muted-foreground mb-3">{i.topDown}</h3>
+            <h3 className="text-caption text-ash-gray mb-3">{i.topDown}</h3>
             {topDown.length === 0 ? (
               <p className="text-[11px] text-muted-foreground py-2">{i.noDownMovers}</p>
             ) : (
@@ -446,17 +446,17 @@ export default async function KeywordsPage({
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thKeyword}</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal w-12">{i.thIntent}</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thDiagnostic}</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thPosition}</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.th1d}</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.th7d}</th>
-              <th className="px-2 py-2 font-mono text-[9px] text-muted-foreground font-normal text-center">{i.th7dShort}</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thImpr}</th>
-              <th className="text-right px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thBestComp}</th>
-              <th className="text-left px-4 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thCountry}</th>
-              <th className="text-left px-3 py-2 font-mono text-[9px] text-muted-foreground font-normal">{i.thTip}</th>
+              <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.thKeyword}</th>
+              <th className="text-left px-3 py-2 text-caption text-ash-gray w-12">{i.thIntent}</th>
+              <th className="text-left px-3 py-2 text-caption text-ash-gray">{i.thDiagnostic}</th>
+              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thPosition}</th>
+              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.th1d}</th>
+              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.th7d}</th>
+              <th className="px-2 py-2 text-caption text-ash-gray text-center">{i.th7dShort}</th>
+              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thImpr}</th>
+              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thBestComp}</th>
+              <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.thCountry}</th>
+              <th className="text-left px-3 py-2 text-caption text-ash-gray">{i.thTip}</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
           </thead>
@@ -546,7 +546,7 @@ export default async function KeywordsPage({
                     const tip = tipByKeywordId.get(r.id);
                     if (!tip) return null;
                     return (
-                      <span className={`font-mono text-[11px] leading-snug ${tipColorClass[tip.color] ?? "text-muted-foreground"}`}>
+                      <span className={`text-caption leading-snug ${tipColorClass[tip.color] ?? "text-muted-foreground"}`}>
                         {tip.text}
                       </span>
                     );
@@ -569,7 +569,7 @@ export default async function KeywordsPage({
       </div>
 
       {rows.some((r) => r.history.length < 28) && (
-        <div className="mt-4 inline-flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-900 dark:text-yellow-200 px-3 py-1.5 rounded text-xs">
+        <div className="mt-4 inline-flex items-center gap-2 bg-vivid-violet/10 text-vivid-violet px-3 py-1.5 rounded text-xs">
           {i.collectingData}
         </div>
       )}

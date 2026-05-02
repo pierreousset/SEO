@@ -148,7 +148,7 @@ export function DiscoverKeywords() {
             title={p.desc}
             className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
               preset === p.id
-                ? "bg-foreground text-background border-foreground"
+                ? "bg-primary text-primary-foreground border-foreground"
                 : "bg-background text-muted-foreground border-border hover:text-foreground"
             }`}
           >

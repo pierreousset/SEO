@@ -75,7 +75,7 @@ export function PositionAlerts({
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-          <h2 className="font-display text-lg">Position alerts</h2>
+          <h2 className="text-lg">Position alerts</h2>
         </div>
         <div className="relative">
           <button

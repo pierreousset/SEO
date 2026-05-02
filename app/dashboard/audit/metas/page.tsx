@@ -14,13 +14,13 @@ export const dynamic = "force-dynamic";
 
 function titleStatus(len: number | null): { icon: typeof Check; cls: string } {
   if (!len) return { icon: X, cls: "text-[var(--down)]" };
-  if (len < 30 || len > 70) return { icon: AlertTriangle, cls: "text-yellow-500" };
+  if (len < 30 || len > 70) return { icon: AlertTriangle, cls: "text-vivid-violet" };
   return { icon: Check, cls: "text-[var(--up)]" };
 }
 
 function descStatus(len: number | null): { icon: typeof Check; cls: string } {
   if (!len) return { icon: X, cls: "text-[var(--down)]" };
-  if (len < 80 || len > 170) return { icon: AlertTriangle, cls: "text-yellow-500" };
+  if (len < 80 || len > 170) return { icon: AlertTriangle, cls: "text-vivid-violet" };
   return { icon: Check, cls: "text-[var(--up)]" };
 }
 
@@ -56,10 +56,10 @@ export default async function MetasPage() {
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
           <Breadcrumbs />
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             Full site crawl
           </p>
-          <h1 className="font-display text-[40px] mt-2">
+          <h1 className="text-heading-lg mt-2">
             Metas & sitemap coverage
           </h1>
           {latestRun && latestRun.status === "done" && (
@@ -123,8 +123,8 @@ export default async function MetasPage() {
 
           {/* Orphan pages warning */}
           {orphans > 0 && (
-            <section className="rounded-2xl bg-yellow-500/5 border border-yellow-500/20 p-6">
-              <h2 className="text-sm font-semibold text-yellow-700 dark:text-yellow-300">
+            <section className="rounded-2xl bg-vivid-violet/5 border border-yellow-500/20 p-6">
+              <h2 className="text-sm font-semibold text-vivid-violet">
                 {orphans} page{orphans > 1 ? "s" : ""} missing from sitemap
               </h2>
               <p className="text-xs text-muted-foreground mt-2">
@@ -145,25 +145,25 @@ export default async function MetasPage() {
 
           {/* Full metas table */}
           <section>
-            <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+            <h2 className="text-caption text-ash-gray mb-3">
               all pages ({totalPages})
             </h2>
             <div className="bg-card rounded-2xl overflow-hidden overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">Title</th>
-                    <th className="text-center px-3 py-2.5 w-14 font-mono text-[9px] text-muted-foreground font-normal">Len</th>
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">URL</th>
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">Title</th>
+                    <th className="text-center px-3 py-2.5 w-14 text-caption text-ash-gray">Len</th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">Meta description</th>
-                    <th className="text-center px-3 py-2.5 w-14 font-mono text-[9px] text-muted-foreground font-normal">Len</th>
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">Meta description</th>
+                    <th className="text-center px-3 py-2.5 w-14 text-caption text-ash-gray">Len</th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5 font-mono text-[9px] text-muted-foreground font-normal">H1</th>
-                    <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Sitemap</th>
-                    <th className="text-center px-3 py-2.5 w-16 font-mono text-[9px] text-muted-foreground font-normal">Index</th>
-                    <th className="text-center px-3 py-2.5 w-28 font-mono text-[9px] text-muted-foreground font-normal">AI</th>
-                    <th className="text-center px-3 py-2.5 w-20 font-mono text-[9px] text-muted-foreground font-normal">Schema</th>
+                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">H1</th>
+                    <th className="text-center px-3 py-2.5 w-16 text-caption text-ash-gray">Sitemap</th>
+                    <th className="text-center px-3 py-2.5 w-16 text-caption text-ash-gray">Index</th>
+                    <th className="text-center px-3 py-2.5 w-28 text-caption text-ash-gray">AI</th>
+                    <th className="text-center px-3 py-2.5 w-20 text-caption text-ash-gray">Schema</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -174,7 +174,7 @@ export default async function MetasPage() {
                       <tr
                         key={m.id}
                         className={`border-b border-border last:border-0 hover:bg-secondary/50 ${
-                          !m.inSitemap ? "bg-yellow-500/[0.03]" : ""
+                          !m.inSitemap ? "bg-vivid-violet/[0.03]" : ""
                         }`}
                       >
                         <td
@@ -230,7 +230,7 @@ export default async function MetasPage() {
                             />
                           ) : (
                             <X
-                              className="h-3.5 w-3.5 mx-auto text-yellow-500"
+                              className="h-3.5 w-3.5 mx-auto text-vivid-violet"
                               strokeWidth={2}
                             />
                           )}
@@ -282,12 +282,12 @@ function SummaryCard({
 }) {
   return (
     <div className="rounded-2xl bg-card p-5">
-      <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-caption text-ash-gray">
         <Icon className="h-3 w-3" strokeWidth={1.5} />
         {label}
       </div>
       <div
-        className={`font-display text-3xl mt-2 tabular ${
+        className={`text-heading mt-2 tabular ${
           alert ? "text-[var(--down)]" : ""
         }`}
       >

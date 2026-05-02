@@ -56,7 +56,7 @@ export function BulkMetaSuggestionButton() {
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                <span className="text-caption text-ash-gray uppercase tracking-wider">
                   Bulk AI suggestions
                 </span>
                 <h3 className="text-lg font-semibold mt-0.5">
@@ -126,8 +126,8 @@ function CopyField({
     <div className="flex items-start gap-2">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="font-mono text-[10px] text-muted-foreground">{label}</span>
-          <span className="font-mono text-[10px] text-muted-foreground tabular">
+          <span className="text-caption text-ash-gray">{label}</span>
+          <span className="text-caption text-ash-gray tabular">
             {charCount} ({range})
           </span>
         </div>

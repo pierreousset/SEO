@@ -48,7 +48,7 @@ export function MetaSuggestionButton({ url }: { url: string }) {
       {open && suggestion && (
         <div className="absolute right-0 top-full mt-2 z-50 w-[420px] rounded-xl bg-card border border-border shadow-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+            <span className="text-caption text-ash-gray uppercase tracking-wider">
               AI suggestion
             </span>
             <button
@@ -74,7 +74,7 @@ export function MetaSuggestionButton({ url }: { url: string }) {
           />
 
           <div>
-            <div className="font-mono text-[10px] text-muted-foreground mb-1">Reasoning</div>
+            <div className="text-caption text-ash-gray mb-1">Reasoning</div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {suggestion.reasoning}
             </p>
@@ -107,8 +107,8 @@ function SuggestionField({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-[10px] text-muted-foreground">{label}</span>
-        <span className="font-mono text-[10px] text-muted-foreground tabular">
+        <span className="text-caption text-ash-gray">{label}</span>
+        <span className="text-caption text-ash-gray tabular">
           {charCount} chars ({range})
         </span>
       </div>

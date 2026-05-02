@@ -57,10 +57,10 @@ export default function WordPressPluginPage() {
           <ArrowLeft className="h-3 w-3" strokeWidth={1.5} />
           Settings
         </Link>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           integrations
         </p>
-        <h1 className="font-display text-[40px] mt-2">WordPress Plugin</h1>
+        <h1 className="text-heading-lg mt-2">WordPress Plugin</h1>
         <p className="text-sm text-muted-foreground mt-2 max-w-[600px]">
           Connect your WordPress site to get AI-powered meta tag suggestions directly in the post
           editor, plus a health score widget on your WordPress dashboard.

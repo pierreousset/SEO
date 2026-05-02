@@ -44,10 +44,10 @@ export default async function ArticleDetailPage({
     <div className="px-4 md:px-9 py-7 max-w-[900px] mx-auto space-y-8">
       <Breadcrumbs />
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           generated article
         </p>
-        <h1 className="font-display text-[40px] mt-2">{article.title || "Untitled"}</h1>
+        <h1 className="text-heading-lg mt-2">{article.title || "Untitled"}</h1>
       </header>
 
       {/* Meta stats */}
@@ -61,7 +61,7 @@ export default async function ArticleDetailPage({
       {/* Meta description */}
       {article.metaDescription && (
         <section className="rounded-2xl bg-card p-6">
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-2">
+          <h2 className="text-caption text-ash-gray mb-2">
             Meta description
           </h2>
           <p className="text-sm">{article.metaDescription}</p>
@@ -98,7 +98,7 @@ export default async function ArticleDetailPage({
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-card p-5">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
       <div className="mt-2 font-mono tabular-nums text-sm truncate">{value}</div>
     </div>
   );

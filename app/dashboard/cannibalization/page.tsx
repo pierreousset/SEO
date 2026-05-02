@@ -62,10 +62,10 @@ export default async function CannibalizationPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             Keyword cannibalization
           </p>
-          <h1 className="font-display text-[40px] mt-2">Cannibalization</h1>
+          <h1 className="text-heading-lg mt-2">Cannibalization</h1>
         </div>
         <RunCannibalizationButton
           label={latestRun ? "Run new scan" : "Run first scan"}
@@ -79,7 +79,7 @@ export default async function CannibalizationPage() {
       {latestRun && latestRun.status === "done" && findings.length > 0 && (
         <section className="space-y-4">
           <div className="rounded-2xl bg-card p-5">
-            <div className="font-mono text-[10px] text-muted-foreground mb-2">intelligence summary</div>
+            <div className="text-caption text-ash-gray mb-2">intelligence summary</div>
             <p className="text-lg">
               <span className="font-mono tabular-nums font-semibold text-[var(--down)]">
                 {findings.length}
@@ -94,7 +94,7 @@ export default async function CannibalizationPage() {
               .slice(0, 3);
             return topGroups.length > 0 ? (
               <div>
-                <div className="font-mono text-[10px] text-muted-foreground mb-3">highest impact groups</div>
+                <div className="text-caption text-ash-gray mb-3">highest impact groups</div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {topGroups.map((group, i) => (
                     <div
@@ -102,7 +102,7 @@ export default async function CannibalizationPage() {
                       className="rounded-2xl bg-card p-4 border-l-[3px] border-l-[var(--down)]"
                     >
                       <div className="text-sm font-medium">{group.query}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground mt-2 tabular-nums">
+                      <div className="text-caption text-ash-gray mt-2 tabular-nums">
                         {group.totalImpressions.toLocaleString()} impressions · {group.urls.length} URLs
                       </div>
                       <div className="mt-2 space-y-1">
@@ -110,7 +110,7 @@ export default async function CannibalizationPage() {
                           let display = u.page;
                           try { display = new URL(u.page).pathname || u.page; } catch {}
                           return (
-                            <div key={u.page} className="font-mono text-[10px] text-muted-foreground truncate" title={u.page}>
+                            <div key={u.page} className="text-caption text-ash-gray truncate" title={u.page}>
                               {display}
                             </div>
                           );
@@ -191,7 +191,7 @@ export default async function CannibalizationPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">
+                <div className="text-caption opacity-70">
                   how to fix cannibalization
                 </div>
                 <p className="mt-3 text-lg leading-snug">
@@ -218,12 +218,12 @@ function FindingCard({ finding }: { finding: Finding }) {
           <div className="flex items-center gap-2 flex-wrap">
             <SeverityPill severity={finding.severity} />
             {finding.trackedKeywordId && (
-              <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
+              <span className="inline-block text-caption px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
                 tracked
               </span>
             )}
           </div>
-          <h3 className="font-display text-xl md:text-2xl mt-3 break-words">{finding.query}</h3>
+          <h3 className="text-xl md:text-2xl mt-3 break-words">{finding.query}</h3>
           <p className="text-sm text-muted-foreground mt-2 font-mono tabular">
             {finding.urls.length} URLs · {finding.totalImpressions.toLocaleString()}{" "}
             impressions · {finding.totalClicks.toLocaleString()} clicks · top URL holds{" "}
@@ -236,11 +236,11 @@ function FindingCard({ finding }: { finding: Finding }) {
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">URL</th>
-              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Impressions</th>
-              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Clicks</th>
-              <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">Avg pos</th>
-              <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Share</th>
+              <th className="text-left px-4 py-3 text-caption text-ash-gray">URL</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">Impressions</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">Clicks</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">Avg pos</th>
+              <th className="text-right px-4 py-3 text-caption text-ash-gray">Share</th>
             </tr>
           </thead>
           <tbody>
@@ -304,12 +304,12 @@ function ShareBar({ share, isTop }: { share: number; isTop: boolean }) {
 function SeverityPill({ severity }: { severity: "high" | "medium" | "low" }) {
   const map = {
     high: "bg-[var(--down)]/15 text-[var(--down)]",
-    medium: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+    medium: "bg-vivid-violet/10 text-vivid-violet",
     low: "bg-muted text-muted-foreground",
   };
   return (
     <span
-      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${map[severity]}`}
+      className={`inline-block text-caption px-2.5 py-1 rounded-full ${map[severity]}`}
     >
       {severity}
     </span>
@@ -338,8 +338,8 @@ function StatTile({
         : "text-foreground";
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
-      <div className={`mt-4 font-display text-4xl md:text-5xl ${valueColor}`}>{value}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
+      <div className={`mt-4 text-display ${valueColor}`}>{value}</div>
       {subtitle && (
         <div className="text-xs text-muted-foreground mt-2 font-mono tabular">{subtitle}</div>
       )}

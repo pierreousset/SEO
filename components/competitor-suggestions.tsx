@@ -54,7 +54,7 @@ export function CompetitorSuggestions({
           Auto-discovered
         </span>
       </div>
-      <h2 className="font-display text-2xl md:text-3xl">Competitors we spotted</h2>
+      <h2 className="text-heading">Competitors we spotted</h2>
       <p className="text-sm text-muted-foreground mt-2 mb-6">
         Domains that keep showing up in your top 10 across tracked keywords. Add them to unlock
         Gap, AEO showdown, and Backlinks comparison.

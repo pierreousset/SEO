@@ -81,10 +81,10 @@ export default async function ActivityPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             {i.headerKicker(WINDOW_DAYS)}
           </p>
-          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
+          <h1 className="text-heading-lg mt-2">{i.title}</h1>
         </div>
       </header>
 
@@ -97,7 +97,7 @@ export default async function ActivityPage() {
           </p>
           <Link
             href="/dashboard/keywords"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:opacity-85"
           >
             {i.emptyKeywordsCta} <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
           </Link>
@@ -146,7 +146,7 @@ export default async function ActivityPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">{i.ctaKicker}</div>
+                <div className="text-caption opacity-70">{i.ctaKicker}</div>
                 <p className="mt-3 text-lg leading-snug">
                   {i.ctaText}
                 </p>
@@ -160,14 +160,14 @@ export default async function ActivityPage() {
       {/* Audit log timeline */}
       {auditRows.length > 0 && (
         <section className="space-y-0">
-          <h2 className="font-display text-xl mb-4">{i.auditLogTitle}</h2>
+          <h2 className="text-xl mb-4">{i.auditLogTitle}</h2>
           <div className="rounded-2xl bg-card overflow-hidden">
             {auditRows.map((row, idx) => (
               <div
                 key={row.id}
                 className={`flex items-start gap-4 px-5 py-3 ${idx < auditRows.length - 1 ? "border-b border-border" : ""}`}
               >
-                <span className="font-mono text-[11px] text-muted-foreground whitespace-nowrap tabular-nums pt-0.5">
+                <span className="text-caption text-muted-foreground whitespace-nowrap tabular-nums pt-0.5">
                   {row.createdAt ? formatAuditDate(row.createdAt) : "—"}
                 </span>
                 <span className="text-xs text-muted-foreground truncate max-w-[180px]">
@@ -204,7 +204,7 @@ function EventCard({ event, i }: { event: CompetitorEvent; i: PageLocale }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${config.pillClass}`}
+            className={`inline-block text-caption px-2.5 py-1 rounded-full ${config.pillClass}`}
           >
             {i.eventLabels[event.type]}
           </span>
@@ -213,7 +213,7 @@ function EventCard({ event, i }: { event: CompetitorEvent; i: PageLocale }) {
           </span>
           <span className="text-xs text-muted-foreground">· {event.date}</span>
         </div>
-        <h3 className="font-display text-lg md:text-xl mt-2 break-words">{event.keyword}</h3>
+        <h3 className="text-lg md:text-xl mt-2 break-words">{event.keyword}</h3>
         <div className="mt-3 flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
           <PositionBadge position={event.fromPosition} notInTop100Label={i.notInTop100} />
           <span>→</span>
@@ -288,8 +288,8 @@ function StatTile({
         : "text-foreground";
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
-      <div className={`mt-4 font-display text-3xl md:text-4xl ${valueColor} truncate`}>
+      <div className="text-caption text-ash-gray">{label}</div>
+      <div className={`mt-4 text-heading ${valueColor} truncate`}>
         {value}
       </div>
       {subtitle && (

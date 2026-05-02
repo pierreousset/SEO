@@ -85,8 +85,8 @@ export default async function BriefPage() {
       <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
         <BriefStatusBanner run={briefRunBanner} />
         <header>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.weekly}</p>
-          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
+          <p className="text-caption text-ash-gray">{i.weekly}</p>
+          <h1 className="text-heading-lg mt-2">{i.title}</h1>
         </header>
         {plan === "free" ? (
           <UpgradePrompt
@@ -140,10 +140,10 @@ export default async function BriefPage() {
       {/* Hero header */}
       <header className="flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-3xl">
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground font-mono tabular">
+          <p className="text-caption text-ash-gray font-mono tabular">
             {i.weekOf(latest.periodStart, latest.periodEnd)}
           </p>
-          <h1 className="font-display text-[40px] mt-2">{i.weeklyBrief}</h1>
+          <h1 className="text-heading-lg mt-2">{i.weeklyBrief}</h1>
           <p className="mt-6 text-lg md:text-xl leading-relaxed text-muted-foreground">
             {latest.summary}
           </p>
@@ -161,7 +161,7 @@ export default async function BriefPage() {
       {/* This week's 3 priorities */}
       {topIssues.length > 0 && (
         <section>
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">{i.prioritiesKicker}</h2>
+          <h2 className="text-caption text-ash-gray mb-3">{i.prioritiesKicker}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {topIssues.map((issue, idx) => (
               <div key={idx} className="rounded-2xl bg-card p-5 flex gap-4">
@@ -183,14 +183,14 @@ export default async function BriefPage() {
       {/* Health score trend */}
       {scoreTrend.length >= 2 && (
         <section className="rounded-2xl bg-card p-5">
-          <div className="font-mono text-[10px] text-muted-foreground mb-3">{i.healthTrend}</div>
+          <div className="text-caption text-ash-gray mb-3">{i.healthTrend}</div>
           <div className="flex items-end gap-3 h-16">
             {[...scoreTrend].reverse().map((s, idx) => {
               const height = Math.max(8, (s.score / 100) * 64);
               const isLatest = idx === scoreTrend.length - 1;
               return (
                 <div key={idx} className="flex flex-col items-center gap-1">
-                  <span className={`font-mono text-[10px] tabular-nums ${isLatest ? "text-foreground" : "text-muted-foreground"}`}>
+                  <span className={`text-caption tabular-nums ${isLatest ? "text-foreground" : "text-muted-foreground"}`}>
                     {s.score}
                   </span>
                   <div
@@ -221,10 +221,10 @@ export default async function BriefPage() {
         <div className="lg:col-span-2">
           <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
-              <div className="font-mono text-[10px] text-muted-foreground">
+              <div className="text-caption text-ash-gray">
                 {i.thisWeek}
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mt-2">{i.actionsTitle}</h2>
+              <h2 className="text-heading mt-2">{i.actionsTitle}</h2>
               <p className="text-sm text-muted-foreground mt-2">
                 {i.ticketCount(tickets.length)}
               </p>
@@ -261,10 +261,10 @@ export default async function BriefPage() {
         <div className="space-y-6">
           <div className="rounded-2xl bg-card p-6 md:p-8">
             <div className="mb-6">
-              <div className="font-mono text-[10px] text-muted-foreground">
+              <div className="text-caption text-ash-gray">
                 {i.thisWeek}
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mt-2">{i.moversTitle}</h2>
+              <h2 className="text-heading mt-2">{i.moversTitle}</h2>
             </div>
             <div className="space-y-2">
               {topMovers.map((m) => (
@@ -303,7 +303,7 @@ export default async function BriefPage() {
 
           {warnings.length > 0 && (
             <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6">
-              <h2 className="font-mono text-[10px] text-[var(--down)] mb-3">
+              <h2 className="text-caption text-[var(--down)] mb-3">
                 {i.warningsKicker}
               </h2>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
@@ -322,9 +322,9 @@ export default async function BriefPage() {
 function StatTile({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
       <div
-        className={`mt-4 font-display text-4xl md:text-5xl ${
+        className={`mt-4 text-display ${
           muted ? "text-muted-foreground" : "text-foreground"
         }`}
       >

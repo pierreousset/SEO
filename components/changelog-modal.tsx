@@ -80,7 +80,7 @@ export function ChangelogModal() {
                     <span className="font-mono text-sm font-semibold">
                       v{release.version}
                     </span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
+                    <span className="text-caption text-ash-gray">
                       {release.date}
                     </span>
                   </div>

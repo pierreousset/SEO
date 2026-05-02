@@ -137,10 +137,10 @@ export default async function ChatPage({
       />
       <div className="flex-1 flex flex-col px-4 md:px-9 pt-7 pb-6 max-w-[1000px] mx-auto min-w-0">
         <header className="mb-4 shrink-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             Ask your SEO data
           </p>
-          <h1 className="font-display text-[40px] mt-2">Chat</h1>
+          <h1 className="text-heading-lg mt-2">Chat</h1>
         </header>
 
         {quotaBanner ? <div className="mb-4 shrink-0">{quotaBanner}</div> : null}

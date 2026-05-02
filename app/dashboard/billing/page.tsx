@@ -44,8 +44,8 @@ export default async function BillingPage({
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Billing</p>
-        <h1 className="font-display text-[40px] mt-2">Plan & credits</h1>
+        <p className="text-caption text-ash-gray">Billing</p>
+        <h1 className="text-heading-lg mt-2">Plan & credits</h1>
       </header>
 
       {flash === "success" && (
@@ -59,7 +59,7 @@ export default async function BillingPage({
         </div>
       )}
       {flash === "cancelled" && (
-        <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 px-3 py-2 text-sm">
+        <div className="rounded-md border border-yellow-500/30 bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet px-3 py-2 text-sm">
           Checkout cancelled. No charge.
         </div>
       )}
@@ -67,12 +67,12 @@ export default async function BillingPage({
       {/* Current state */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-2xl bg-card p-6">
-          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 text-caption text-ash-gray">
             <CreditCard className="h-3.5 w-3.5" strokeWidth={1.5} />
             current plan
           </div>
           <div className="mt-3 flex items-baseline gap-3">
-            <h2 className="font-display text-3xl">{plan === "pro" ? "Pro" : "Free"}</h2>
+            <h2 className="text-heading">{plan === "pro" ? "Pro" : "Free"}</h2>
             {sub?.cancelAtPeriodEnd && plan === "pro" && (
               <Badge variant="outline" className="text-[10px]">cancels at period end</Badge>
             )}
@@ -92,12 +92,12 @@ export default async function BillingPage({
         </div>
 
         <div className="rounded-2xl bg-card p-6">
-          <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 text-caption text-ash-gray">
             <Coins className="h-3.5 w-3.5" strokeWidth={1.5} />
             credits balance
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <h2 className="font-display text-3xl tabular">{balance}</h2>
+            <h2 className="text-heading tabular">{balance}</h2>
             <span className="text-sm text-muted-foreground">credits</span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -110,7 +110,7 @@ export default async function BillingPage({
       {/* Pro plan */}
       {plan === "free" && (
         <section className="rounded-2xl bg-card border border-border p-6 md:p-8">
-          <h2 className="font-display text-3xl">Pro</h2>
+          <h2 className="text-heading">Pro</h2>
           <ul className="mt-6 space-y-2 text-sm">
             {[
               `${PRO_LIMITS.maxKeywordsIncluded} keywords tracked daily`,
@@ -138,7 +138,7 @@ export default async function BillingPage({
       {/* Credit packs — Pro-only add-on. Free users can still spend any balance
           they already hold, but must subscribe before buying new packs. */}
       <section>
-        <h2 className="font-mono text-[10px] text-muted-foreground mb-4">
+        <h2 className="text-caption text-ash-gray mb-4">
           credit packs
         </h2>
         {plan === "free" && (
@@ -181,7 +181,7 @@ export default async function BillingPage({
       {/* Auto-refill settings — Pro only */}
       {plan === "pro" && (
         <section>
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-4 flex items-center gap-2">
+          <h2 className="text-caption text-ash-gray mb-4 flex items-center gap-2">
             <BellRing className="h-3.5 w-3.5" strokeWidth={1.5} />
             auto-refill
           </h2>
@@ -202,7 +202,7 @@ export default async function BillingPage({
 
       {/* Referral program */}
       <section>
-        <h2 className="font-mono text-[10px] text-muted-foreground mb-4 flex items-center gap-2">
+        <h2 className="text-caption text-ash-gray mb-4 flex items-center gap-2">
           <Gift className="h-3.5 w-3.5" strokeWidth={1.5} />
           referrals
         </h2>
@@ -248,7 +248,7 @@ function CreditPack({
     <div className="rounded-2xl bg-card p-6 flex flex-col">
       <div className="flex items-baseline justify-between">
         <div>
-          <div className="font-display text-3xl tabular">{credits}</div>
+          <div className="text-heading tabular">{credits}</div>
           <div className="text-xs text-muted-foreground">credits</div>
         </div>
         {badge && (
@@ -258,7 +258,7 @@ function CreditPack({
         )}
       </div>
       <div className="mt-6">
-        <div className="font-display text-2xl">{price}</div>
+        <div className="text-heading">{price}</div>
         <div className="text-xs text-muted-foreground mt-0.5 font-mono tabular">
           {perCredit} / credit
         </div>

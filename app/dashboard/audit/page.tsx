@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const SEVERITY_TONE: Record<string, string> = {
   high: "bg-[var(--down)]/10 text-[var(--down)]",
-  medium: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
+  medium: "bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet",
   low: "bg-muted text-muted-foreground",
   info: "bg-sky-teal/10 text-sky-teal",
 };
@@ -119,8 +119,8 @@ export default async function AuditPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">{i.headerKicker}</p>
-          <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
+          <p className="text-caption text-ash-gray">{i.headerKicker}</p>
+          <h1 className="text-heading-lg mt-2">{i.title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {latestRun && (
@@ -157,14 +157,14 @@ export default async function AuditPage() {
                       ? i.newIssues(Math.abs(issuesFixedSinceLastAudit))
                       : i.noChange}
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground">{i.sinceLastAudit}</span>
+                <span className="text-caption text-ash-gray">{i.sinceLastAudit}</span>
               </div>
             </div>
           )}
 
           {topFixFirst.length > 0 && (
             <div>
-              <h2 className="font-mono text-[10px] text-muted-foreground mb-3">{i.fixFirst}</h2>
+              <h2 className="text-caption text-ash-gray mb-3">{i.fixFirst}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {topFixFirst.map((item, idx) => {
                   const borderColor =
@@ -177,7 +177,7 @@ export default async function AuditPage() {
                       className={`rounded-2xl bg-card p-4 border-l-[3px] ${borderColor}`}
                     >
                       <div className="text-sm font-medium">{item.message}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground mt-2">
+                      <div className="text-caption text-ash-gray mt-2">
                         {i.pagesAffected(item.count)}
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
@@ -230,10 +230,10 @@ export default async function AuditPage() {
 
       {synthesis && (
         <section className="rounded-2xl bg-card p-6 md:p-8">
-          <div className="font-mono text-[10px] text-muted-foreground">
+          <div className="text-caption text-ash-gray">
             {i.aiSynthesisKicker}
           </div>
-          <h2 className="font-display text-2xl md:text-3xl mt-2">{i.topActions}</h2>
+          <h2 className="text-heading mt-2">{i.topActions}</h2>
           <p className="mt-4 text-base leading-relaxed">{synthesis.summary}</p>
 
           <div className="mt-6 space-y-2">
@@ -262,7 +262,7 @@ export default async function AuditPage() {
 
       {findings.length > 0 && (
         <section>
-          <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+          <h2 className="text-caption text-ash-gray mb-3">
             {i.allFindings(findings.length)}
           </h2>
           <div className="space-y-4">
@@ -281,7 +281,7 @@ export default async function AuditPage() {
                     <div key={f.id} className="px-5 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${SEVERITY_TONE[f.severity]}`}
+                          className={`inline-block text-caption px-2.5 py-1 rounded-full ${SEVERITY_TONE[f.severity]}`}
                         >
                           {f.severity}
                         </span>
@@ -317,11 +317,11 @@ function PriorityPill({ priority }: { priority: "high" | "medium" | "low" }) {
     priority === "high"
       ? "bg-[var(--down)] text-background"
       : priority === "medium"
-        ? "bg-yellow-500 text-background"
+        ? "bg-vivid-violet text-background"
         : "bg-muted text-muted-foreground";
   return (
     <span
-      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${cls}`}
+      className={`inline-block text-caption px-2.5 py-1 rounded-full ${cls}`}
     >
       {priority}
     </span>

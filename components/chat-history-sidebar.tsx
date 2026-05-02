@@ -21,7 +21,7 @@ export function ChatHistorySidebar({
   return (
     <aside className="w-[240px] shrink-0 bg-card border-r border-border flex flex-col h-full overflow-hidden">
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <span className="text-caption text-ash-gray">
           History
         </span>
         <button

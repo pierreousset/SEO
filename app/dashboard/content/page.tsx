@@ -37,15 +37,15 @@ export default async function ContentPage() {
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           content
         </p>
-        <h1 className="font-display text-[40px] mt-2">Article Generator</h1>
+        <h1 className="text-heading-lg mt-2">Article Generator</h1>
       </header>
 
       {/* Generation form */}
       <section className="rounded-2xl bg-card p-6 md:p-8 max-w-2xl">
-        <h2 className="font-display text-2xl mb-4">Generate a new article</h2>
+        <h2 className="text-heading mb-4">Generate a new article</h2>
         <p className="text-sm text-muted-foreground mb-6">
           Select a tracked keyword or enter a custom topic. Claude will produce an
           800-1500 word SEO-optimized article in markdown.
@@ -58,16 +58,16 @@ export default async function ContentPage() {
       {/* Articles list */}
       {articles.length > 0 && (
         <section className="rounded-2xl bg-card p-6 md:p-8">
-          <h2 className="font-display text-2xl md:text-3xl mb-6">Generated articles</h2>
+          <h2 className="text-heading mb-6">Generated articles</h2>
           <div className="rounded-[12px] bg-background overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">title</th>
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">keyword</th>
-                  <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">words</th>
-                  <th className="text-left px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">status</th>
-                  <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">date</th>
+                  <th className="text-left px-4 py-3 text-caption text-ash-gray">title</th>
+                  <th className="text-left px-4 py-3 text-caption text-ash-gray">keyword</th>
+                  <th className="text-right px-3 py-3 text-caption text-ash-gray">words</th>
+                  <th className="text-left px-3 py-3 text-caption text-ash-gray">status</th>
+                  <th className="text-left px-4 py-3 text-caption text-ash-gray">date</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,9 +120,9 @@ export default async function ContentPage() {
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    queued: "bg-yellow-500/15 text-yellow-400",
+    queued: "bg-vivid-violet/10 text-vivid-violet",
     generating: "bg-blue-500/15 text-blue-400",
-    done: "bg-emerald-500/15 text-emerald-400",
+    done: "bg-sky-teal/10 text-sky-teal",
     failed: "bg-red-500/15 text-red-400",
   };
   return (

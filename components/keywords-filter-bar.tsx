@@ -112,7 +112,7 @@ export function KeywordsFilterBar({ totalCount, filteredCount }: { totalCount: n
           <Filter className="h-3.5 w-3.5" strokeWidth={1.5} />
           Filters
           {activeCount > 0 && (
-            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-semibold rounded-full bg-foreground text-background">
+            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-semibold rounded-full bg-primary text-primary-foreground">
               {activeCount}
             </span>
           )}
@@ -235,7 +235,7 @@ function Pill({
       onClick={onClick}
       className={`text-xs px-3 py-1 rounded-full border transition-colors ${
         active
-          ? "bg-foreground text-background border-foreground"
+          ? "bg-primary text-primary-foreground border-foreground"
           : "bg-background text-muted-foreground border-border hover:text-foreground"
       }`}
     >

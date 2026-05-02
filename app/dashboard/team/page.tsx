@@ -38,8 +38,8 @@ export default async function TeamPage() {
     return (
       <div className="px-4 md:px-9 py-7 max-w-[800px] mx-auto space-y-8">
         <header>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Settings</p>
-          <h1 className="font-display text-[40px] mt-2">Team</h1>
+          <p className="text-caption text-ash-gray">Settings</p>
+          <h1 className="text-heading-lg mt-2">Team</h1>
           <p className="text-sm text-muted-foreground mt-3">
             Invitez d'autres personnes à accéder à vos données SEO. Elles auront les mêmes
             droits que vous (sauf la facturation qui reste à votre charge).
@@ -55,7 +55,7 @@ export default async function TeamPage() {
         {/* Current members */}
         {members.length > 0 && (
           <section>
-            <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+            <h2 className="text-caption text-ash-gray mb-3">
               membres ({members.length})
             </h2>
             <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border">
@@ -75,7 +75,7 @@ export default async function TeamPage() {
         {/* Pending invites */}
         {pendingInvites.length > 0 && (
           <section>
-            <h2 className="font-mono text-[10px] text-muted-foreground mb-3">
+            <h2 className="text-caption text-ash-gray mb-3">
               invitations en attente ({pendingInvites.length})
             </h2>
             <div className="border border-border rounded-2xl overflow-hidden bg-card divide-y divide-border">
@@ -110,8 +110,8 @@ export default async function TeamPage() {
   return (
     <div className="px-4 md:px-9 py-7 max-w-[800px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">Settings</p>
-        <h1 className="font-display text-[40px] mt-2">Team</h1>
+        <p className="text-caption text-ash-gray">Settings</p>
+        <h1 className="text-heading-lg mt-2">Team</h1>
       </header>
 
       <div className="rounded-2xl bg-card p-6 space-y-4">

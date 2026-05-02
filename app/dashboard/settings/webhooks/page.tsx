@@ -24,7 +24,7 @@ export default async function WebhooksPage() {
           <ChevronLeft className="h-3 w-3" strokeWidth={2} />
           Settings
         </Link>
-        <h1 className="font-display text-[40px]">Webhooks & API</h1>
+        <h1 className="text-heading-lg">Webhooks & API</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Send notifications to Slack, Discord, or any URL when events fire. Generate API keys for programmatic access.
         </p>

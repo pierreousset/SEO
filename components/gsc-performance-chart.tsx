@@ -117,16 +117,16 @@ export function GscPerformanceChart({
           <div className="flex items-center gap-4 ml-auto">
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="font-mono text-[10px] text-muted-foreground">clicks</span>
+              <span className="text-caption text-ash-gray">clicks</span>
               <span className="font-mono text-xs font-semibold">{totals.clicks.toLocaleString()}</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-              <span className="font-mono text-[10px] text-muted-foreground">impressions</span>
+              <span className="text-caption text-ash-gray">impressions</span>
               <span className="font-mono text-xs font-semibold">{totals.impressions.toLocaleString()}</span>
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="font-mono text-[10px] text-muted-foreground">ctr</span>
+              <span className="text-caption text-ash-gray">ctr</span>
               <span className="font-mono text-xs font-semibold">{totals.ctr.toFixed(1)}%</span>
             </span>
           </div>
@@ -186,7 +186,7 @@ export function GscPerformanceChart({
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             Performance
           </div>
-          <h2 className="font-display text-2xl md:text-3xl mt-2">Search Console</h2>
+          <h2 className="text-heading mt-2">Search Console</h2>
           <p className="text-xs text-muted-foreground mt-2">
             {scope === "site"
               ? "All queries across the site (matches GSC default view)."
@@ -202,7 +202,7 @@ export function GscPerformanceChart({
                 disabled={s.value === "site" ? siteData.length === 0 : trackedData.length === 0}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                   scope === s.value
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -217,7 +217,7 @@ export function GscPerformanceChart({
                 onClick={() => setRange(r.days)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                   range === r.days
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -332,7 +332,7 @@ function Kpi({ label, value, dot }: { label: string; value: string; dot?: string
         {dot && <span className={`inline-block h-2 w-2 rounded-full ${dot}`} />}
         {label}
       </div>
-      <div className="mt-1 font-display text-2xl md:text-3xl">{value}</div>
+      <div className="mt-1 text-heading">{value}</div>
     </div>
   );
 }

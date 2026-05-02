@@ -91,7 +91,7 @@ export function KeywordGroupBar({ groups, activeGroupId }: Props) {
             style={{ backgroundColor: g.color ?? "#0098f2" }}
           />
           {g.name}
-          <span className="font-mono text-[10px] opacity-60">{g.memberCount}</span>
+          <span className="text-caption opacity-60">{g.memberCount}</span>
           <span
             onClick={(e) => handleDelete(e, g.id)}
             className="hidden group-hover:inline-flex ml-0.5 hover:text-red-400"

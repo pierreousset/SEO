@@ -160,10 +160,10 @@ export default async function AeoPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             Answer Engine Optimization
           </p>
-          <h1 className="font-display text-[40px] mt-2">AEO</h1>
+          <h1 className="text-heading-lg mt-2">AEO</h1>
         </div>
         <RunAeoCheckButton
           label={latestRun ? "Run new check" : "Run first check"}
@@ -218,16 +218,16 @@ export default async function AeoPage() {
 
           {/* Per-engine summary */}
           <section className="rounded-2xl bg-card p-6 md:p-8">
-            <h2 className="font-display text-2xl md:text-3xl">By engine</h2>
+            <h2 className="text-heading">By engine</h2>
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               {engineStats.map((s) => {
                 const pct = s.total > 0 ? Math.round((s.cited / s.total) * 100) : 0;
                 return (
                   <div key={s.engine} className="rounded-[12px] bg-background p-5">
-                    <div className="font-mono text-[10px] text-muted-foreground">
+                    <div className="text-caption text-ash-gray">
                       {ENGINE_LABELS[s.engine] ?? s.engine}
                     </div>
-                    <div className="mt-3 font-display text-3xl">{pct}%</div>
+                    <div className="mt-3 text-heading">{pct}%</div>
                     <div className="text-xs text-muted-foreground mt-1 font-mono tabular">
                       {s.cited}/{s.total} citations
                     </div>
@@ -240,7 +240,7 @@ export default async function AeoPage() {
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main matrix */}
             <div className="lg:col-span-2 rounded-2xl bg-card p-6 md:p-8">
-              <h2 className="font-display text-2xl md:text-3xl">Keyword × engine</h2>
+              <h2 className="text-heading">Keyword × engine</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 ✓ = your domain is in the answer's citations. Number = position in the cited list.
               </p>
@@ -248,9 +248,9 @@ export default async function AeoPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
+                      <th className="text-left px-4 py-3 text-caption text-ash-gray">Keyword</th>
                       {enginesUsed.map((e) => (
-                        <th key={e} className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">
+                        <th key={e} className="text-center px-3 py-3 text-caption text-ash-gray">
                           {ENGINE_LABELS[e] ?? e}
                         </th>
                       ))}
@@ -284,7 +284,7 @@ export default async function AeoPage() {
             {/* Side: all citing domains (organic discovery) */}
             <div className="space-y-6">
               <div className="rounded-2xl bg-card p-6 md:p-8">
-                <h2 className="font-display text-2xl md:text-3xl">All cited domains</h2>
+                <h2 className="text-heading">All cited domains</h2>
                 <p className="text-sm text-muted-foreground mt-2 mb-6">
                   Every domain the LLMs cited, most-to-least frequent. Candidates for your
                   declared competitor list.
@@ -304,7 +304,7 @@ export default async function AeoPage() {
                             {domain}
                           </div>
                           {declared && (
-                            <span className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-foreground/10 text-foreground shrink-0">
+                            <span className="inline-block text-caption px-2.5 py-1 rounded-full bg-foreground/10 text-foreground shrink-0">
                               tracked
                             </span>
                           )}
@@ -329,10 +329,10 @@ export default async function AeoPage() {
           {/* Competitor showdown — against user's declared competitors */}
           {declaredCompetitors.length === 0 ? (
             <section className="rounded-2xl bg-card p-6 md:p-8">
-              <div className="font-mono text-[10px] text-muted-foreground">
+              <div className="text-caption text-ash-gray">
                 Competitor showdown
               </div>
-              <h2 className="font-display text-2xl md:text-3xl mt-2">
+              <h2 className="text-heading mt-2">
                 Compare AEO vs your competitors
               </h2>
               <p className="text-sm text-muted-foreground mt-3 max-w-xl">
@@ -341,7 +341,7 @@ export default async function AeoPage() {
               </p>
               <Link
                 href="/dashboard/business"
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:opacity-85"
               >
                 Add competitors <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
               </Link>
@@ -349,10 +349,10 @@ export default async function AeoPage() {
           ) : (
             <section className="space-y-6">
               <div>
-                <div className="font-mono text-[10px] text-muted-foreground">
+                <div className="text-caption text-ash-gray">
                   Competitor showdown
                 </div>
-                <h2 className="font-display text-2xl md:text-3xl mt-2">You vs your competitors</h2>
+                <h2 className="text-heading mt-2">You vs your competitors</h2>
               </div>
 
               {/* Head-to-head summary cards */}
@@ -368,17 +368,17 @@ export default async function AeoPage() {
                         vs {c.domain}
                       </div>
                       <div className="mt-4 flex items-baseline gap-3">
-                        <div className="font-display text-4xl">{youPct}%</div>
+                        <div className="text-heading-lg">{youPct}%</div>
                         <div className="text-muted-foreground text-sm">you</div>
                       </div>
                       <div className="mt-1 flex items-baseline gap-3">
-                        <div className="font-display text-2xl text-muted-foreground">
+                        <div className="text-heading text-muted-foreground">
                           {theyPct}%
                         </div>
                         <div className="text-muted-foreground text-sm">them</div>
                       </div>
                       <div
-                        className={`mt-4 inline-flex items-center gap-1.5 font-mono text-[10px] px-2.5 py-1 rounded-full ${
+                        className={`mt-4 inline-flex items-center gap-1.5 text-caption px-2.5 py-1 rounded-full ${
                           diff > 0
                             ? "bg-[var(--up)]/15 text-[var(--up)]"
                             : diff < 0
@@ -395,7 +395,7 @@ export default async function AeoPage() {
 
               {/* Showdown matrix: rows = keywords, columns = [You, Comp1..N] */}
               <div className="rounded-2xl bg-card p-6 md:p-8">
-                <h3 className="font-display text-xl md:text-2xl">Per-keyword breakdown</h3>
+                <h3 className="text-xl md:text-2xl">Per-keyword breakdown</h3>
                 <p className="text-sm text-muted-foreground mt-2 mb-6">
                   Each cell shows <strong>engines that cited the domain</strong> / engines
                   checked, for that keyword.
@@ -404,12 +404,12 @@ export default async function AeoPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr>
-                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">Keyword</th>
-                        <th className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">You</th>
+                        <th className="text-left px-4 py-3 text-caption text-ash-gray">Keyword</th>
+                        <th className="text-center px-3 py-3 text-caption text-ash-gray">You</th>
                         {declaredCompetitors.map((c) => (
                           <th
                             key={c}
-                            className="text-center px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal max-w-[140px] truncate"
+                            className="text-center px-3 py-3 text-caption text-ash-gray max-w-[140px] truncate"
                             title={c}
                           >
                             {c}
@@ -446,7 +446,7 @@ export default async function AeoPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">next step</div>
+                <div className="text-caption opacity-70">next step</div>
                 <p className="mt-3 text-lg leading-snug">
                   Not cited for a keyword? Check that page's content — does it answer the
                   question directly in the first 200 words? Does it have a clear, dated byline
@@ -514,7 +514,7 @@ function MentionCell({
   if (result.error) {
     return (
       <span
-        className="inline-block font-mono text-[10px] px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
+        className="inline-block text-caption px-2.5 py-1 rounded-full bg-vivid-violet/10 text-vivid-violet"
         title={result.error}
       >
         err
@@ -544,9 +544,9 @@ function StatTile({
 }) {
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
       <div
-        className={`mt-4 font-display text-4xl md:text-5xl ${muted ? "text-muted-foreground" : "text-foreground"}`}
+        className={`mt-4 text-display ${muted ? "text-muted-foreground" : "text-foreground"}`}
       >
         {value}
       </div>

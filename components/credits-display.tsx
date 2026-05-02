@@ -15,7 +15,7 @@ export async function CreditsDisplay({ userId }: { userId: string }) {
       className="flex items-center gap-3 rounded-xl bg-card border border-border px-3.5 py-2 hover:bg-secondary transition-colors"
     >
       <div className="hidden md:flex items-center gap-1.5">
-        <span className="font-mono text-[10px] text-muted-foreground uppercase">{plan}</span>
+        <span className="text-caption text-ash-gray uppercase">{plan}</span>
       </div>
       <div className="hidden md:block w-px h-4 bg-border" />
       <div className="flex items-center gap-1.5">

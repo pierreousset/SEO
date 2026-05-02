@@ -62,10 +62,10 @@ export default async function SettingsPage({
   return (
     <div className="px-4 md:px-9 py-7 max-w-[900px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           account
         </p>
-        <h1 className="font-display text-[40px] mt-2">Settings</h1>
+        <h1 className="text-heading-lg mt-2">Settings</h1>
       </header>
 
       {/* Google Search Console */}

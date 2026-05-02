@@ -43,7 +43,7 @@ export function DiscoverTabs() {
               onClick={() => setActive(t.id)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-foreground text-background border-foreground"
+                  ? "bg-primary text-primary-foreground border-foreground"
                   : "bg-background text-muted-foreground border-border hover:text-foreground"
               }`}
             >

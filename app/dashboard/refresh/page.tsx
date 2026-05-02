@@ -93,10 +93,10 @@ export default async function RefreshPage() {
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           Content refresh radar · last {WINDOW_DAYS} days
         </p>
-        <h1 className="font-display text-[40px] mt-2">Refresh</h1>
+        <h1 className="text-heading-lg mt-2">Refresh</h1>
       </header>
 
       {!hasData && (
@@ -107,7 +107,7 @@ export default async function RefreshPage() {
           </p>
           <Link
             href="/dashboard"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:opacity-85"
           >
             Pull GSC history <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
           </Link>
@@ -151,7 +151,7 @@ export default async function RefreshPage() {
           {pageCandidates.length > 0 && (
             <section className="space-y-4">
               <div>
-                <h2 className="font-display text-2xl md:text-3xl">Pages losing ground</h2>
+                <h2 className="text-heading">Pages losing ground</h2>
                 <p className="text-sm text-muted-foreground mt-2">
                   Indexed pages whose clicks or position has been drifting downward.
                 </p>
@@ -165,7 +165,7 @@ export default async function RefreshPage() {
           {keywordCandidates.length > 0 && (
             <section className="space-y-4">
               <div>
-                <h2 className="font-display text-2xl md:text-3xl">Keywords slipping</h2>
+                <h2 className="text-heading">Keywords slipping</h2>
                 <p className="text-sm text-muted-foreground mt-2">
                   Tracked keywords whose GSC position is worsening week-over-week.
                 </p>
@@ -182,7 +182,7 @@ export default async function RefreshPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">next step</div>
+                <div className="text-caption opacity-70">next step</div>
                 <p className="mt-3 text-lg leading-snug">
                   Pick the highest-severity page, open it, skim the content. If it's more than
                   6 months old and answers the query thinly — refresh now. Ask chat for a
@@ -212,14 +212,14 @@ function CandidateCard({ candidate }: { candidate: RefreshCandidate }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <SeverityPill severity={candidate.severity} />
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="text-caption text-ash-gray">
             {candidate.kind === "page" ? "page" : "keyword"}
           </span>
           <span className="font-mono tabular text-xs text-muted-foreground">
             {candidate.firstDate} → {candidate.lastDate}
           </span>
         </div>
-        <h3 className="font-display text-lg md:text-xl mt-3 break-words">{displayLabel}</h3>
+        <h3 className="text-lg md:text-xl mt-3 break-words">{displayLabel}</h3>
         <div className="mt-3 flex items-center gap-6 text-sm text-muted-foreground flex-wrap font-mono tabular">
           <span>
             <span className="text-foreground">{candidate.totals.clicks.toLocaleString()}</span>{" "}
@@ -266,12 +266,12 @@ function CandidateCard({ candidate }: { candidate: RefreshCandidate }) {
 function SeverityPill({ severity }: { severity: "high" | "medium" | "low" }) {
   const map = {
     high: "bg-[var(--down)]/15 text-[var(--down)]",
-    medium: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+    medium: "bg-vivid-violet/10 text-vivid-violet",
     low: "bg-muted text-muted-foreground",
   };
   return (
     <span
-      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full ${map[severity]}`}
+      className={`inline-block text-caption px-2.5 py-1 rounded-full ${map[severity]}`}
     >
       {severity}
     </span>
@@ -300,8 +300,8 @@ function StatTile({
         : "text-foreground";
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
-      <div className={`mt-4 font-display text-3xl md:text-4xl ${valueColor}`}>{value}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
+      <div className={`mt-4 text-heading ${valueColor}`}>{value}</div>
       {subtitle && (
         <div className="text-xs text-muted-foreground mt-2 font-mono tabular">{subtitle}</div>
       )}

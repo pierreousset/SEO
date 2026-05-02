@@ -94,10 +94,10 @@ export default async function KeywordBriefPage({
 
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div className="max-w-3xl">
-          <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+          <p className="text-caption text-ash-gray">
             Keyword brief
           </p>
-          <h1 className="font-display text-[40px] mt-2 break-words">
+          <h1 className="text-heading-lg mt-2 break-words">
             {keyword.query}
           </h1>
           <div className="flex items-center gap-3 mt-4 flex-wrap">
@@ -169,11 +169,11 @@ export default async function KeywordBriefPage({
         <>
           {/* Hero summary */}
           <section className="rounded-2xl bg-card p-6 md:p-8">
-            <div className="font-mono text-[10px] text-muted-foreground">
+            <div className="text-caption text-ash-gray">
               target intent
             </div>
             <p className="mt-3 text-lg md:text-xl leading-relaxed">{brief.targetIntent}</p>
-            <div className="mt-6 font-mono text-[10px] text-muted-foreground">
+            <div className="mt-6 text-caption text-ash-gray">
               your angle
             </div>
             <p className="mt-3 text-lg md:text-xl leading-relaxed">{brief.primaryAngle}</p>
@@ -198,7 +198,7 @@ export default async function KeywordBriefPage({
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Outline */}
             <div className="lg:col-span-2 rounded-2xl bg-card p-6 md:p-8">
-              <h2 className="font-display text-2xl md:text-3xl">Outline</h2>
+              <h2 className="text-heading">Outline</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 {brief.outline.length} sections · follow top-down.
               </p>
@@ -210,7 +210,7 @@ export default async function KeywordBriefPage({
                         H2.{i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-display text-lg">{sec.h2}</h3>
+                        <h3 className="text-lg">{sec.h2}</h3>
                         {sec.h3s.length > 0 && (
                           <ul className="mt-3 space-y-1.5 text-sm">
                             {sec.h3s.map((h3, j) => (
@@ -241,14 +241,14 @@ export default async function KeywordBriefPage({
             {/* Side: meta, entities, questions */}
             <div className="space-y-6">
               <div className="rounded-2xl bg-card p-6">
-                <h3 className="font-mono text-[10px] text-muted-foreground">
+                <h3 className="text-caption text-ash-gray">
                   meta title variants
                 </h3>
                 <ul className="mt-3 space-y-2">
                   {brief.metaTitleVariants.map((t, i) => (
                     <li key={i} className="rounded-[12px] bg-background px-4 py-3 text-sm">
                       {t}
-                      <span className="block font-mono text-[10px] text-muted-foreground mt-1 font-mono tabular">
+                      <span className="block text-caption text-ash-gray mt-1 font-mono tabular">
                         {t.length} chars
                       </span>
                     </li>
@@ -257,17 +257,17 @@ export default async function KeywordBriefPage({
               </div>
 
               <div className="rounded-2xl bg-card p-6">
-                <h3 className="font-mono text-[10px] text-muted-foreground">
+                <h3 className="text-caption text-ash-gray">
                   meta description
                 </h3>
                 <p className="mt-3 text-sm leading-relaxed">{brief.metaDescription}</p>
-                <p className="mt-2 font-mono text-[10px] text-muted-foreground font-mono tabular">
+                <p className="mt-2 text-caption text-ash-gray font-mono tabular">
                   {brief.metaDescription.length} chars
                 </p>
               </div>
 
               <div className="rounded-2xl bg-card p-6">
-                <h3 className="font-mono text-[10px] text-muted-foreground">
+                <h3 className="text-caption text-ash-gray">
                   entities to cover
                 </h3>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -283,7 +283,7 @@ export default async function KeywordBriefPage({
               </div>
 
               <div className="rounded-2xl bg-card p-6">
-                <h3 className="font-mono text-[10px] text-muted-foreground">
+                <h3 className="text-caption text-ash-gray">
                   questions to answer
                 </h3>
                 <ul className="mt-3 space-y-2">
@@ -303,7 +303,7 @@ export default async function KeywordBriefPage({
           {/* Competitor insights */}
           {brief.competitorInsights.length > 0 && (
             <section className="rounded-2xl bg-card p-6 md:p-8">
-              <h2 className="font-display text-2xl md:text-3xl">Competitor takeaways</h2>
+              <h2 className="text-heading">Competitor takeaways</h2>
               <p className="text-sm text-muted-foreground mt-2 mb-6">
                 What each top-ranking page does + the gap you can exploit.
               </p>
@@ -341,7 +341,7 @@ export default async function KeywordBriefPage({
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {brief.internalLinkingHints.length > 0 && (
                 <div className="rounded-2xl bg-card p-6 md:p-8">
-                  <h3 className="font-mono text-[10px] text-muted-foreground">
+                  <h3 className="text-caption text-ash-gray">
                     internal linking
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm leading-relaxed list-disc pl-5">
@@ -353,7 +353,7 @@ export default async function KeywordBriefPage({
               )}
               {brief.warnings.length > 0 && (
                 <div className="rounded-2xl border border-[var(--down)]/30 bg-[var(--down)]/5 p-6 md:p-8">
-                  <h3 className="font-mono text-[10px] text-[var(--down)]">
+                  <h3 className="text-caption text-[var(--down)]">
                     warnings
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground leading-relaxed list-disc pl-5">
@@ -370,7 +370,7 @@ export default async function KeywordBriefPage({
 
       {/* SERP Features */}
       <section className="rounded-2xl bg-card p-6 md:p-8">
-        <div className="font-mono text-[10px] text-muted-foreground">
+        <div className="text-caption text-ash-gray">
           serp features
         </div>
         <h2 className="text-xl font-semibold mt-0.5">SERP Features</h2>
@@ -420,12 +420,12 @@ export default async function KeywordBriefPage({
 function StrengthPill({ strength }: { strength: "weak" | "medium" | "strong" }) {
   const map = {
     strong: "bg-[var(--down)]/15 text-[var(--down)]",
-    medium: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
+    medium: "bg-vivid-violet/10 text-vivid-violet",
     weak: "bg-[var(--up)]/15 text-[var(--up)]",
   };
   return (
     <span
-      className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full shrink-0 ${map[strength]}`}
+      className={`inline-block text-caption px-2.5 py-1 rounded-full shrink-0 ${map[strength]}`}
     >
       {strength}
     </span>
