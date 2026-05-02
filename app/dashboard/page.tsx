@@ -797,19 +797,19 @@ export default async function DashboardHome() {
 
       {/* Bento Row 3: AI Brief + Distribution */}
       <div className="flex flex-col md:flex-row gap-3">
-        {/* AI Brief tile — white card, dark text */}
+        {/* AI Brief tile — inverted dark card to highlight the AI surface */}
         {latestBrief.length > 0 ? (
           <Link
             href="/dashboard/brief"
-            className="flex-1 h-[180px] rounded-2xl bg-white p-6 flex flex-col justify-between hover:opacity-95 transition-opacity"
+            className="flex-1 h-[180px] rounded-2xl bg-button-black p-6 flex flex-col justify-between hover:opacity-95 transition-opacity"
           >
             <div className="flex items-start justify-between">
-              <span className="font-mono text-[10px] text-[#8d8d8d]">
+              <span className="text-caption text-ash-gray">
                 {i.bento.latestBriefAt(latestBrief[0].periodStart, latestBrief[0].periodEnd)}
               </span>
-              <ArrowRight className="h-4 w-4 text-[#ffffff] shrink-0" strokeWidth={1.5} />
+              <ArrowRight className="h-4 w-4 text-canvas-white shrink-0" strokeWidth={1.5} />
             </div>
-            <p className="text-sm text-[#ffffff] leading-relaxed line-clamp-3">
+            <p className="text-body-sm text-canvas-white leading-relaxed line-clamp-3">
               {latestBrief[0].summary}
             </p>
           </Link>
@@ -851,7 +851,7 @@ export default async function DashboardHome() {
               <div className="flex justify-between">
                 <Bucket label="1-3" value={buckets.top3} color="#0098f2" />
                 <Bucket label="4-10" value={buckets.top10} color="#0098f2" />
-                <Bucket label="11-20" value={buckets.top20} color="#FFFFFF" />
+                <Bucket label="11-20" value={buckets.top20} color="#0d111b" />
                 <Bucket label="21-50" value={buckets.top50} color="#8d8d8d" />
                 <Bucket label="51+" value={buckets.rest + buckets.unranked} color="#8d8d8d" />
               </div>
