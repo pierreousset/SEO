@@ -9,6 +9,8 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
 import { BulkMetaSuggestionButton } from "@/components/bulk-meta-suggestion-button";
 import { SchemaGeneratorButton } from "@/components/schema-generator-button";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,13 @@ function descStatus(len: number | null): { icon: typeof Check; cls: string } {
   return { icon: Check, cls: "text-[var(--up)]" };
 }
 
-export default async function MetasPage() {
+export default async function MetasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
+  const sp = await searchParams;
 
   const [latestRun] = await db
     .select()
@@ -41,6 +48,18 @@ export default async function MetasPage() {
           .from(schema.metaCrawlPages)
           .where(eq(schema.metaCrawlPages.runId, latestRun.id))
       : [];
+
+  const { field: sortField, dir: sortDir } = parseSort(sp, "url", "asc");
+  const sortedPages = sortRows(pages, sortField, sortDir, {
+    url: (p) => p.url,
+    title: (p) => p.title?.toLowerCase() ?? null,
+    titleLength: (p) => p.titleLength,
+    metaDescription: (p) => p.metaDescription?.toLowerCase() ?? null,
+    metaDescriptionLength: (p) => p.metaDescriptionLength,
+    h1: (p) => p.h1?.toLowerCase() ?? null,
+    inSitemap: (p) => (p.inSitemap ? 1 : 0),
+    indexable: (p) => (p.indexable ? 1 : 0),
+  });
 
   const totalPages = pages.length;
   const missingTitle = pages.filter((m) => !m.title).length;
@@ -152,22 +171,38 @@ export default async function MetasPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">URL</th>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">Title</th>
-                    <th className="text-center px-3 py-2.5 w-14 text-caption text-ash-gray">Len</th>
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="url" label="URL" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="title" label="Title" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-center px-3 py-2.5 w-14">
+                      <SortableHeader field="titleLength" label="Len" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">Meta description</th>
-                    <th className="text-center px-3 py-2.5 w-14 text-caption text-ash-gray">Len</th>
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="metaDescription" label="Meta description" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-center px-3 py-2.5 w-14">
+                      <SortableHeader field="metaDescriptionLength" label="Len" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
                     <th className="text-center px-2 py-2.5 w-10"></th>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">H1</th>
-                    <th className="text-center px-3 py-2.5 w-16 text-caption text-ash-gray">Sitemap</th>
-                    <th className="text-center px-3 py-2.5 w-16 text-caption text-ash-gray">Index</th>
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="h1" label="H1" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-center px-3 py-2.5 w-16">
+                      <SortableHeader field="inSitemap" label="Sitemap" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-center px-3 py-2.5 w-16">
+                      <SortableHeader field="indexable" label="Index" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
                     <th className="text-center px-3 py-2.5 w-28 text-caption text-ash-gray">AI</th>
                     <th className="text-center px-3 py-2.5 w-20 text-caption text-ash-gray">Schema</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pages.map((m) => {
+                  {sortedPages.map((m) => {
                     const ts = titleStatus(m.titleLength);
                     const ds = descStatus(m.metaDescriptionLength);
                     return (

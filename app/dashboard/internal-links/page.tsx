@@ -5,6 +5,8 @@ import { Link2, ArrowRight } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { suggestInternalLinks } from "@/lib/internal-linking";
 import type { CrawlPage, Keyword } from "@/lib/internal-linking";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +34,13 @@ function ImpactBadge({ impact }: { impact: "high" | "medium" | "low" }) {
   );
 }
 
-export default async function InternalLinksPage() {
+export default async function InternalLinksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
+  const sp = await searchParams;
 
   // Get latest completed crawl run
   const [latestRun] = await db
@@ -69,7 +76,16 @@ export default async function InternalLinksPage() {
     .from(schema.keywords)
     .where(eq(schema.keywords.userId, ctx.ownerId));
 
-  const suggestions = pages.length > 0 ? suggestInternalLinks(pages, keywords) : [];
+  const rawSuggestions = pages.length > 0 ? suggestInternalLinks(pages, keywords) : [];
+  const { field: sortField, dir: sortDir } = parseSort(sp, "impact", "desc");
+  const impactRank = { high: 3, medium: 2, low: 1 } as const;
+  const suggestions = sortRows(rawSuggestions, sortField, sortDir, {
+    from: (s: typeof rawSuggestions[number]) => s.fromUrl,
+    to: (s: typeof rawSuggestions[number]) => s.toUrl,
+    reason: (s: typeof rawSuggestions[number]) => s.reason,
+    impact: (s: typeof rawSuggestions[number]) =>
+      impactRank[s.impact as keyof typeof impactRank] ?? 0,
+  });
 
   const highCount = suggestions.filter((s) => s.impact === "high").length;
   const mediumCount = suggestions.filter((s) => s.impact === "medium").length;
@@ -123,18 +139,18 @@ export default async function InternalLinksPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
-                      From
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="from" label="From" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                     <th className="w-8" />
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
-                      To
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="to" label="To" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
-                    <th className="text-left px-4 py-2.5 text-caption text-ash-gray">
-                      Reason
+                    <th className="text-left px-4 py-2.5">
+                      <SortableHeader field="reason" label="Reason" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
-                    <th className="text-center px-4 py-2.5 text-caption text-ash-gray w-24">
-                      Impact
+                    <th className="text-center px-4 py-2.5 w-24">
+                      <SortableHeader field="impact" label="Impact" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
                   </tr>
                 </thead>

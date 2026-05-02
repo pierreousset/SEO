@@ -5,11 +5,18 @@ import { eq, desc } from "drizzle-orm";
 import { GenerateArticleForm } from "@/components/generate-article-form";
 import { PenTool } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
-export default async function ContentPage() {
+export default async function ContentPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
+  const sp = await searchParams;
 
   // Load tracked keywords for the dropdown
   const keywords = await db
@@ -33,6 +40,15 @@ export default async function ContentPage() {
 
   // Build keyword lookup
   const kwMap = new Map(keywords.map((k) => [k.id, k.query]));
+
+  const { field: sortField, dir: sortDir } = parseSort(sp, "createdAt", "desc");
+  const sortedArticles = sortRows(articles, sortField, sortDir, {
+    title: (a) => a.title?.toLowerCase() ?? null,
+    keyword: (a) => kwMap.get(a.keywordId)?.toLowerCase() ?? null,
+    wordCount: (a) => a.wordCount,
+    status: (a) => a.status,
+    createdAt: (a) => a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt as unknown as string).getTime(),
+  });
 
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
@@ -63,15 +79,25 @@ export default async function ContentPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 text-caption text-ash-gray">title</th>
-                  <th className="text-left px-4 py-3 text-caption text-ash-gray">keyword</th>
-                  <th className="text-right px-3 py-3 text-caption text-ash-gray">words</th>
-                  <th className="text-left px-3 py-3 text-caption text-ash-gray">status</th>
-                  <th className="text-left px-4 py-3 text-caption text-ash-gray">date</th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader field="title" label="title" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader field="keyword" label="keyword" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                  </th>
+                  <th className="text-right px-3 py-3">
+                    <SortableHeader field="wordCount" label="words" align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                  </th>
+                  <th className="text-left px-3 py-3">
+                    <SortableHeader field="status" label="status" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader field="createdAt" label="date" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {articles.map((a) => (
+                {sortedArticles.map((a) => (
                   <tr key={a.id} className="border-t border-border">
                     <td className="px-4 py-3 truncate max-w-[300px]">
                       {a.status === "done" ? (

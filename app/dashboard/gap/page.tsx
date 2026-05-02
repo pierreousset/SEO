@@ -10,13 +10,20 @@ import { TrackGapKeywordButton } from "@/components/track-gap-keyword-button";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { getUserPlan } from "@/lib/billing-helpers";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
 type Finding = NonNullable<typeof schema.competitorGapRuns.$inferSelect["findings"]>[number];
 
-export default async function GapPage() {
+export default async function GapPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
+  const sp = await searchParams;
 
   const [latestRun] = await db
     .select()
@@ -45,7 +52,16 @@ export default async function GapPage() {
       }
     : null;
 
-  const findings = (latestRun?.findings ?? []) as Finding[];
+  const rawFindings = (latestRun?.findings ?? []) as Finding[];
+  const { field: sortField, dir: sortDir } = parseSort(sp, "searchVolume", "desc");
+  const findings = sortRows(rawFindings, sortField, sortDir, {
+    keyword: (f) => f.keyword?.toLowerCase() ?? null,
+    intentStage: (f) => f.intentStage,
+    searchVolume: (f) => f.searchVolume,
+    keywordDifficulty: (f) => f.keywordDifficulty,
+    cpc: (f) => f.cpc,
+    bestCompetitor: (f) => f.bestCompetitorDomain ?? null,
+  });
 
   // Aggregate stats for headline tiles.
   const totalVolume = findings.reduce((s, f) => s + (f.searchVolume ?? 0), 0);
@@ -200,12 +216,24 @@ export default async function GapPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-3 text-caption text-ash-gray">Keyword</th>
-                    <th className="text-center px-3 py-3 text-caption text-ash-gray w-12">Intent</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">Volume</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">KD</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">CPC</th>
-                    <th className="text-left px-4 py-3 text-caption text-ash-gray">Best competitor</th>
+                    <th className="text-left px-4 py-3">
+                      <SortableHeader field="keyword" label="Keyword" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-center px-3 py-3 w-12">
+                      <SortableHeader field="intentStage" label="Intent" align="center" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="searchVolume" label="Volume" align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="keywordDifficulty" label="KD" align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="cpc" label="CPC" align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-left px-4 py-3">
+                      <SortableHeader field="bestCompetitor" label="Best competitor" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
                     <th className="text-center px-3 py-3 text-caption text-ash-gray">Also on</th>
                     <th className="text-right px-4 py-3 text-caption text-ash-gray">Action</th>
                   </tr>
