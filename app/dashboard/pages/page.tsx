@@ -57,9 +57,9 @@ function computeRowHealth(row: {
 }
 
 const healthDotColor: Record<RowHealth, string> = {
-  green: "bg-[#0098f2]",
-  yellow: "bg-[#f200ca]",
-  red: "bg-[#f200ca]",
+  green: "bg-sky-teal",
+  yellow: "bg-vivid-violet",
+  red: "bg-hot-pink",
 };
 
 export default async function PagesPage() {
@@ -232,10 +232,10 @@ export default async function PagesPage() {
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header>
-        <p className="text-[10px] font-semibold uppercase tracking-[1.2px] text-muted-foreground">
+        <p className="text-caption text-ash-gray">
           {i.headerKicker(WINDOW_DAYS)}
         </p>
-        <h1 className="font-display text-[40px] mt-2">{i.title}</h1>
+        <h1 className="text-heading-lg mt-2">{i.title}</h1>
       </header>
 
       {totalPages === 0 ? (
@@ -245,7 +245,7 @@ export default async function PagesPage() {
           </p>
           <Link
             href="/dashboard"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-5 py-2.5 text-sm font-medium hover:opacity-85"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-5 py-2.5 text-sm font-medium hover:opacity-85"
           >
             {i.emptyCta} <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
           </Link>
@@ -256,7 +256,7 @@ export default async function PagesPage() {
           {topIssues.length > 0 && (
             <section className="space-y-3">
               <div>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="text-caption text-ash-gray">
                   {i.intelligenceKicker}
                 </span>
                 <h2 className="text-xl font-semibold mt-0.5">{i.issuesDetected}</h2>
@@ -285,7 +285,7 @@ export default async function PagesPage() {
           <section className="space-y-3">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="text-caption text-ash-gray">
                   {i.vitalsKicker}
                 </span>
                 <h2 className="text-xl font-semibold mt-0.5">{i.vitalsTitle}</h2>
@@ -298,13 +298,13 @@ export default async function PagesPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr>
-                        <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThUrl}</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThScore}</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThLcp}</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThFcp}</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThCls}</th>
-                        <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThTtfb}</th>
-                        <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.vitalsThChecked}</th>
+                        <th className="text-left px-4 py-3 text-caption text-ash-gray">{i.vitalsThUrl}</th>
+                        <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.vitalsThScore}</th>
+                        <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.vitalsThLcp}</th>
+                        <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.vitalsThFcp}</th>
+                        <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.vitalsThCls}</th>
+                        <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.vitalsThTtfb}</th>
+                        <th className="text-right px-4 py-3 text-caption text-ash-gray">{i.vitalsThChecked}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -362,7 +362,7 @@ export default async function PagesPage() {
           {decayingPages.length > 0 && (
             <section className="space-y-3">
               <div>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="text-caption text-ash-gray">
                   {i.decayKicker}
                 </span>
                 <h2 className="text-xl font-semibold mt-0.5">
@@ -378,10 +378,10 @@ export default async function PagesPage() {
                   } catch {}
                   const severityColor =
                     page.severity === "high"
-                      ? "bg-[var(--down)]/15 text-[var(--down)]"
+                      ? "bg-hot-pink/10 text-hot-pink"
                       : page.severity === "medium"
-                        ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300"
-                        : "bg-muted text-muted-foreground";
+                        ? "bg-vivid-violet/10 text-vivid-violet"
+                        : "bg-subtle-cream text-ash-gray";
                   return (
                     <div
                       key={page.url}
@@ -398,7 +398,7 @@ export default async function PagesPage() {
                           {display}
                         </a>
                         <span
-                          className={`inline-block font-mono text-[10px] px-2.5 py-1 rounded-full shrink-0 ${severityColor}`}
+                          className={`inline-block text-caption px-2.5 py-1 rounded-full shrink-0 ${severityColor}`}
                         >
                           {page.severity}
                         </span>
@@ -423,7 +423,7 @@ export default async function PagesPage() {
           </section>
 
           <section className="rounded-2xl bg-card p-6 md:p-8">
-            <h2 className="font-display text-2xl md:text-3xl">{i.topPagesTitle}</h2>
+            <h2 className="text-heading">{i.topPagesTitle}</h2>
             <p className="text-sm text-muted-foreground mt-2 mb-6">
               {i.topPagesSubtitle(WINDOW_DAYS)}
             </p>
@@ -431,13 +431,13 @@ export default async function PagesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-center px-2 py-3 font-mono text-[9px] text-muted-foreground font-normal w-8"></th>
-                    <th className="text-left px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thUrl}</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thClicks}</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thImpr}</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thCtr}</th>
-                    <th className="text-right px-3 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thAvgPos}</th>
-                    <th className="text-right px-4 py-3 font-mono text-[9px] text-muted-foreground font-normal">{i.thLastSeen}</th>
+                    <th className="text-center px-2 py-3 text-caption text-ash-gray w-8"></th>
+                    <th className="text-left px-4 py-3 text-caption text-ash-gray">{i.thUrl}</th>
+                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thClicks}</th>
+                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thImpr}</th>
+                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thCtr}</th>
+                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thAvgPos}</th>
+                    <th className="text-right px-4 py-3 text-caption text-ash-gray">{i.thLastSeen}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -516,7 +516,7 @@ export default async function PagesPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="font-mono text-[10px] opacity-70">{i.ctaKicker}</div>
+                <div className="text-caption opacity-70">{i.ctaKicker}</div>
                 <p className="mt-3 text-lg leading-snug">
                   {i.ctaText}
                 </p>
@@ -533,8 +533,8 @@ export default async function PagesPage() {
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-card p-6">
-      <div className="font-mono text-[10px] text-muted-foreground">{label}</div>
-      <div className="mt-4 font-display text-3xl md:text-4xl">{value}</div>
+      <div className="text-caption text-ash-gray">{label}</div>
+      <div className="mt-4 text-heading">{value}</div>
     </div>
   );
 }
