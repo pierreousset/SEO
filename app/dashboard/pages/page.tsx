@@ -290,7 +290,7 @@ export default async function PagesPage({
                   return (
                     <IssueCard key={issue.type} issue={issue} labels={i.issueCard}>
                       {showMetaCta && firstPage && (
-                        <MetaSuggestionButton url={firstPage} />
+                        <MetaSuggestionButton url={firstPage} labels={i.metaSuggestion} />
                       )}
                     </IssueCard>
                   );

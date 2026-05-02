@@ -6,11 +6,20 @@ import { Check, X, AlertTriangle, Globe, MapPin, Unlink } from "lucide-react";
 import { RunMetaCrawlButton } from "@/components/run-meta-crawl-button";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
-import { BulkMetaSuggestionButton } from "@/components/bulk-meta-suggestion-button";
+import {
+  MetaSuggestionButton,
+  metaSuggestionLabelsFR,
+  metaSuggestionLabelsEN,
+} from "@/components/meta-suggestion-button";
+import {
+  BulkMetaSuggestionButton,
+  bulkMetaSuggestionLabelsFR,
+  bulkMetaSuggestionLabelsEN,
+} from "@/components/bulk-meta-suggestion-button";
 import { SchemaGeneratorButton } from "@/components/schema-generator-button";
 import { SortableHeader } from "@/components/sortable-header";
 import { parseSort, sortRows } from "@/lib/table-sort";
+import { getLocale } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +42,11 @@ export default async function MetasPage({
 }) {
   const ctx = await resolveAccountContext();
   const sp = await searchParams;
+  const lng = await getLocale();
+  const metaSuggestionLabels =
+    lng === "fr" ? metaSuggestionLabelsFR : metaSuggestionLabelsEN;
+  const bulkMetaLabels =
+    lng === "fr" ? bulkMetaSuggestionLabelsFR : bulkMetaSuggestionLabelsEN;
 
   const [latestRun] = await db
     .select()
@@ -89,7 +103,7 @@ export default async function MetasPage({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {pages.length > 0 && <BulkMetaSuggestionButton />}
+          {pages.length > 0 && <BulkMetaSuggestionButton labels={bulkMetaLabels} />}
           <ExportCsvButton type="metas" />
           <RunMetaCrawlButton
             label={latestRun ? "Re-crawl site" : "Crawl all pages"}
@@ -285,7 +299,7 @@ export default async function MetasPage({
                         </td>
                         <td className="px-3 py-3 text-center">
                           {(!m.title || (m.titleLength ?? 0) < 30 || !m.metaDescription || (m.metaDescriptionLength ?? 0) < 80) && (
-                            <MetaSuggestionButton url={m.url} />
+                            <MetaSuggestionButton url={m.url} labels={metaSuggestionLabels} />
                           )}
                         </td>
                         <td className="px-3 py-3 text-center">

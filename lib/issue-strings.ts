@@ -31,24 +31,32 @@ export type SeverityStrings = {
   low: string;
 };
 
+// Static-only labels (no functions) so this object can cross the
+// server -> client boundary when passed as a prop into IssueCard.
 export type IssueCardLabels = {
   whyThisMatters: string;
-  affectedPages: (n: number) => string;
-  affectedKeywords: (n: number) => string;
+  pageSingular: string;
+  pagePlural: string;
+  keywordSingular: string;
+  keywordPlural: string;
   severity: SeverityStrings;
 };
 
 export const issueCardLabelsFR: IssueCardLabels = {
   whyThisMatters: "Pourquoi c'est important",
-  affectedPages: (n) => `${n} page${n !== 1 ? "s" : ""}`,
-  affectedKeywords: (n) => `${n} mot${n !== 1 ? "s" : ""}-clé${n !== 1 ? "s" : ""}`,
+  pageSingular: "page",
+  pagePlural: "pages",
+  keywordSingular: "mot-clé",
+  keywordPlural: "mots-clés",
   severity: { high: "élevé", medium: "moyen", low: "faible" },
 };
 
 export const issueCardLabelsEN: IssueCardLabels = {
   whyThisMatters: "Why this matters",
-  affectedPages: (n) => `${n} page${n !== 1 ? "s" : ""}`,
-  affectedKeywords: (n) => `${n} keyword${n !== 1 ? "s" : ""}`,
+  pageSingular: "page",
+  pagePlural: "pages",
+  keywordSingular: "keyword",
+  keywordPlural: "keywords",
   severity: { high: "high", medium: "medium", low: "low" },
 };
 

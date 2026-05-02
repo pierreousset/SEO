@@ -57,10 +57,20 @@ export function IssueCard({
       {affectedCount > 0 && (
         <div className="text-xs text-muted-foreground mt-1.5">
           {issue.affectedPages && issue.affectedPages.length > 0 && (
-            <span>&rarr; {labels.affectedPages(issue.affectedPages.length)}</span>
+            <span>
+              &rarr; {issue.affectedPages.length}{" "}
+              {issue.affectedPages.length === 1
+                ? labels.pageSingular
+                : labels.pagePlural}
+            </span>
           )}
           {issue.affectedKeywords && issue.affectedKeywords.length > 0 && (
-            <span>&rarr; {labels.affectedKeywords(issue.affectedKeywords.length)}</span>
+            <span>
+              &rarr; {issue.affectedKeywords.length}{" "}
+              {issue.affectedKeywords.length === 1
+                ? labels.keywordSingular
+                : labels.keywordPlural}
+            </span>
           )}
         </div>
       )}

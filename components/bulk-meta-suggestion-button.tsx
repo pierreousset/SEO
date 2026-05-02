@@ -8,7 +8,55 @@ import { toast } from "sonner";
 
 type BulkResult = Array<{ url: string } & MetaSuggestion>;
 
-export function BulkMetaSuggestionButton() {
+// Static-only labels (no functions) — passed as a prop to a "use client"
+// component, so it must cross the server -> client boundary.
+export type BulkMetaSuggestionLabels = {
+  cta: string;
+  generating: string;
+  bulkAiSuggestions: string;
+  pageSingular: string;
+  pagePlural: string;
+  title: string;
+  description: string;
+  generatedFor: string; // template with {n} placeholder
+  noPages: string;
+  failed: string;
+  copy: string;
+};
+
+export const bulkMetaSuggestionLabelsEN: BulkMetaSuggestionLabels = {
+  cta: "Suggest all metas · 3 credits",
+  generating: "Generating…",
+  bulkAiSuggestions: "Bulk AI suggestions",
+  pageSingular: "page",
+  pagePlural: "pages",
+  title: "Title",
+  description: "Description",
+  generatedFor: "Generated suggestions for {n} pages.",
+  noPages: "All pages already have good titles. Nothing to suggest.",
+  failed: "Bulk suggestion failed.",
+  copy: "Copy",
+};
+
+export const bulkMetaSuggestionLabelsFR: BulkMetaSuggestionLabels = {
+  cta: "Suggérer toutes les métas · 3 crédits",
+  generating: "Génération…",
+  bulkAiSuggestions: "Suggestions IA en lot",
+  pageSingular: "page",
+  pagePlural: "pages",
+  title: "Titre",
+  description: "Description",
+  generatedFor: "Suggestions générées pour {n} pages.",
+  noPages: "Toutes les pages ont déjà de bons titres. Rien à suggérer.",
+  failed: "Échec de la suggestion en lot.",
+  copy: "Copier",
+};
+
+export function BulkMetaSuggestionButton({
+  labels = bulkMetaSuggestionLabelsEN,
+}: {
+  labels?: BulkMetaSuggestionLabels;
+}) {
   const [pending, start] = useTransition();
   const [results, setResults] = useState<BulkResult | null>(null);
   const [open, setOpen] = useState(false);
@@ -23,14 +71,16 @@ export function BulkMetaSuggestionButton() {
           return;
         }
         if (res.suggestions.length === 0) {
-          toast.info("All pages already have good titles. Nothing to suggest.");
+          toast.info(labels.noPages);
           return;
         }
         setResults(res.suggestions);
         setOpen(true);
-        toast.success(`Generated suggestions for ${res.suggestions.length} pages.`);
+        toast.success(
+          labels.generatedFor.replace("{n}", String(res.suggestions.length)),
+        );
       } catch (e: any) {
-        toast.error(e?.message ?? "Bulk suggestion failed.");
+        toast.error(e?.message ?? labels.failed);
       }
     });
   }
@@ -48,7 +98,7 @@ export function BulkMetaSuggestionButton() {
         ) : (
           <Sparkles className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
         )}
-        {pending ? "Generating..." : "Suggest all metas · 3 credits"}
+        {pending ? labels.generating : labels.cta}
       </Button>
 
       {open && results && results.length > 0 && (
@@ -57,10 +107,11 @@ export function BulkMetaSuggestionButton() {
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
                 <span className="text-caption text-ash-gray uppercase tracking-wider">
-                  Bulk AI suggestions
+                  {labels.bulkAiSuggestions}
                 </span>
                 <h3 className="text-lg font-semibold mt-0.5">
-                  {results.length} page{results.length !== 1 ? "s" : ""}
+                  {results.length}{" "}
+                  {results.length === 1 ? labels.pageSingular : labels.pagePlural}
                 </h3>
               </div>
               <button
@@ -73,7 +124,13 @@ export function BulkMetaSuggestionButton() {
 
             <div className="overflow-y-auto p-5 space-y-6">
               {results.map((r) => (
-                <BulkResultCard key={r.url} result={r} />
+                <BulkResultCard
+                  key={r.url}
+                  result={r}
+                  titleLabel={labels.title}
+                  descriptionLabel={labels.description}
+                  copyLabel={labels.copy}
+                />
               ))}
             </div>
           </div>
@@ -83,19 +140,36 @@ export function BulkMetaSuggestionButton() {
   );
 }
 
-function BulkResultCard({ result }: { result: { url: string } & MetaSuggestion }) {
+function BulkResultCard({
+  result,
+  titleLabel,
+  descriptionLabel,
+  copyLabel,
+}: {
+  result: { url: string } & MetaSuggestion;
+  titleLabel: string;
+  descriptionLabel: string;
+  copyLabel: string;
+}) {
   return (
     <div className="rounded-xl bg-background p-4 space-y-3">
       <div className="font-mono text-xs text-muted-foreground truncate" title={result.url}>
         {stripOrigin(result.url)}
       </div>
 
-      <CopyField label="Title" value={result.title} charCount={result.title.length} range="30-60" />
       <CopyField
-        label="Description"
+        label={titleLabel}
+        value={result.title}
+        charCount={result.title.length}
+        range="30-60"
+        copyLabel={copyLabel}
+      />
+      <CopyField
+        label={descriptionLabel}
         value={result.metaDescription}
         charCount={result.metaDescription.length}
         range="120-160"
+        copyLabel={copyLabel}
       />
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">{result.reasoning}</p>
@@ -108,11 +182,13 @@ function CopyField({
   value,
   charCount,
   range,
+  copyLabel,
 }: {
   label: string;
   value: string;
   charCount: number;
   range: string;
+  copyLabel: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -136,7 +212,7 @@ function CopyField({
       <button
         onClick={copy}
         className="mt-3 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-        title="Copy"
+        title={copyLabel}
       >
         {copied ? (
           <Check className="h-3.5 w-3.5 text-[var(--up)]" strokeWidth={1.5} />

@@ -6,7 +6,58 @@ import { Button } from "@/components/ui/button";
 import { suggestMetaForPage, type MetaSuggestion } from "@/lib/actions/meta-suggestions";
 import { toast } from "sonner";
 
-export function MetaSuggestionButton({ url }: { url: string }) {
+export type MetaSuggestionLabels = {
+  suggestMeta: string;
+  generating: string;
+  aiSuggestion: string;
+  title: string;
+  metaDescription: string;
+  titleRange: string;
+  metaRange: string;
+  reasoning: string;
+  charsUnit: string;
+  copy: string;
+  copied: string;
+  failedGenerate: string;
+};
+
+export const metaSuggestionLabelsEN: MetaSuggestionLabels = {
+  suggestMeta: "Suggest meta",
+  generating: "Generating…",
+  aiSuggestion: "AI suggestion",
+  title: "Title",
+  metaDescription: "Meta description",
+  titleRange: "30-60 chars",
+  metaRange: "120-160 chars",
+  reasoning: "Reasoning",
+  charsUnit: "chars",
+  copy: "Copy",
+  copied: "Copied",
+  failedGenerate: "Failed to generate suggestion.",
+};
+
+export const metaSuggestionLabelsFR: MetaSuggestionLabels = {
+  suggestMeta: "Suggérer méta",
+  generating: "Génération…",
+  aiSuggestion: "Suggestion IA",
+  title: "Titre",
+  metaDescription: "Méta description",
+  titleRange: "30-60 car.",
+  metaRange: "120-160 car.",
+  reasoning: "Raisonnement",
+  charsUnit: "car.",
+  copy: "Copier",
+  copied: "Copié",
+  failedGenerate: "Échec de la génération de la suggestion.",
+};
+
+export function MetaSuggestionButton({
+  url,
+  labels = metaSuggestionLabelsEN,
+}: {
+  url: string;
+  labels?: MetaSuggestionLabels;
+}) {
   const [pending, start] = useTransition();
   const [suggestion, setSuggestion] = useState<MetaSuggestion | null>(null);
   const [open, setOpen] = useState(false);
@@ -23,7 +74,7 @@ export function MetaSuggestionButton({ url }: { url: string }) {
         setSuggestion(res.suggestion);
         setOpen(true);
       } catch (e: any) {
-        toast.error(e?.message ?? "Failed to generate suggestion.");
+        toast.error(e?.message ?? labels.failedGenerate);
       }
     });
   }
@@ -42,14 +93,14 @@ export function MetaSuggestionButton({ url }: { url: string }) {
         ) : (
           <Sparkles className="h-3 w-3" strokeWidth={1.5} />
         )}
-        {pending ? "Generating..." : "Suggest meta"}
+        {pending ? labels.generating : labels.suggestMeta}
       </Button>
 
       {open && suggestion && (
         <div className="absolute right-0 top-full mt-2 z-50 w-[420px] rounded-xl bg-card border border-border shadow-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-caption text-ash-gray uppercase tracking-wider">
-              AI suggestion
+              {labels.aiSuggestion}
             </span>
             <button
               onClick={() => setOpen(false)}
@@ -60,21 +111,27 @@ export function MetaSuggestionButton({ url }: { url: string }) {
           </div>
 
           <SuggestionField
-            label="Title"
+            label={labels.title}
             value={suggestion.title}
             charCount={suggestion.title.length}
-            range="30-60 chars"
+            range={labels.titleRange}
+            charsUnit={labels.charsUnit}
+            copyLabel={labels.copy}
+            copiedLabel={labels.copied}
           />
 
           <SuggestionField
-            label="Meta description"
+            label={labels.metaDescription}
             value={suggestion.metaDescription}
             charCount={suggestion.metaDescription.length}
-            range="120-160 chars"
+            range={labels.metaRange}
+            charsUnit={labels.charsUnit}
+            copyLabel={labels.copy}
+            copiedLabel={labels.copied}
           />
 
           <div>
-            <div className="text-caption text-ash-gray mb-1">Reasoning</div>
+            <div className="text-caption text-ash-gray mb-1">{labels.reasoning}</div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {suggestion.reasoning}
             </p>
@@ -90,11 +147,17 @@ function SuggestionField({
   value,
   charCount,
   range,
+  charsUnit,
+  copyLabel,
+  copiedLabel,
 }: {
   label: string;
   value: string;
   charCount: number;
   range: string;
+  charsUnit: string;
+  copyLabel: string;
+  copiedLabel: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -109,7 +172,7 @@ function SuggestionField({
       <div className="flex items-center justify-between mb-1">
         <span className="text-caption text-ash-gray">{label}</span>
         <span className="text-caption text-ash-gray tabular">
-          {charCount} chars ({range})
+          {charCount} {charsUnit} ({range})
         </span>
       </div>
       <div className="flex items-start gap-2">
@@ -119,7 +182,7 @@ function SuggestionField({
         <button
           onClick={copy}
           className="mt-2.5 shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          title="Copy"
+          title={copied ? copiedLabel : copyLabel}
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-[var(--up)]" strokeWidth={1.5} />

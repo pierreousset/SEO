@@ -6,10 +6,15 @@ import {
   issueCardLabelsFR,
   issueCardLabelsEN,
 } from "@/lib/issue-strings";
+import {
+  metaSuggestionLabelsFR,
+  metaSuggestionLabelsEN,
+} from "@/components/meta-suggestion-button";
 
 const fr = {
   issues: issueStringsFR,
   issueCard: issueCardLabelsFR,
+  metaSuggestion: metaSuggestionLabelsFR,
   headerKicker: (days: number) => `Pages indexées · ${days} derniers jours`,
   title: "Pages",
 
@@ -64,6 +69,7 @@ const fr = {
 const en: typeof fr = {
   issues: issueStringsEN,
   issueCard: issueCardLabelsEN,
+  metaSuggestion: metaSuggestionLabelsEN,
   headerKicker: (days: number) => `Indexed pages · last ${days} days`,
   title: "Pages",
 
