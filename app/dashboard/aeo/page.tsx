@@ -8,6 +8,8 @@ import { RunAeoCheckButton } from "@/components/run-aeo-check-button";
 import { AeoStatusBanner } from "@/components/aeo-status-banner";
 import { getUserPlan } from "@/lib/billing-helpers";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +19,14 @@ const ENGINE_LABELS: Record<string, string> = {
   openai: "ChatGPT",
 };
 
-export default async function AeoPage() {
+export default async function AeoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const sp = await searchParams;
 
   const [latestRun] = await db
     .select()
@@ -88,6 +95,20 @@ export default async function AeoPage() {
     if (!matrix.has(r.keywordId)) matrix.set(r.keywordId, new Map());
     matrix.get(r.keywordId)!.set(r.engine, r);
   }
+
+  // Sortable matrix — keyword query (asc/desc) or by mention count across engines.
+  const { field: matrixSort, dir: matrixDir } = parseSort(sp, "keyword", "asc");
+  const matrixEntries = [...matrix.entries()];
+  matrixEntries.sort(([aId, aMap], [bId, bMap]) => {
+    if (matrixSort === "mentions") {
+      const aN = [...aMap.values()].filter((r) => r?.mentioned).length;
+      const bN = [...bMap.values()].filter((r) => r?.mentioned).length;
+      return matrixDir === "asc" ? aN - bN : bN - aN;
+    }
+    const aQ = (keywordById.get(aId)?.query ?? "").toLowerCase();
+    const bQ = (keywordById.get(bId)?.query ?? "").toLowerCase();
+    return matrixDir === "asc" ? aQ.localeCompare(bQ) : bQ.localeCompare(aQ);
+  });
 
   // Per-engine stats (for summary row)
   const engineStats = enginesUsed.map((e) => {
@@ -248,7 +269,9 @@ export default async function AeoPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 text-caption text-ash-gray">Keyword</th>
+                      <th className="text-left px-4 py-3">
+                        <SortableHeader field="keyword" label="Keyword" currentSort={matrixSort} currentDir={matrixDir} searchParams={sp} />
+                      </th>
                       {enginesUsed.map((e) => (
                         <th key={e} className="text-center px-3 py-3 text-caption text-ash-gray">
                           {ENGINE_LABELS[e] ?? e}
@@ -257,7 +280,7 @@ export default async function AeoPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...matrix.entries()].map(([keywordId, engineMap]) => {
+                    {matrixEntries.map(([keywordId, engineMap]) => {
                       const kw = keywordById.get(keywordId);
                       if (!kw) return null;
                       return (

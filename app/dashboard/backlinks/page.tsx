@@ -5,6 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { ExternalLink, ArrowRight } from "lucide-react";
 import { RunBacklinkPullButton } from "@/components/run-backlink-pull-button";
 import { BacklinkStatusBanner } from "@/components/backlink-status-banner";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +15,13 @@ export const dynamic = "force-dynamic";
 // nav entry is hidden from DashboardLayout.
 const BACKLINKS_ENABLED = process.env.ENABLE_BACKLINKS === "1";
 
-export default async function BacklinksPage() {
+export default async function BacklinksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
+  const sp = await searchParams;
 
   if (!BACKLINKS_ENABLED) {
     return (
@@ -70,7 +77,7 @@ export default async function BacklinksPage() {
   const latestRun = runs[0];
   const previousRun = runs[1];
 
-  const [topLinks, topRefDomains] = latestRun
+  const [rawTopLinks, rawTopRefDomains] = latestRun
     ? await Promise.all([
         db
           .select()
@@ -86,6 +93,16 @@ export default async function BacklinksPage() {
           .limit(30),
       ])
     : [[], []];
+
+  const { field: linksSort, dir: linksDir } = parseSort(sp, "domainRank", "desc");
+  const topLinks = sortRows(rawTopLinks, linksSort, linksDir, {
+    source: (l) => l.sourceDomain?.toLowerCase() ?? null,
+    anchor: (l) => l.anchor?.toLowerCase() ?? null,
+    domainRank: (l) => l.domainRank,
+    dofollow: (l) => (l.dofollow ? 1 : 0),
+    flag: (l) => (l.isNew ? 2 : l.isLost ? 1 : 0),
+  });
+  const topRefDomains = rawTopRefDomains;
 
   const banner = latestRun
     ? {
@@ -234,11 +251,21 @@ export default async function BacklinksPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
-                      <th className="text-left px-4 py-3 text-caption text-ash-gray">Source</th>
-                      <th className="text-left px-3 py-3 text-caption text-ash-gray">Anchor</th>
-                      <th className="text-center px-3 py-3 text-caption text-ash-gray">DR</th>
-                      <th className="text-center px-3 py-3 text-caption text-ash-gray">Type</th>
-                      <th className="text-center px-3 py-3 text-caption text-ash-gray">Flag</th>
+                      <th className="text-left px-4 py-3">
+                        <SortableHeader field="source" label="Source" currentSort={linksSort} currentDir={linksDir} searchParams={sp} />
+                      </th>
+                      <th className="text-left px-3 py-3">
+                        <SortableHeader field="anchor" label="Anchor" currentSort={linksSort} currentDir={linksDir} searchParams={sp} />
+                      </th>
+                      <th className="text-center px-3 py-3">
+                        <SortableHeader field="domainRank" label="DR" align="center" currentSort={linksSort} currentDir={linksDir} searchParams={sp} />
+                      </th>
+                      <th className="text-center px-3 py-3">
+                        <SortableHeader field="dofollow" label="Type" align="center" currentSort={linksSort} currentDir={linksDir} searchParams={sp} />
+                      </th>
+                      <th className="text-center px-3 py-3">
+                        <SortableHeader field="flag" label="Flag" align="center" currentSort={linksSort} currentDir={linksDir} searchParams={sp} />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
