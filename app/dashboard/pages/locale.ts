@@ -18,6 +18,28 @@ const fr = {
   headerKicker: (days: number) => `Pages indexées · ${days} derniers jours`,
   title: "Pages",
 
+  // Hero insight
+  heroKicker: "récupérable",
+  heroBigSubtitle: (zero: number, total: number) =>
+    `${zero} pages sur ${total} indexées reçoivent des impressions Google mais aucun clic.`,
+  heroChartTitle: "top 10 pages par impressions",
+  heroFix: "Corriger en lot",
+
+  // Action queue
+  actionQueueKicker: "file d'actions",
+  actionQueueTitle: "À corriger en priorité",
+  actionQueueViewList: "Voir la liste",
+
+  // Browse table
+  browseSearchPlaceholder: "Filtrer par URL…",
+  browseFilterAll: "Toutes",
+  browseFilterIssues: "À corriger",
+  browseFilterHealthy: "Saines",
+  browseShowingTop: (shown: number, total: number) => `${shown} sur ${total}`,
+  browseShowAll: "Tout afficher",
+  browseShowLess: "Réduire",
+  browseEmpty: "Aucune page ne correspond aux filtres.",
+
   emptyTitle:
     "Aucune page pour l'instant. Lancez une récupération de l'historique GSC depuis l'aperçu — les données apparaissent ici 30 à 60 secondes plus tard.",
   emptyCta: "Récupérer l'historique GSC",
@@ -72,6 +94,25 @@ const en: typeof fr = {
   metaSuggestion: metaSuggestionLabelsEN,
   headerKicker: (days: number) => `Indexed pages · last ${days} days`,
   title: "Pages",
+
+  heroKicker: "recoverable",
+  heroBigSubtitle: (zero: number, total: number) =>
+    `${zero} of ${total} indexed pages get Google impressions but zero clicks.`,
+  heroChartTitle: "top 10 pages by impressions",
+  heroFix: "Fix in bulk",
+
+  actionQueueKicker: "action queue",
+  actionQueueTitle: "Fix these first",
+  actionQueueViewList: "View list",
+
+  browseSearchPlaceholder: "Filter by URL…",
+  browseFilterAll: "All",
+  browseFilterIssues: "Issues",
+  browseFilterHealthy: "Healthy",
+  browseShowingTop: (shown: number, total: number) => `${shown} of ${total}`,
+  browseShowAll: "Show all",
+  browseShowLess: "Show less",
+  browseEmpty: "No pages match the filter.",
 
   emptyTitle:
     "No pages yet. Run a GSC history pull from the Overview page — the data shows up here 30-60s later.",

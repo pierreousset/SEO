@@ -2,7 +2,7 @@ import Link from "next/link";
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { and, eq, gte, desc, sql } from "drizzle-orm";
-import { ExternalLink, FileText, ArrowRight } from "lucide-react";
+import { ExternalLink, FileText, ArrowRight, Search as SearchIcon } from "lucide-react";
 import { detectPageIssues, type PageData } from "@/lib/seo-score";
 import { IssueCard, type IssueCardData } from "@/components/issue-card";
 import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
@@ -231,6 +231,15 @@ export default async function PagesPage({
     lastDate: (r) => r.lastDate,
   });
 
+  // Browse filter + search state
+  const browseQuery = (typeof sp.q === "string" ? sp.q : "").trim().toLowerCase();
+  const browseFilter =
+    typeof sp.filter === "string" && (sp.filter === "issues" || sp.filter === "healthy")
+      ? sp.filter
+      : "all";
+  const showAll = sp.show === "all";
+  const DEFAULT_LIMIT = 50;
+
   // Build health lookup
   const healthMap = new Map<string, RowHealth>();
   for (const r of aggregated) {
@@ -245,6 +254,50 @@ export default async function PagesPage({
         metaLength: meta?.metaDescriptionLength ?? null,
       }),
     );
+  }
+
+  // Filter the sorted aggregate for the browse table.
+  const browseRowsAll = aggregatedSorted.filter((r) => {
+    if (browseQuery && !r.url.toLowerCase().includes(browseQuery)) return false;
+    if (browseFilter === "issues") {
+      const h = healthMap.get(r.url);
+      if (h !== "yellow" && h !== "red") return false;
+    } else if (browseFilter === "healthy") {
+      const h = healthMap.get(r.url);
+      if (h !== "green") return false;
+    }
+    return true;
+  });
+  const browseRows = showAll ? browseRowsAll : browseRowsAll.slice(0, DEFAULT_LIMIT);
+
+  // Hero insight: zero-click pages count + recovery estimate.
+  const zeroClickPages = aggregated.filter(
+    (r) => r.impressions > 20 && r.clicks === 0,
+  );
+  const zeroClickImpressions = zeroClickPages.reduce(
+    (acc, p) => acc + p.impressions,
+    0,
+  );
+
+  // Top-10 by impressions for the hero bar chart.
+  const topByImpressions = [...aggregated]
+    .sort((a, b) => b.impressions - a.impressions)
+    .slice(0, 10);
+  const heroChartMax = topByImpressions[0]?.impressions ?? 0;
+
+  // Build a stable search-params helper: append/override one key without
+  // dropping the others (sort, dir, group, etc.).
+  function urlWith(updates: Record<string, string | null>): string {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (typeof v === "string") params.set(k, v);
+    }
+    for (const [k, v] of Object.entries(updates)) {
+      if (v === null) params.delete(k);
+      else params.set(k, v);
+    }
+    const s = params.toString();
+    return s ? `?${s}` : "";
   }
 
   return (
@@ -270,17 +323,82 @@ export default async function PagesPage({
         </div>
       ) : (
         <>
-          {/* Issue cards */}
+          {/* HERO INSIGHT — zero-click pages + top 10 by impressions */}
+          {zeroClickPages.length > 0 && (
+            <section className="rounded-2xl bg-card p-6 md:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                  <span className="text-caption text-ash-gray">{i.heroKicker}</span>
+                  <div className="mt-2 text-display tabular-nums text-hot-pink">
+                    {zeroClickPages.length}
+                  </div>
+                  <p className="mt-3 text-body text-deep-slate leading-relaxed">
+                    {i.heroBigSubtitle(zeroClickPages.length, totalPages)}
+                  </p>
+                  <p className="mt-2 text-body-sm text-ash-gray font-mono tabular-nums">
+                    {zeroClickImpressions.toLocaleString()} impressions ·{" "}
+                    {WINDOW_DAYS}d
+                  </p>
+                </div>
+                <div>
+                  <div className="text-caption text-ash-gray mb-3">
+                    {i.heroChartTitle}
+                  </div>
+                  <div className="space-y-1.5">
+                    {topByImpressions.map((p) => {
+                      let display = p.url;
+                      try {
+                        const u = new URL(p.url);
+                        display = u.pathname === "/" ? u.hostname : u.pathname;
+                      } catch {}
+                      const pct =
+                        heroChartMax > 0
+                          ? (p.impressions / heroChartMax) * 100
+                          : 0;
+                      return (
+                        <div
+                          key={p.url}
+                          className="grid grid-cols-[1fr_60px] items-center gap-3"
+                          title={p.url}
+                        >
+                          <div className="relative h-5 rounded-full bg-canvas-white overflow-hidden">
+                            <div
+                              className="absolute inset-y-0 left-0 bg-sky-teal/80 rounded-full transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                            <div className="relative px-2.5 leading-5 text-[11px] font-medium truncate">
+                              {display}
+                            </div>
+                          </div>
+                          <div className="text-caption font-mono tabular-nums text-ash-gray text-right">
+                            {p.impressions.toLocaleString()}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* COMPACT KPI STRIP */}
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiTile label={i.statPagesIndexed} value={totalPages.toLocaleString()} />
+            <KpiTile label={i.statTotalClicks} value={totalClicks.toLocaleString()} />
+            <KpiTile label={i.statTotalImpressions} value={totalImpressions.toLocaleString()} />
+            <KpiTile label={i.statAvgCtr} value={`${avgCtr.toFixed(2)}%`} />
+          </section>
+
+          {/* ACTION QUEUE — top 3 issues, full-width cards with bigger CTAs */}
           {topIssues.length > 0 && (
             <section className="space-y-3">
               <div>
-                <span className="text-caption text-ash-gray">
-                  {i.intelligenceKicker}
-                </span>
-                <h2 className="text-xl font-semibold mt-0.5">{i.issuesDetected}</h2>
+                <span className="text-caption text-ash-gray">{i.actionQueueKicker}</span>
+                <h2 className="text-xl font-semibold mt-0.5">{i.actionQueueTitle}</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {topIssues.map((issue) => {
+              <div className="space-y-3">
+                {topIssues.slice(0, 3).map((issue) => {
                   const showMetaCta =
                     issue.type === "title_missing" ||
                     issue.type === "title_short" ||
@@ -433,23 +551,74 @@ export default async function PagesPage({
             </section>
           )}
 
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatTile label={i.statPagesIndexed} value={totalPages.toLocaleString()} />
-            <StatTile label={i.statTotalClicks} value={totalClicks.toLocaleString()} />
-            <StatTile label={i.statTotalImpressions} value={totalImpressions.toLocaleString()} />
-            <StatTile label={i.statAvgCtr} value={`${avgCtr.toFixed(2)}%`} />
-          </section>
+          {/* BROWSE ALL PAGES — search + filter chips + collapsible table */}
+          <section className="rounded-2xl bg-card p-6 md:p-8 space-y-5">
+            <div className="flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-heading">{i.topPagesTitle}</h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {i.topPagesSubtitle(WINDOW_DAYS)}
+                </p>
+              </div>
+            </div>
 
-          <section className="rounded-2xl bg-card p-6 md:p-8">
-            <h2 className="text-heading">{i.topPagesTitle}</h2>
-            <p className="text-sm text-muted-foreground mt-2 mb-6">
-              {i.topPagesSubtitle(WINDOW_DAYS)}
-            </p>
+            {/* Search + filter chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              <form
+                action=""
+                className="relative flex-1 min-w-[240px] max-w-md"
+              >
+                <SearchIcon
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ash-gray pointer-events-none"
+                  strokeWidth={1.5}
+                />
+                {/* Preserve other params on submit */}
+                {Object.entries(sp).map(([k, v]) =>
+                  k === "q" || typeof v !== "string" ? null : (
+                    <input key={k} type="hidden" name={k} value={v} />
+                  ),
+                )}
+                <input
+                  type="text"
+                  name="q"
+                  defaultValue={browseQuery}
+                  placeholder={i.browseSearchPlaceholder}
+                  className="w-full h-10 pl-10 pr-3 text-body-sm bg-canvas-white border border-hairline rounded-full focus:outline-none focus:ring-2 focus:ring-sky-teal/30 focus:border-sky-teal"
+                />
+              </form>
+              <div className="flex items-center gap-1">
+                {(
+                  [
+                    ["all", i.browseFilterAll],
+                    ["issues", i.browseFilterIssues],
+                    ["healthy", i.browseFilterHealthy],
+                  ] as const
+                ).map(([key, label]) => {
+                  const active = browseFilter === key;
+                  return (
+                    <Link
+                      key={key}
+                      href={urlWith({
+                        filter: key === "all" ? null : key,
+                        show: null,
+                      })}
+                      className={`text-body-sm px-3 py-1.5 rounded-full transition-colors ${
+                        active
+                          ? "bg-button-black text-canvas-white"
+                          : "bg-canvas-white text-ash-gray hover:text-ink-black border border-hairline"
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="rounded-[12px] bg-background overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-center px-2 py-3 text-caption text-ash-gray w-8"></th>
                     <th className="text-left px-4 py-3">
                       <SortableHeader field="url" label={i.thUrl} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
                     </th>
@@ -471,28 +640,22 @@ export default async function PagesPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {aggregatedSorted.map((r) => {
+                  {browseRows.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center text-body-sm text-muted-foreground">
+                        {i.browseEmpty}
+                      </td>
+                    </tr>
+                  )}
+                  {browseRows.map((r) => {
                     const ctr = r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0;
-                    const health = healthMap.get(r.url) ?? "green";
                     let display = r.url;
                     try {
                       const u = new URL(r.url);
                       display = `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`;
                     } catch {}
                     return (
-                      <tr key={r.url} className="border-b border-border last:border-0 hover:bg-secondary/50">
-                        <td className="px-2 py-3 text-center">
-                          <span
-                            className={`inline-block h-2 w-2 rounded-full ${healthDotColor[health]}`}
-                            title={
-                              health === "red"
-                                ? i.healthCritical
-                                : health === "yellow"
-                                  ? i.healthWarnings
-                                  : i.healthHealthy
-                            }
-                          />
-                        </td>
+                      <tr key={r.url} className="border-b border-border last:border-0 hover:bg-subtle-cream">
                         <td className="px-4 py-3 min-w-0 max-w-[480px]">
                           <a
                             href={r.url}
@@ -533,10 +696,20 @@ export default async function PagesPage({
                 </tbody>
               </table>
             </div>
-            {totalPages >= 300 && (
-              <p className="mt-4 text-xs text-muted-foreground">
-                {i.showingTop300}
-              </p>
+
+            {/* Show more / show less */}
+            {browseRowsAll.length > DEFAULT_LIMIT && (
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <span className="text-caption text-ash-gray font-mono tabular-nums">
+                  {i.browseShowingTop(browseRows.length, browseRowsAll.length)}
+                </span>
+                <Link
+                  href={urlWith({ show: showAll ? null : "all" })}
+                  className="text-body-sm font-medium text-sky-teal hover:underline"
+                >
+                  {showAll ? i.browseShowLess : i.browseShowAll}
+                </Link>
+              </div>
             )}
           </section>
 
@@ -565,6 +738,16 @@ function StatTile({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl bg-card p-6">
       <div className="text-caption text-ash-gray">{label}</div>
       <div className="mt-4 text-heading">{value}</div>
+    </div>
+  );
+}
+
+// Compact KPI tile used in the post-hero strip — denser than StatTile.
+function KpiTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-card px-5 py-4">
+      <div className="text-caption text-ash-gray">{label}</div>
+      <div className="mt-1 text-subheading font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
