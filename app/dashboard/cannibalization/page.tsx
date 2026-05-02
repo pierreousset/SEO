@@ -5,6 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { Split, ArrowRight, ExternalLink } from "lucide-react";
 import { RunCannibalizationButton } from "@/components/run-cannibalization-button";
 import { CannibalizationStatusBanner } from "@/components/cannibalization-status-banner";
+import { getLocale } from "@/lib/i18n-server";
+import { locale, type PageLocale } from "./locale";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,8 @@ type Finding = {
 
 export default async function CannibalizationPage() {
   const ctx = await resolveAccountContext();
+  const lng = await getLocale();
+  const i = locale[lng];
 
   const [latestRun] = await db
     .select()
@@ -62,13 +66,11 @@ export default async function CannibalizationPage() {
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-8">
       <header className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <p className="text-caption text-ash-gray">
-            Keyword cannibalization
-          </p>
-          <h1 className="text-heading-lg mt-2">Cannibalization</h1>
+          <p className="text-caption text-ash-gray">{i.headerKicker}</p>
+          <h1 className="text-heading-lg mt-2">{i.title}</h1>
         </div>
         <RunCannibalizationButton
-          label={latestRun ? "Run new scan" : "Run first scan"}
+          label={latestRun ? i.runNewScan : i.runFirstScan}
           activeStatus={(latestRun?.status as any) ?? null}
         />
       </header>
@@ -79,12 +81,12 @@ export default async function CannibalizationPage() {
       {latestRun && latestRun.status === "done" && findings.length > 0 && (
         <section className="space-y-4">
           <div className="rounded-2xl bg-card p-5">
-            <div className="text-caption text-ash-gray mb-2">intelligence summary</div>
+            <div className="text-caption text-ash-gray mb-2">{i.intelligenceKicker}</div>
             <p className="text-lg">
               <span className="font-mono tabular-nums font-semibold text-[var(--down)]">
                 {findings.length}
               </span>{" "}
-              keyword group{findings.length !== 1 ? "s" : ""} where your pages compete against each other.
+              {i.intelligenceLine(findings.length).replace(/^\d+\s*/, "")}
             </p>
           </div>
 
@@ -94,16 +96,16 @@ export default async function CannibalizationPage() {
               .slice(0, 3);
             return topGroups.length > 0 ? (
               <div>
-                <div className="text-caption text-ash-gray mb-3">highest impact groups</div>
+                <div className="text-caption text-ash-gray mb-3">{i.topGroupsKicker}</div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {topGroups.map((group, i) => (
+                  {topGroups.map((group, idx) => (
                     <div
-                      key={`${group.query}-${i}`}
+                      key={`${group.query}-${idx}`}
                       className="rounded-2xl bg-card p-4 border-l-[3px] border-l-[var(--down)]"
                     >
                       <div className="text-sm font-medium">{group.query}</div>
                       <div className="text-caption text-ash-gray mt-2 tabular-nums">
-                        {group.totalImpressions.toLocaleString()} impressions · {group.urls.length} URLs
+                        {i.topGroupImpressions(group.totalImpressions, group.urls.length)}
                       </div>
                       <div className="mt-2 space-y-1">
                         {group.urls.slice(0, 3).map((u) => {
@@ -117,7 +119,7 @@ export default async function CannibalizationPage() {
                         })}
                       </div>
                       <div className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                        Consolidate these pages or differentiate their content.
+                        {i.topGroupHint}
                       </div>
                     </div>
                   ))}
@@ -130,28 +132,18 @@ export default async function CannibalizationPage() {
 
       {!latestRun && (
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl">
-          <p className="text-lg">
-            When <strong>two or more of your own pages</strong> compete for the same keyword,
-            Google splits authority and impressions — and nobody wins. This scan pulls GSC
-            query×page data and surfaces the worst offenders.
-          </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Requires GSC connected. Takes 30-90s depending on your site size.
-          </p>
+          <p className="text-lg" dangerouslySetInnerHTML={{ __html: i.emptyExplain }} />
+          <p className="text-sm text-muted-foreground mt-4">{i.emptyRequirement}</p>
         </div>
       )}
 
       {latestRun && latestRun.status === "done" && findings.length === 0 && (
         <div className="rounded-2xl bg-card p-8 md:p-10">
           <p className="text-lg">
-            <strong>No cannibalization detected.</strong> Scanned{" "}
-            {latestRun.queriesScanned ?? 0} queries over the last{" "}
-            {latestRun.daysWindow}d — every query has a clear winning URL.
+            <strong>{i.noFindingsTitle}</strong>{" "}
+            {i.noFindingsBody(latestRun.queriesScanned ?? 0, latestRun.daysWindow ?? 0)}
           </p>
-          <p className="text-sm text-muted-foreground mt-3">
-            If you know of a query where multiple pages overlap, re-run the scan after adding
-            more tracked keywords or waiting for more impressions data.
-          </p>
+          <p className="text-sm text-muted-foreground mt-3">{i.noFindingsHint}</p>
         </div>
       )}
 
@@ -160,28 +152,28 @@ export default async function CannibalizationPage() {
           {/* KPI row */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatTile
-              label="High severity"
+              label={i.kpiHigh}
               value={byLevel.high.length.toString()}
-              subtitle="top URL holds < 50% share"
+              subtitle={i.kpiHighSub}
               accent={byLevel.high.length > 0 ? "down" : undefined}
             />
             <StatTile
-              label="Medium severity"
+              label={i.kpiMedium}
               value={byLevel.medium.length.toString()}
-              subtitle="top URL holds < 70% share"
+              subtitle={i.kpiMediumSub}
             />
             <StatTile
-              label="Queries scanned"
+              label={i.kpiQueriesScanned}
               value={(latestRun.queriesScanned ?? 0).toLocaleString()}
-              subtitle={`last ${latestRun.daysWindow}d of GSC data`}
+              subtitle={i.kpiQueriesScannedSub(latestRun.daysWindow ?? 0)}
               muted
             />
           </section>
 
           {/* Findings list */}
           <section className="space-y-4">
-            {findings.map((f, i) => (
-              <FindingCard key={`${f.query}-${i}`} finding={f} />
+            {findings.map((f, idx) => (
+              <FindingCard key={`${f.query}-${idx}`} finding={f} i={i} />
             ))}
           </section>
 
@@ -191,14 +183,8 @@ export default async function CannibalizationPage() {
           >
             <div className="flex items-start justify-between gap-4">
               <div className="max-w-2xl">
-                <div className="text-caption opacity-70">
-                  how to fix cannibalization
-                </div>
-                <p className="mt-3 text-lg leading-snug">
-                  Pick the URL you want to rank. Consolidate content from the losing URLs into
-                  it, add 301 redirects from the losers, and update internal links. Typical
-                  time-to-effect: 2-4 weeks.
-                </p>
+                <div className="text-caption opacity-70">{i.ctaKicker}</div>
+                <p className="mt-3 text-lg leading-snug">{i.ctaText}</p>
               </div>
               <ArrowRight className="h-5 w-5 shrink-0 mt-1" strokeWidth={1.5} />
             </div>
@@ -209,25 +195,28 @@ export default async function CannibalizationPage() {
   );
 }
 
-function FindingCard({ finding }: { finding: Finding }) {
-  const topShare = finding.urls[0]?.share ?? 0;
+function FindingCard({ finding, i }: { finding: Finding; i: PageLocale }) {
+  const topSharePct = Math.round((finding.urls[0]?.share ?? 0) * 100);
   return (
     <div className="rounded-2xl bg-card p-6 md:p-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <SeverityPill severity={finding.severity} />
+            <SeverityPill severity={finding.severity} label={i.severity[finding.severity]} />
             {finding.trackedKeywordId && (
               <span className="inline-block text-caption px-2.5 py-1 rounded-full bg-foreground/10 text-foreground">
-                tracked
+                {i.trackedBadge}
               </span>
             )}
           </div>
           <h3 className="text-xl md:text-2xl mt-3 break-words">{finding.query}</h3>
           <p className="text-sm text-muted-foreground mt-2 font-mono tabular">
-            {finding.urls.length} URLs · {finding.totalImpressions.toLocaleString()}{" "}
-            impressions · {finding.totalClicks.toLocaleString()} clicks · top URL holds{" "}
-            {Math.round(topShare * 100)}% of impressions
+            {i.findingMeta(
+              finding.urls.length,
+              finding.totalImpressions,
+              finding.totalClicks,
+              topSharePct,
+            )}
           </p>
         </div>
       </div>
@@ -236,16 +225,16 @@ function FindingCard({ finding }: { finding: Finding }) {
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-3 text-caption text-ash-gray">URL</th>
-              <th className="text-right px-3 py-3 text-caption text-ash-gray">Impressions</th>
-              <th className="text-right px-3 py-3 text-caption text-ash-gray">Clicks</th>
-              <th className="text-right px-3 py-3 text-caption text-ash-gray">Avg pos</th>
-              <th className="text-right px-4 py-3 text-caption text-ash-gray">Share</th>
+              <th className="text-left px-4 py-3 text-caption text-ash-gray">{i.thUrl}</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thImpressions}</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thClicks}</th>
+              <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thAvgPos}</th>
+              <th className="text-right px-4 py-3 text-caption text-ash-gray">{i.thShare}</th>
             </tr>
           </thead>
           <tbody>
-            {finding.urls.map((u, i) => {
-              const isTop = i === 0;
+            {finding.urls.map((u, idx) => {
+              const isTop = idx === 0;
               let display = u.page;
               try {
                 display = new URL(u.page).pathname || u.page;
@@ -301,17 +290,21 @@ function ShareBar({ share, isTop }: { share: number; isTop: boolean }) {
   );
 }
 
-function SeverityPill({ severity }: { severity: "high" | "medium" | "low" }) {
+function SeverityPill({
+  severity,
+  label,
+}: {
+  severity: "high" | "medium" | "low";
+  label: string;
+}) {
   const map = {
-    high: "bg-[var(--down)]/15 text-[var(--down)]",
+    high: "bg-hot-pink/10 text-hot-pink",
     medium: "bg-vivid-violet/10 text-vivid-violet",
-    low: "bg-muted text-muted-foreground",
+    low: "bg-subtle-cream text-ash-gray",
   };
   return (
-    <span
-      className={`inline-block text-caption px-2.5 py-1 rounded-full ${map[severity]}`}
-    >
-      {severity}
+    <span className={`inline-block text-caption px-2.5 py-1 rounded-full ${map[severity]}`}>
+      {label}
     </span>
   );
 }
