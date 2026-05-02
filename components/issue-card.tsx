@@ -15,15 +15,15 @@ export type IssueCardData = {
 };
 
 const severityColor: Record<string, string> = {
-  high: "#F87171",
-  medium: "#FBBF24",
-  low: "#71717A",
+  high: "#f200ca",
+  medium: "#f200ca",
+  low: "#8d8d8d",
 };
 
 const severityDot: Record<string, string> = {
-  high: "bg-[#F87171]",
-  medium: "bg-[#FBBF24]",
-  low: "bg-[#71717A]",
+  high: "bg-[#f200ca]",
+  medium: "bg-[#f200ca]",
+  low: "bg-[#8d8d8d]",
 };
 
 export function IssueCard({ issue, children }: { issue: IssueCardData; children?: React.ReactNode }) {

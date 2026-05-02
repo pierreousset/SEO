@@ -17,7 +17,7 @@ export function ArticleRenderer({ content }: { content: string }) {
         prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
         prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
         prose-p:leading-relaxed prose-p:text-foreground/80
-        prose-a:text-primary prose-a:underline
+        prose-a:text-sky-teal prose-a:underline
         prose-strong:text-foreground
         prose-ul:list-disc prose-ol:list-decimal
         prose-li:text-foreground/80"

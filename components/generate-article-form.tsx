@@ -64,7 +64,7 @@ export function GenerateArticleForm({ keywords }: Props) {
         <select
           value={keywordId}
           onChange={(e) => setKeywordId(e.target.value)}
-          className="w-full rounded-xl bg-background border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full rounded-xl bg-background border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-teal/50"
         >
           <option value="">Select a keyword...</option>
           {keywords.map((k) => (
@@ -79,7 +79,7 @@ export function GenerateArticleForm({ keywords }: Props) {
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="Enter a topic, e.g. &quot;best practices for local SEO in 2025&quot;"
-          className="w-full rounded-xl bg-background border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full rounded-xl bg-background border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-teal/50"
         />
       )}
 

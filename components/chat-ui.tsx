@@ -165,7 +165,7 @@ export function ChatUi({
                   key={q}
                   type="button"
                   onClick={() => sendMessage(q)}
-                  className="bg-card rounded-2xl px-4 py-3 border border-border hover:border-primary/50 transition text-sm text-left"
+                  className="bg-card rounded-2xl px-4 py-3 border border-border hover:border-sky-teal/50 transition text-sm text-left"
                 >
                   {q}
                 </button>

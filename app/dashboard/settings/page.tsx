@@ -72,8 +72,8 @@ export default async function SettingsPage({
       <section className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Globe className="h-5 w-5 text-primary" strokeWidth={1.5} />
+            <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+              <Globe className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
             </div>
             <div>
               <h2 className="text-sm font-semibold">Google Search Console</h2>
@@ -134,8 +134,8 @@ export default async function SettingsPage({
         <section className="bg-card rounded-2xl border border-border overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <KeyRound className="h-5 w-5 text-primary" strokeWidth={1.5} />
+              <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+                <KeyRound className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
               </div>
               <div>
                 <h2 className="text-sm font-semibold">API Keys</h2>
@@ -214,8 +214,8 @@ function SettingsLink({
       href={href}
       className="bg-card rounded-2xl border border-border p-5 hover:bg-secondary/50 transition-colors flex items-center gap-3"
     >
-      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon className="h-5 w-5 text-primary" strokeWidth={1.5} />
+      <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+        <Icon className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold">{title}</div>

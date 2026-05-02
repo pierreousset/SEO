@@ -11,7 +11,7 @@ const STAGES: Record<number, { label: string; cls: string; title: string }> = {
   },
   3: {
     label: "S3",
-    cls: "bg-primary/10 text-primary",
+    cls: "bg-sky-teal/10 text-sky-teal",
     title: "Stage 3 — solution-aware / comparing options",
   },
   4: {

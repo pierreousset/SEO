@@ -280,16 +280,16 @@ export default async function KeywordsPage({
     .slice(0, 5);
 
   const severityColor: Record<string, string> = {
-    high: "#F87171",
-    medium: "#FBBF24",
-    low: "#A855F7",
+    high: "#f200ca",
+    medium: "#f200ca",
+    low: "#0098f2",
   };
 
   const tipColorClass: Record<string, string> = {
     green: "text-[var(--up)]",
     yellow: "text-yellow-400",
     red: "text-[var(--down)]",
-    purple: "text-primary",
+    purple: "text-sky-teal",
     gray: "text-muted-foreground",
   };
 
@@ -328,10 +328,10 @@ export default async function KeywordsPage({
       {/* ── Keyword Health Summary ──────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         {[
-          { label: i.stats.top3, value: top3Count, color: "#34D399" },
-          { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#A855F7" },
-          { label: i.stats.dropping, value: droppingCount, color: "#F87171" },
-          { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#A855F7" },
+          { label: i.stats.top3, value: top3Count, color: "#0098f2" },
+          { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#0098f2" },
+          { label: i.stats.dropping, value: droppingCount, color: "#f200ca" },
+          { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#0098f2" },
           { label: i.stats.totalTracked, value: totalActive, color: "#FFFFFF" },
         ].map((stat) => (
           <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
@@ -358,12 +358,12 @@ export default async function KeywordsPage({
             <div
               key={idx}
               className="bg-card rounded-2xl p-4"
-              style={{ borderLeft: `3px solid ${severityColor[issue.severity] ?? "#A855F7"}` }}
+              style={{ borderLeft: `3px solid ${severityColor[issue.severity] ?? "#0098f2"}` }}
             >
               <div className="flex items-center gap-2 mb-1">
                 <span
                   className="inline-block h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: severityColor[issue.severity] ?? "#A855F7" }}
+                  style={{ backgroundColor: severityColor[issue.severity] ?? "#0098f2" }}
                 />
                 <span className="font-mono text-[11px] font-medium truncate">
                   {issue.title}
@@ -420,7 +420,7 @@ export default async function KeywordsPage({
 
       {/* ── Best Opportunity ──────────────────────────────────── */}
       {bestOpportunity && bestOpportunity.gscImpressions > 50 && (
-        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 mb-5">
+        <div className="bg-sky-teal/10 border border-sky-teal/20 rounded-2xl p-4 mb-5">
           <p className="text-sm">
             <span className="mr-1.5">💡</span>
             <span className="font-medium">{i.bestOpportunityLabel}</span>{" "}
@@ -486,7 +486,7 @@ export default async function KeywordsPage({
                         <span
                           key={gId}
                           className="inline-flex h-1.5 w-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: g.color ?? "#A855F7" }}
+                          style={{ backgroundColor: g.color ?? "#0098f2" }}
                           title={g.name}
                         />
                       );

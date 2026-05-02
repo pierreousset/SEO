@@ -170,25 +170,25 @@ export default async function BusinessPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-2xl font-semibold tabular-nums" style={{ color: "#A855F7" }}>
+                    <div className="font-mono text-2xl font-semibold tabular-nums" style={{ color: "#0098f2" }}>
                       {brandedPct}%
                     </div>
                     <div className="font-mono text-[10px] text-muted-foreground">branded share</div>
                   </div>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden bg-background mb-3">
-                  <div style={{ width: `${brandedPct}%`, backgroundColor: "#A855F7" }} />
-                  <div style={{ width: `${100 - brandedPct}%`, backgroundColor: "#34D399" }} />
+                  <div style={{ width: `${brandedPct}%`, backgroundColor: "#0098f2" }} />
+                  <div style={{ width: `${100 - brandedPct}%`, backgroundColor: "#0098f2" }} />
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-[12px]">
                   <div>
-                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#A855F7" }}>
+                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#0098f2" }}>
                       {brand.clicks.toLocaleString()}
                     </div>
                     <div className="text-muted-foreground">branded clicks</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#34D399" }}>
+                    <div className="font-mono text-base font-semibold tabular-nums" style={{ color: "#0098f2" }}>
                       {nonBrand.clicks.toLocaleString()}
                     </div>
                     <div className="text-muted-foreground">non-branded clicks</div>

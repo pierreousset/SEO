@@ -149,7 +149,11 @@
 :root {
   --background: #ffffff;          /* canvas-white */
   --foreground: #000000;          /* ink-black */
-  --card: #ffffff;
+  /* Cards land on subtle-cream so they read as distinct surfaces against
+     the canvas-white page. Acctual alternates white sections with cream;
+     in a dashboard with permanent cards, cream-on-white IS the bento
+     differentiation. */
+  --card: #f7fafc;
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;

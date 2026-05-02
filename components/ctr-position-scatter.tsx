@@ -62,7 +62,7 @@ function CustomTooltip({ active, payload }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const d = payload[0].payload as ChartPoint;
   return (
-    <div className="rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] px-3 py-2 text-xs shadow-lg">
+    <div className="rounded-lg bg-[#f7fafc] border border-[#ececec] px-3 py-2 text-xs shadow-lg">
       <div className="font-medium text-foreground mb-1 max-w-[200px] truncate">
         {d.keyword}
       </div>
@@ -120,7 +120,7 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
       <ComposedChart margin={{ top: 8, right: 16, left: -10, bottom: 0 }}>
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="#1A1A1A"
+          stroke="#f7fafc"
           vertical={false}
         />
         <XAxis
@@ -128,13 +128,13 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
           type="number"
           domain={[0, "auto"]}
           tickLine={false}
-          axisLine={{ stroke: "#2A2A2A" }}
-          tick={{ fontSize: 10, fill: "#71717A" }}
+          axisLine={{ stroke: "#ececec" }}
+          tick={{ fontSize: 10, fill: "#8d8d8d" }}
           label={{
             value: "Position",
             position: "insideBottom",
             offset: -2,
-            style: { fontSize: 10, fill: "#71717A" },
+            style: { fontSize: 10, fill: "#8d8d8d" },
           }}
         />
         <YAxis
@@ -142,8 +142,8 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
           type="number"
           domain={[0, 30]}
           tickLine={false}
-          axisLine={{ stroke: "#2A2A2A" }}
-          tick={{ fontSize: 10, fill: "#71717A" }}
+          axisLine={{ stroke: "#ececec" }}
+          tick={{ fontSize: 10, fill: "#8d8d8d" }}
           tickFormatter={(v: number) => `${v}%`}
           width={42}
         />
@@ -160,7 +160,7 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
           data={benchmarkLine}
           dataKey="benchmark"
           type="monotone"
-          stroke="#71717A"
+          stroke="#8d8d8d"
           strokeWidth={1.5}
           strokeDasharray="6 3"
           dot={false}
@@ -171,7 +171,7 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
         {/* Above benchmark — green */}
         <Scatter
           data={aboveData}
-          fill="#34D399"
+          fill="#0098f2"
           fillOpacity={0.7}
           isAnimationActive={false}
         />
@@ -179,7 +179,7 @@ export function CtrPositionScatter({ data }: { data: DataPoint[] }) {
         {/* Below benchmark — red */}
         <Scatter
           data={belowData}
-          fill="#F87171"
+          fill="#f200ca"
           fillOpacity={0.7}
           isAnimationActive={false}
         />

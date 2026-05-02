@@ -57,7 +57,7 @@ export default async function ConnectGooglePage({
               {authUrl && (
                 <a
                   href={authUrl}
-                  className="shrink-0 inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90"
+                  className="shrink-0 inline-flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-sky-teal/90"
                 >
                   {gsc ? "Re-connect" : "Connect"}
                 </a>
@@ -92,8 +92,8 @@ export default async function ConnectGooglePage({
           href="/dashboard/settings/api-keys"
           className="mt-4 flex items-center gap-3 border border-border rounded-2xl bg-card p-5 hover:bg-secondary/50 transition-colors"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Key className="h-5 w-5 text-primary" strokeWidth={1.5} />
+          <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+            <Key className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
           </div>
           <div>
             <h2 className="text-sm font-semibold">API Keys</h2>

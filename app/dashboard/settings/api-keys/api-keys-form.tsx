@@ -111,7 +111,7 @@ export function ApiKeysForm({
             type="password"
             autoComplete="off"
             placeholder={status[p.statusKey] ? "******** (configured)" : p.placeholder}
-            className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
           />
         </div>
       ))}
@@ -131,7 +131,7 @@ export function ApiKeysForm({
             type="password"
             autoComplete="off"
             placeholder={status.ollama ? "******** (configured)" : "API key (cloud) — optional for local"}
-            className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+            className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
           />
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -139,14 +139,14 @@ export function ApiKeysForm({
               type="text"
               autoComplete="off"
               placeholder={status.ollama ? "configured" : "http://localhost:11434"}
-              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
             />
             <input
               name="ollamaModel"
               type="text"
               autoComplete="off"
               placeholder="llama3"
-              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
             />
           </div>
           <p className="text-[11px] text-neutral-500">Cloud: API key + URL. Local: just URL + model. OpenAI-compatible API.</p>
@@ -164,14 +164,14 @@ export function ApiKeysForm({
               type="text"
               autoComplete="off"
               placeholder={status.lmStudio ? "configured" : "http://localhost:1234"}
-              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
             />
             <input
               name="lmStudioModel"
               type="text"
               autoComplete="off"
               placeholder="local-model"
-              className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
+              className="w-full rounded-lg border border-[#2A2A2A] bg-[#ffffff] px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none transition focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 font-mono"
             />
           </div>
           <p className="text-[11px] text-neutral-500">URL + model name. LM Studio exposes an OpenAI-compatible API.</p>

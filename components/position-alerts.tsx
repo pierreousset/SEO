@@ -82,7 +82,7 @@ export function PositionAlerts({
             type="button"
             onClick={() => setShowDropdown(!showDropdown)}
             disabled={pending}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3.5 py-1.5 text-xs font-medium hover:bg-primary/20 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-sky-teal/10 text-sky-teal px-3.5 py-1.5 text-xs font-medium hover:bg-sky-teal/20 transition-colors disabled:opacity-50"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
             Add alert

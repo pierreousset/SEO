@@ -57,9 +57,9 @@ function computeRowHealth(row: {
 }
 
 const healthDotColor: Record<RowHealth, string> = {
-  green: "bg-[#34D399]",
-  yellow: "bg-[#FBBF24]",
-  red: "bg-[#F87171]",
+  green: "bg-[#0098f2]",
+  yellow: "bg-[#f200ca]",
+  red: "bg-[#f200ca]",
 };
 
 export default async function PagesPage() {
@@ -317,10 +317,10 @@ export default async function PagesPage() {
                         const score = v.performanceScore ?? 0;
                         const scoreColor =
                           score >= 90
-                            ? "text-[#34D399]"
+                            ? "text-[#0098f2]"
                             : score >= 50
-                              ? "text-[#FBBF24]"
-                              : "text-[#F87171]";
+                              ? "text-[#f200ca]"
+                              : "text-[#f200ca]";
                         return (
                           <tr key={v.id} className="border-b border-border last:border-0 hover:bg-secondary/50">
                             <td className="px-4 py-3 font-mono tabular text-xs truncate max-w-[300px]" title={v.url}>

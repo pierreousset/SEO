@@ -228,7 +228,7 @@ export function DiscoverKeywords() {
                     key={r.query}
                     onClick={() => toggle(r.query)}
                     className={`border-t border-border hover:bg-muted/30 cursor-pointer ${
-                      isSel ? "bg-primary/5" : ""
+                      isSel ? "bg-sky-teal/5" : ""
                     }`}
                   >
                     <td className="px-3 py-2 text-center">

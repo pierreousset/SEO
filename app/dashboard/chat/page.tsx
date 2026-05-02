@@ -37,7 +37,7 @@ export default async function ChatPage({
           <span>
             Free trial: <span className="font-mono tabular text-foreground">{trialLeft}</span> of {CHAT_LIMITS.freeLifetimeMessages} messages left.
           </span>
-          <Link href="/dashboard/billing" className="text-primary hover:underline">
+          <Link href="/dashboard/billing" className="text-sky-teal hover:underline">
             Upgrade for {CHAT_LIMITS.proMonthlyIncluded}/mo →
           </Link>
         </div>
@@ -49,7 +49,7 @@ export default async function ChatPage({
           <span>
             Trial used. Each message now costs 1 credit (if you have any). Subscribe to Pro for {CHAT_LIMITS.proMonthlyIncluded}/mo included.
           </span>
-          <Link href="/dashboard/billing" className="text-primary hover:underline">
+          <Link href="/dashboard/billing" className="text-sky-teal hover:underline">
             Upgrade →
           </Link>
         </div>

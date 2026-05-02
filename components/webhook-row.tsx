@@ -28,7 +28,7 @@ export function WebhookRow({
     <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-3">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary">
+          <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-sky-teal/10 text-sky-teal">
             {providerLabel}
           </span>
           <span

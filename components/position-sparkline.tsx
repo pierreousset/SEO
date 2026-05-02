@@ -20,7 +20,7 @@ export function PositionSparkline({ positions }: { positions: number[] }) {
     .join(" ");
 
   const trending = positions[positions.length - 1] <= positions[0]; // lower position = better
-  const color = trending ? "#34D399" : "#F87171";
+  const color = trending ? "#0098f2" : "#f200ca";
 
   return (
     <svg width={w} height={h} className="inline-block">

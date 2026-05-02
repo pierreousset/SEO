@@ -60,7 +60,7 @@ export function SchemaGeneratorButton({ url }: { url: string }) {
             className="absolute top-2 right-2 h-6 w-6 p-0"
           >
             {copied ? (
-              <Check className="h-3 w-3 text-[#34D399]" strokeWidth={2} />
+              <Check className="h-3 w-3 text-[#0098f2]" strokeWidth={2} />
             ) : (
               <Copy className="h-3 w-3" strokeWidth={1.5} />
             )}

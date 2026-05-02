@@ -635,7 +635,7 @@ export default async function DashboardHome() {
         <div className="flex-1 min-h-[200px] bg-card rounded-2xl p-7 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" strokeWidth={1.5} />
+              <Activity className="h-4 w-4 text-sky-teal" strokeWidth={1.5} />
               <span className="font-mono text-[11px] text-muted-foreground">{i.bento.seoHealth}</span>
             </div>
             {healthDelta !== null && healthDelta !== 0 && (
@@ -658,10 +658,10 @@ export default async function DashboardHome() {
                   color: healthScore === null
                     ? undefined
                     : healthScore >= 70
-                      ? "#34D399"
+                      ? "#0098f2"
                       : healthScore >= 40
-                        ? "#FBBF24"
-                        : "#F87171",
+                        ? "#f200ca"
+                        : "#f200ca",
                 }}
               >
                 {healthScore ?? "—"}
@@ -731,7 +731,7 @@ export default async function DashboardHome() {
         <div className="w-full md:w-[400px] min-h-[240px] md:h-[280px] bg-card rounded-2xl overflow-hidden flex flex-col">
           <div className="px-6 pt-5 pb-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+              <Target className="h-3.5 w-3.5 text-sky-teal" strokeWidth={1.5} />
               <span className="font-mono text-[10px] text-muted-foreground">{i.bento.gapZone}</span>
             </div>
             <h2 className="text-xl font-semibold">{i.bento.highestRoi}</h2>
@@ -804,12 +804,12 @@ export default async function DashboardHome() {
             className="flex-1 h-[180px] rounded-2xl bg-white p-6 flex flex-col justify-between hover:opacity-95 transition-opacity"
           >
             <div className="flex items-start justify-between">
-              <span className="font-mono text-[10px] text-[#71717A]">
+              <span className="font-mono text-[10px] text-[#8d8d8d]">
                 {i.bento.latestBriefAt(latestBrief[0].periodStart, latestBrief[0].periodEnd)}
               </span>
-              <ArrowRight className="h-4 w-4 text-[#0A0A0A] shrink-0" strokeWidth={1.5} />
+              <ArrowRight className="h-4 w-4 text-[#ffffff] shrink-0" strokeWidth={1.5} />
             </div>
-            <p className="text-sm text-[#0A0A0A] leading-relaxed line-clamp-3">
+            <p className="text-sm text-[#ffffff] leading-relaxed line-clamp-3">
               {latestBrief[0].summary}
             </p>
           </Link>
@@ -831,11 +831,11 @@ export default async function DashboardHome() {
             <>
               <div className="flex h-1.5 rounded-full overflow-hidden bg-background">
                 {[
-                  { v: buckets.top3, bg: "#34D399" },
-                  { v: buckets.top10, bg: "#34D39988" },
-                  { v: buckets.top20, bg: "#A855F7" },
-                  { v: buckets.top50, bg: "#A855F766" },
-                  { v: buckets.rest, bg: "#71717A55" },
+                  { v: buckets.top3, bg: "#0098f2" },
+                  { v: buckets.top10, bg: "#0098f288" },
+                  { v: buckets.top20, bg: "#0098f2" },
+                  { v: buckets.top50, bg: "#0098f266" },
+                  { v: buckets.rest, bg: "#8d8d8d55" },
                 ].map((b, i) =>
                   b.v > 0 ? (
                     <div
@@ -849,11 +849,11 @@ export default async function DashboardHome() {
                 )}
               </div>
               <div className="flex justify-between">
-                <Bucket label="1-3" value={buckets.top3} color="#34D399" />
-                <Bucket label="4-10" value={buckets.top10} color="#34D399" />
+                <Bucket label="1-3" value={buckets.top3} color="#0098f2" />
+                <Bucket label="4-10" value={buckets.top10} color="#0098f2" />
                 <Bucket label="11-20" value={buckets.top20} color="#FFFFFF" />
-                <Bucket label="21-50" value={buckets.top50} color="#A1A1AA" />
-                <Bucket label="51+" value={buckets.rest + buckets.unranked} color="#71717A" />
+                <Bucket label="21-50" value={buckets.top50} color="#8d8d8d" />
+                <Bucket label="51+" value={buckets.rest + buckets.unranked} color="#8d8d8d" />
               </div>
             </>
           ) : (
@@ -866,13 +866,13 @@ export default async function DashboardHome() {
           <div className="space-y-2 mt-auto">
             <div className="flex items-center gap-2 text-[11px]">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-[#A1A1AA]">{i.bento.serpFetch}</span>
+              <span className="text-[#8d8d8d]">{i.bento.serpFetch}</span>
               <span className="flex-1 border-b border-border" />
               <span className="font-mono font-medium">{formatUntil(nextDailyFetch())}</span>
             </div>
             <div className="flex items-center gap-2 text-[11px]">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-              <span className="text-[#A1A1AA]">{i.bento.aiBriefShort}</span>
+              <span className="text-[#8d8d8d]">{i.bento.aiBriefShort}</span>
               <span className="flex-1 border-b border-border" />
               <span className="font-mono font-medium">{formatUntil(nextMondayBrief())}</span>
             </div>
@@ -920,19 +920,19 @@ function shortUrl(u: string): string {
 function actionIcon(key: "alert" | "ctr" | "lost" | "decline" | "target" | "filex") {
   const cls = "h-4 w-4";
   switch (key) {
-    case "alert": return <AlertCircle className={`${cls} text-[#F87171]`} strokeWidth={1.5} />;
-    case "ctr": return <MousePointer className={`${cls} text-[#FBBF24]`} strokeWidth={1.5} />;
-    case "lost": return <EyeOff className={`${cls} text-[#F87171]`} strokeWidth={1.5} />;
-    case "decline": return <TrendingDown className={`${cls} text-[#F87171]`} strokeWidth={1.5} />;
-    case "target": return <Target className={`${cls} text-primary`} strokeWidth={1.5} />;
-    case "filex": return <FileX className={`${cls} text-[#FBBF24]`} strokeWidth={1.5} />;
+    case "alert": return <AlertCircle className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
+    case "ctr": return <MousePointer className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
+    case "lost": return <EyeOff className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
+    case "decline": return <TrendingDown className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
+    case "target": return <Target className={`${cls} text-sky-teal`} strokeWidth={1.5} />;
+    case "filex": return <FileX className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
   }
 }
 
 function actionToneBg(tone: "default" | "warn" | "down") {
   switch (tone) {
-    case "down": return "bg-[#F87171]/15 ring-1 ring-inset ring-[#F87171]/30";
-    case "warn": return "bg-[#FBBF24]/15 ring-1 ring-inset ring-[#FBBF24]/30";
-    default: return "bg-primary/10 ring-1 ring-inset ring-primary/25";
+    case "down": return "bg-[#f200ca]/15 ring-1 ring-inset ring-[#f200ca]/30";
+    case "warn": return "bg-[#f200ca]/15 ring-1 ring-inset ring-[#f200ca]/30";
+    default: return "bg-sky-teal/10 ring-1 ring-inset ring-sky-teal/25";
   }
 }

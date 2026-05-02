@@ -39,7 +39,7 @@ export default async function InviteAcceptPage({
         <p className="text-sm text-muted-foreground mt-3">
           Vous pouvez accéder au dashboard directement.
         </p>
-        <a href="/dashboard" className="mt-4 text-primary text-sm hover:underline">
+        <a href="/dashboard" className="mt-4 text-sky-teal text-sm hover:underline">
           Aller au dashboard →
         </a>
       </CenterCard>

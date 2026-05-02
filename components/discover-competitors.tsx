@@ -175,7 +175,7 @@ export function DiscoverCompetitors() {
                     key={r.keyword}
                     onClick={() => toggle(r.keyword)}
                     className={`border-t border-border hover:bg-muted/30 cursor-pointer ${
-                      sel ? "bg-primary/5" : ""
+                      sel ? "bg-sky-teal/5" : ""
                     }`}
                   >
                     <td className="px-3 py-2 text-center">

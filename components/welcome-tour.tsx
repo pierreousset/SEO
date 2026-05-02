@@ -124,7 +124,7 @@ export function WelcomeTour() {
       <div
         className={`absolute z-50 pointer-events-auto ${positionClasses[current.position]}`}
       >
-        <div ref={cardRef} className="bg-card border border-primary/30 rounded-2xl p-6 max-w-[360px]">
+        <div ref={cardRef} className="bg-card border border-sky-teal/30 rounded-2xl p-6 max-w-[360px]">
           {/* Progress dots */}
           <div className="flex items-center gap-1.5 mb-4">
             {STEPS.map((_, i) => (
@@ -134,7 +134,7 @@ export function WelcomeTour() {
                   i === step
                     ? "w-5 bg-primary"
                     : i < step
-                      ? "w-1.5 bg-primary/50"
+                      ? "w-1.5 bg-sky-teal/50"
                       : "w-1.5 bg-muted-foreground/30"
                 }`}
               />

@@ -48,8 +48,8 @@ export function ActiveJobsIndicator() {
   if (jobs.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-2 md:px-3 py-2">
-      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+    <div className="flex items-center gap-2 rounded-xl border border-sky-teal/20 bg-sky-teal/5 px-2 md:px-3 py-2">
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-teal shrink-0" />
       <div className="hidden md:flex items-center gap-3">
         {jobs.map((j) => (
           <span key={j.label} className="flex items-center gap-1.5 text-[11px]">

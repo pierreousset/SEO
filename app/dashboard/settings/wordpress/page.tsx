@@ -70,8 +70,8 @@ export default function WordPressPluginPage() {
       {/* Download card */}
       <section className="bg-card rounded-2xl border border-border p-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Download className="h-6 w-6 text-primary" strokeWidth={1.5} />
+          <div className="w-12 h-12 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+            <Download className="h-6 w-6 text-sky-teal" strokeWidth={1.5} />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-semibold">Download Plugin</h2>
@@ -95,14 +95,14 @@ export default function WordPressPluginPage() {
         <h2 className="text-sm font-semibold mb-4">What the plugin does</h2>
         <ul className="space-y-3 text-xs text-muted-foreground">
           <li className="flex items-start gap-2">
-            <span className="font-mono text-primary mt-px">01</span>
+            <span className="font-mono text-sky-teal mt-px">01</span>
             <span>
               Adds a <strong className="text-foreground">meta box</strong> on post/page edit
               screens with an &ldquo;Suggest with AI&rdquo; button that calls your dashboard API.
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-mono text-primary mt-px">02</span>
+            <span className="font-mono text-sky-teal mt-px">02</span>
             <span>
               Shows suggested title and description with{" "}
               <strong className="text-foreground">Apply</strong> buttons that fill Yoast SEO or
@@ -110,7 +110,7 @@ export default function WordPressPluginPage() {
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-mono text-primary mt-px">03</span>
+            <span className="font-mono text-sky-teal mt-px">03</span>
             <span>
               Adds a <strong className="text-foreground">dashboard widget</strong> showing your
               current SEO health score at a glance.
@@ -128,8 +128,8 @@ export default function WordPressPluginPage() {
               key={step.number}
               className="bg-card rounded-2xl border border-border p-5 flex items-start gap-3"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <step.icon className="h-5 w-5 text-primary" strokeWidth={1.5} />
+              <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+                <step.icon className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold flex items-center gap-2">
@@ -148,7 +148,7 @@ export default function WordPressPluginPage() {
         <h2 className="text-sm font-semibold mb-4">API endpoints used</h2>
         <div className="space-y-3 font-mono text-xs">
           <div className="flex items-start gap-3">
-            <span className="bg-primary/15 text-primary px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0">
+            <span className="bg-sky-teal/15 text-sky-teal px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0">
               POST
             </span>
             <div>
@@ -159,7 +159,7 @@ export default function WordPressPluginPage() {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <span className="bg-primary/15 text-primary px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0">
+            <span className="bg-sky-teal/15 text-sky-teal px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0">
               POST
             </span>
             <div>

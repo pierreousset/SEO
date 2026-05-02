@@ -17,7 +17,7 @@ const STAGE_LABEL: Record<number, string> = {
 const STAGE_TONE: Record<number, string> = {
   1: "bg-muted text-muted-foreground",
   2: "bg-muted text-muted-foreground",
-  3: "bg-primary/10 text-primary",
+  3: "bg-sky-teal/10 text-sky-teal",
   4: "bg-[var(--up)]/10 text-[var(--up)] font-semibold",
 };
 
@@ -159,7 +159,7 @@ export function DiscoverAi() {
                 key={i}
                 onClick={() => toggle(r.keyword)}
                 className={`rounded-[12px] border p-4 cursor-pointer transition-colors ${
-                  sel ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/30"
+                  sel ? "border-sky-teal bg-sky-teal/5" : "border-border bg-card hover:bg-muted/30"
                 }`}
               >
                 <div className="flex items-start gap-3">

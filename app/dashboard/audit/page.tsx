@@ -17,7 +17,7 @@ const SEVERITY_TONE: Record<string, string> = {
   high: "bg-[var(--down)]/10 text-[var(--down)]",
   medium: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
   low: "bg-muted text-muted-foreground",
-  info: "bg-primary/10 text-primary",
+  info: "bg-sky-teal/10 text-sky-teal",
 };
 
 export default async function AuditPage() {

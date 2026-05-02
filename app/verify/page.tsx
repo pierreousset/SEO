@@ -50,13 +50,13 @@ function VerifyForm() {
   return (
     <div
       className="w-full max-w-[400px] rounded-2xl p-8"
-      style={{ backgroundColor: "#1A1A1A" }}
+      style={{ backgroundColor: "#f7fafc" }}
     >
       {/* Logo + Brand */}
       <div className="flex items-center gap-3 mb-8">
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-          style={{ backgroundColor: "#A855F7" }}
+          style={{ backgroundColor: "#0098f2" }}
         >
           S
         </div>
@@ -90,8 +90,8 @@ function VerifyForm() {
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             className="h-11 rounded-xl text-sm px-4 border font-mono text-center text-lg tracking-widest text-white placeholder:text-neutral-500"
             style={{
-              backgroundColor: "#0A0A0A",
-              borderColor: "#2A2A2A",
+              backgroundColor: "#ffffff",
+              borderColor: "#ececec",
             }}
           />
         </div>
@@ -99,7 +99,7 @@ function VerifyForm() {
           type="submit"
           disabled={loading || code.length !== 6}
           className="w-full rounded-full text-white font-medium"
-          style={{ backgroundColor: "#A855F7" }}
+          style={{ backgroundColor: "#0098f2" }}
         >
           {loading ? "Verifying..." : "Verify & sign in"}
         </Button>
@@ -119,7 +119,7 @@ export default function VerifyPage() {
   return (
     <main
       className="flex-1 flex flex-col items-center justify-center px-4"
-      style={{ backgroundColor: "#0A0A0A" }}
+      style={{ backgroundColor: "#ffffff" }}
     >
       <Suspense
         fallback={

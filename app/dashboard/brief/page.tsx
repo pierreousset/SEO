@@ -165,7 +165,7 @@ export default async function BriefPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {topIssues.map((issue, idx) => (
               <div key={idx} className="rounded-2xl bg-card p-5 flex gap-4">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-mono text-xs font-semibold">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-teal/15 text-sky-teal font-mono text-xs font-semibold">
                   {idx + 1}
                 </div>
                 <div className="min-w-0">
@@ -194,7 +194,7 @@ export default async function BriefPage() {
                     {s.score}
                   </span>
                   <div
-                    className={`w-8 rounded-t-md ${isLatest ? "bg-primary" : "bg-primary/30"}`}
+                    className={`w-8 rounded-t-md ${isLatest ? "bg-primary" : "bg-sky-teal/30"}`}
                     style={{ height: `${height}px` }}
                   />
                 </div>

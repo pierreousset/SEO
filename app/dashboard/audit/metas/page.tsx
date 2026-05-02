@@ -81,12 +81,12 @@ export default async function MetasPage() {
 
       {/* Status banner for active/failed runs */}
       {runStatus === "queued" && (
-        <div className="rounded-2xl bg-primary/5 border border-primary/20 p-6 text-sm text-muted-foreground">
+        <div className="rounded-2xl bg-sky-teal/5 border border-sky-teal/20 p-6 text-sm text-muted-foreground">
           Crawl queued. Starting…
         </div>
       )}
       {runStatus === "running" && (
-        <div className="rounded-2xl bg-primary/5 border border-primary/20 p-6 text-sm text-muted-foreground">
+        <div className="rounded-2xl bg-sky-teal/5 border border-sky-teal/20 p-6 text-sm text-muted-foreground">
           Crawling your site pages… This takes 1-3 min depending on the number of pages in your sitemap.
         </div>
       )}

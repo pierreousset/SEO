@@ -8,7 +8,7 @@ import type { GroupWithCount } from "@/lib/actions/keyword-groups";
 import { toast } from "sonner";
 
 const PRESET_COLORS = [
-  "#A855F7", "#0D9488", "#F59E0B", "#EF4444", "#3B82F6",
+  "#0098f2", "#0D9488", "#F59E0B", "#EF4444", "#3B82F6",
   "#EC4899", "#10B981", "#F97316",
 ];
 
@@ -69,7 +69,7 @@ export function KeywordGroupBar({ groups, activeGroupId }: Props) {
         onClick={() => selectGroup(null)}
         className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
           !activeGroupId
-            ? "border-primary bg-primary/10 text-primary"
+            ? "border-sky-teal bg-sky-teal/10 text-sky-teal"
             : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
         }`}
       >
@@ -82,13 +82,13 @@ export function KeywordGroupBar({ groups, activeGroupId }: Props) {
           onClick={() => selectGroup(g.id)}
           className={`group inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
             activeGroupId === g.id
-              ? "border-primary bg-primary/10 text-primary"
+              ? "border-sky-teal bg-sky-teal/10 text-sky-teal"
               : "border-border bg-background hover:bg-muted/40 text-muted-foreground"
           }`}
         >
           <span
             className="h-2 w-2 rounded-full shrink-0"
-            style={{ backgroundColor: g.color ?? "#A855F7" }}
+            style={{ backgroundColor: g.color ?? "#0098f2" }}
           />
           {g.name}
           <span className="font-mono text-[10px] opacity-60">{g.memberCount}</span>
@@ -137,7 +137,7 @@ export function KeywordGroupBar({ groups, activeGroupId }: Props) {
           <button
             onClick={handleCreate}
             disabled={pending || !name.trim()}
-            className="text-xs text-primary hover:text-primary/80 font-medium disabled:opacity-40"
+            className="text-xs text-sky-teal hover:text-sky-teal/80 font-medium disabled:opacity-40"
           >
             Add
           </button>

@@ -151,7 +151,7 @@ function Banner({
         ? "bg-[var(--down)]/10 text-[var(--down)] border-[var(--down)]/30"
         : tone === "warn"
           ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
-          : "bg-primary/10 text-primary border-primary/30";
+          : "bg-sky-teal/10 text-sky-teal border-sky-teal/30";
   return (
     <div className={`mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${cls}`}>
       {icon}

@@ -51,7 +51,7 @@ export function ApiTokenSection({ tokens }: { tokens: Token[] }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. CI pipeline"
-            className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-teal/40"
           />
         </div>
         <button
@@ -66,8 +66,8 @@ export function ApiTokenSection({ tokens }: { tokens: Token[] }) {
       {error && <p className="text-xs text-[var(--down)]">{error}</p>}
 
       {newKey && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-xs text-primary font-semibold mb-2">
+        <div className="rounded-xl border border-sky-teal/30 bg-sky-teal/5 p-4">
+          <p className="text-xs text-sky-teal font-semibold mb-2">
             Copy this key now -- it will not be shown again.
           </p>
           <div className="flex items-center gap-2">

@@ -96,7 +96,7 @@ export default async function InternalLinksPage() {
         <div className="rounded-2xl bg-card p-8 md:p-10 max-w-2xl text-sm">
           <p className="text-muted-foreground">
             Run a meta crawl first to get link suggestions. Go to{" "}
-            <a href="/dashboard/audit/metas" className="text-primary hover:underline">
+            <a href="/dashboard/audit/metas" className="text-sky-teal hover:underline">
               Audit &rarr; Metas
             </a>{" "}
             and crawl your site.

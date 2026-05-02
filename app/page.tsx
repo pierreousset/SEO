@@ -75,8 +75,8 @@ function AuthForm() {
           onChange={(e) => setEmail(e.target.value)}
           className="h-11 rounded-xl text-sm px-4 border text-white placeholder:text-neutral-500"
           style={{
-            backgroundColor: "#0A0A0A",
-            borderColor: "#2A2A2A",
+            backgroundColor: "#ffffff",
+            borderColor: "#ececec",
           }}
         />
       </div>
@@ -84,7 +84,7 @@ function AuthForm() {
         type="submit"
         disabled={loading}
         className="w-full rounded-full text-white font-medium"
-        style={{ backgroundColor: "#A855F7" }}
+        style={{ backgroundColor: "#0098f2" }}
       >
         {loading ? "Sending code..." : "Start free — no credit card"}
       </Button>
@@ -129,21 +129,21 @@ function CompareCard({
   return (
     <div
       className="rounded-2xl border p-6 flex flex-col gap-4"
-      style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+      style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
     >
       <div className="flex items-start gap-3">
         <span
           className="inline-block w-2 h-2 rounded-full mt-2 shrink-0"
-          style={{ backgroundColor: "#71717A" }}
+          style={{ backgroundColor: "#8d8d8d" }}
         />
-        <p className="text-sm" style={{ color: "#71717A" }}>
+        <p className="text-sm" style={{ color: "#8d8d8d" }}>
           {gsc}
         </p>
       </div>
       <div className="flex items-start gap-3">
         <span
           className="inline-block w-2 h-2 rounded-full mt-2 shrink-0"
-          style={{ backgroundColor: "#A855F7" }}
+          style={{ backgroundColor: "#0098f2" }}
         />
         <p className="text-sm font-medium text-white">{ours}</p>
       </div>
@@ -167,16 +167,16 @@ function FeatureTile({
   return (
     <div
       className="rounded-2xl border p-6 flex flex-col gap-3"
-      style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+      style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center"
-        style={{ backgroundColor: "#A855F7", opacity: 0.15 }}
+        style={{ backgroundColor: "#0098f2", opacity: 0.15 }}
       >
-        <Icon className="w-5 h-5" style={{ color: "#A855F7" }} />
+        <Icon className="w-5 h-5" style={{ color: "#0098f2" }} />
       </div>
       <h3 className="text-base font-semibold text-white">{title}</h3>
-      <p className="text-sm" style={{ color: "#A1A1AA" }}>
+      <p className="text-sm" style={{ color: "#8d8d8d" }}>
         {description}
       </p>
     </div>
@@ -206,12 +206,12 @@ function PricingCard({
     <div
       className="rounded-2xl border p-8 flex flex-col gap-6 flex-1"
       style={{
-        backgroundColor: "#1A1A1A",
-        borderColor: highlighted ? "#A855F7" : "#2A2A2A",
+        backgroundColor: "#f7fafc",
+        borderColor: highlighted ? "#0098f2" : "#ececec",
       }}
     >
       <div>
-        <h3 className="text-sm font-medium" style={{ color: "#A1A1AA" }}>
+        <h3 className="text-sm font-medium" style={{ color: "#8d8d8d" }}>
           {name}
         </h3>
         <div className="flex items-baseline gap-1 mt-2">
@@ -219,7 +219,7 @@ function PricingCard({
             {price}
           </span>
           {period && (
-            <span className="text-sm" style={{ color: "#71717A" }}>
+            <span className="text-sm" style={{ color: "#8d8d8d" }}>
               {period}
             </span>
           )}
@@ -230,7 +230,7 @@ function PricingCard({
           <li key={f} className="flex items-start gap-2 text-sm text-white">
             <Check
               className="w-4 h-4 shrink-0 mt-0.5"
-              style={{ color: "#34D399" }}
+              style={{ color: "#0098f2" }}
             />
             {f}
           </li>
@@ -240,8 +240,8 @@ function PricingCard({
         <Button
           className="w-full rounded-full text-white font-medium"
           style={{
-            backgroundColor: highlighted ? "#A855F7" : "transparent",
-            border: highlighted ? "none" : "1.5px solid #2A2A2A",
+            backgroundColor: highlighted ? "#0098f2" : "transparent",
+            border: highlighted ? "none" : "1.5px solid #ececec",
           }}
         >
           {cta}
@@ -269,7 +269,7 @@ export default function LandingPage() {
   return (
     <main
       className="flex-1 flex flex-col"
-      style={{ backgroundColor: "#0A0A0A" }}
+      style={{ backgroundColor: "#ffffff" }}
     >
       <script
         type="application/ld+json"
@@ -302,7 +302,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-            style={{ backgroundColor: "#A855F7" }}
+            style={{ backgroundColor: "#0098f2" }}
           >
             S
           </div>
@@ -313,7 +313,7 @@ export default function LandingPage() {
             <Link href="/dashboard">
               <Button
                 className="rounded-full text-white font-medium text-sm"
-                style={{ backgroundColor: "#A855F7" }}
+                style={{ backgroundColor: "#0098f2" }}
               >
                 Dashboard
               </Button>
@@ -331,7 +331,7 @@ export default function LandingPage() {
               <a href="#get-started">
                 <Button
                   className="rounded-full text-white font-medium text-sm"
-                  style={{ backgroundColor: "#A855F7" }}
+                  style={{ backgroundColor: "#0098f2" }}
                 >
                   Get started
                 </Button>
@@ -345,9 +345,9 @@ export default function LandingPage() {
       <Section className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center text-center gap-6 py-24">
         <div
           className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium"
-          style={{ borderColor: "#2A2A2A", color: "#A1A1AA" }}
+          style={{ borderColor: "#ececec", color: "#8d8d8d" }}
         >
-          <Sparkles className="w-3.5 h-3.5" style={{ color: "#A855F7" }} />
+          <Sparkles className="w-3.5 h-3.5" style={{ color: "#0098f2" }} />
           Indie alternative to Semrush
         </div>
 
@@ -355,10 +355,10 @@ export default function LandingPage() {
           Your AI SEO Coach
         </h1>
 
-        <p className="text-xl max-w-[600px]" style={{ color: "#A1A1AA" }}>
+        <p className="text-xl max-w-[600px]" style={{ color: "#8d8d8d" }}>
           Stop staring at data. Start getting results.
         </p>
-        <p className="text-base max-w-[520px]" style={{ color: "#71717A" }}>
+        <p className="text-base max-w-[520px]" style={{ color: "#8d8d8d" }}>
           Not another dashboard. An actual coach that tells you what to fix, in
           what order, and why.
         </p>
@@ -367,13 +367,13 @@ export default function LandingPage() {
           <a href="#get-started">
             <Button
               className="rounded-full text-white font-medium text-base px-8 py-6 h-auto"
-              style={{ backgroundColor: "#A855F7" }}
+              style={{ backgroundColor: "#0098f2" }}
             >
               Start free — no credit card
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </a>
-          <p className="text-xs font-mono tabular-nums" style={{ color: "#71717A" }}>
+          <p className="text-xs font-mono tabular-nums" style={{ color: "#8d8d8d" }}>
             15&euro;/mo after free tier. Cancel anytime.
           </p>
         </div>
@@ -381,7 +381,7 @@ export default function LandingPage() {
         {/* Dashboard mockup placeholder */}
         <div
           className="mt-12 w-full max-w-[800px] aspect-video rounded-2xl border flex items-center justify-center relative overflow-hidden"
-          style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+          style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
         >
           {/* Simplified dashboard representation using CSS */}
           <div className="absolute inset-0 p-6 flex flex-col gap-3 opacity-60">
@@ -389,20 +389,20 @@ export default function LandingPage() {
             <div className="flex gap-3">
               <div
                 className="flex-1 h-20 rounded-xl flex flex-col items-start justify-center px-4"
-                style={{ backgroundColor: "#0A0A0A" }}
+                style={{ backgroundColor: "#ffffff" }}
               >
-                <span className="text-[10px] font-mono" style={{ color: "#71717A" }}>
+                <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   health score
                 </span>
-                <span className="text-2xl font-mono font-semibold" style={{ color: "#34D399" }}>
+                <span className="text-2xl font-mono font-semibold" style={{ color: "#0098f2" }}>
                   87
                 </span>
               </div>
               <div
                 className="flex-1 h-20 rounded-xl flex flex-col items-start justify-center px-4"
-                style={{ backgroundColor: "#0A0A0A" }}
+                style={{ backgroundColor: "#ffffff" }}
               >
-                <span className="text-[10px] font-mono" style={{ color: "#71717A" }}>
+                <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   avg position
                 </span>
                 <span className="text-2xl font-mono font-semibold text-white">
@@ -411,9 +411,9 @@ export default function LandingPage() {
               </div>
               <div
                 className="flex-1 h-20 rounded-xl flex flex-col items-start justify-center px-4 hidden sm:flex"
-                style={{ backgroundColor: "#0A0A0A" }}
+                style={{ backgroundColor: "#ffffff" }}
               >
-                <span className="text-[10px] font-mono" style={{ color: "#71717A" }}>
+                <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   keywords tracked
                 </span>
                 <span className="text-2xl font-mono font-semibold text-white">
@@ -422,12 +422,12 @@ export default function LandingPage() {
               </div>
               <div
                 className="flex-1 h-20 rounded-xl flex flex-col items-start justify-center px-4 hidden md:flex"
-                style={{ backgroundColor: "#0A0A0A" }}
+                style={{ backgroundColor: "#ffffff" }}
               >
-                <span className="text-[10px] font-mono" style={{ color: "#71717A" }}>
+                <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   issues found
                 </span>
-                <span className="text-2xl font-mono font-semibold" style={{ color: "#F87171" }}>
+                <span className="text-2xl font-mono font-semibold" style={{ color: "#f200ca" }}>
                   5
                 </span>
               </div>
@@ -435,7 +435,7 @@ export default function LandingPage() {
             {/* Chart placeholder */}
             <div
               className="flex-1 rounded-xl flex items-end px-4 pb-4 gap-1"
-              style={{ backgroundColor: "#0A0A0A" }}
+              style={{ backgroundColor: "#ffffff" }}
             >
               {[40, 55, 45, 60, 50, 70, 65, 75, 80, 72, 85, 90].map((h, i) => (
                 <div
@@ -443,7 +443,7 @@ export default function LandingPage() {
                   className="flex-1 rounded-t"
                   style={{
                     height: `${h}%`,
-                    backgroundColor: "#A855F7",
+                    backgroundColor: "#0098f2",
                     opacity: 0.3 + (i / 12) * 0.7,
                   }}
                 />
@@ -455,7 +455,7 @@ export default function LandingPage() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "linear-gradient(to bottom, transparent 40%, #0A0A0A 100%)",
+                "linear-gradient(to bottom, transparent 40%, #ffffff 100%)",
             }}
           />
         </div>
@@ -467,7 +467,7 @@ export default function LandingPage() {
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
             You already have Google Search Console. It&apos;s free.
           </h2>
-          <p className="text-base" style={{ color: "#71717A" }}>
+          <p className="text-base" style={{ color: "#8d8d8d" }}>
             So why do you need this?
           </p>
         </div>
@@ -493,7 +493,7 @@ export default function LandingPage() {
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
             Everything you need. Nothing you don&apos;t.
           </h2>
-          <p className="text-base" style={{ color: "#71717A" }}>
+          <p className="text-base" style={{ color: "#8d8d8d" }}>
             Built for people who want results, not more data to stare at.
           </p>
         </div>
@@ -537,7 +537,7 @@ export default function LandingPage() {
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
             Simple pricing
           </h2>
-          <p className="text-base" style={{ color: "#71717A" }}>
+          <p className="text-base" style={{ color: "#8d8d8d" }}>
             Start free. Upgrade when you see results.
           </p>
         </div>
@@ -578,22 +578,22 @@ export default function LandingPage() {
         {/* Credit packs */}
         <div
           className="rounded-2xl border p-6 text-center"
-          style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+          style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
         >
           <p className="text-sm font-medium text-white mb-3">
             Need more? Credit packs
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-mono tabular-nums" style={{ color: "#A1A1AA" }}>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-mono tabular-nums" style={{ color: "#8d8d8d" }}>
             <span>
               50 credits —{" "}
               <span className="text-white font-semibold">5&euro;</span>
             </span>
-            <span style={{ color: "#2A2A2A" }}>|</span>
+            <span style={{ color: "#ececec" }}>|</span>
             <span>
               200 credits —{" "}
               <span className="text-white font-semibold">18&euro;</span>
             </span>
-            <span style={{ color: "#2A2A2A" }}>|</span>
+            <span style={{ color: "#ececec" }}>|</span>
             <span>
               500 credits —{" "}
               <span className="text-white font-semibold">40&euro;</span>
@@ -606,14 +606,14 @@ export default function LandingPage() {
       <Section className="py-24">
         <div
           className="rounded-2xl border p-10 md:p-14 text-center flex flex-col items-center gap-6"
-          style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+          style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
         >
-          <Shield className="w-8 h-8" style={{ color: "#34D399" }} />
+          <Shield className="w-8 h-8" style={{ color: "#0098f2" }} />
           <p className="text-lg md:text-xl font-medium text-white max-w-[600px]">
             Built for freelances, agencies, and solo entrepreneurs who want
             better SEO without the Semrush price tag.
           </p>
-          <p className="text-sm" style={{ color: "#71717A" }}>
+          <p className="text-sm" style={{ color: "#8d8d8d" }}>
             Open source. Self-hostable. Your data stays yours.
           </p>
         </div>
@@ -622,21 +622,21 @@ export default function LandingPage() {
       {/* ---- Get started / Auth form ---- */}
       <Section id="get-started" className="py-24">
         <div className="flex flex-col items-center text-center">
-          <Zap className="w-8 h-8 mb-4" style={{ color: "#A855F7" }} />
+          <Zap className="w-8 h-8 mb-4" style={{ color: "#0098f2" }} />
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-3">
             Ready to fix your SEO?
           </h2>
-          <p className="text-base mb-8" style={{ color: "#71717A" }}>
+          <p className="text-base mb-8" style={{ color: "#8d8d8d" }}>
             Enter your email. We&apos;ll send you a code. No password needed.
           </p>
           <div
             className="w-full max-w-[400px] rounded-2xl border p-8"
-            style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+            style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
           >
             <div className="flex items-center gap-3 mb-6">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-                style={{ backgroundColor: "#A855F7" }}
+                style={{ backgroundColor: "#0098f2" }}
               >
                 S
               </div>
@@ -654,10 +654,10 @@ export default function LandingPage() {
 
       {/* ---- Footer ---- */}
       <footer className="w-full max-w-[1200px] mx-auto px-6 md:px-10 py-8 flex items-center justify-between">
-        <p className="text-xs" style={{ color: "#71717A" }}>
+        <p className="text-xs" style={{ color: "#8d8d8d" }}>
           Indie alternative to Semrush
         </p>
-        <p className="text-xs font-mono tabular-nums" style={{ color: "#71717A" }}>
+        <p className="text-xs font-mono tabular-nums" style={{ color: "#8d8d8d" }}>
           &copy; 2026
         </p>
       </footer>

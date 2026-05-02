@@ -23,7 +23,7 @@ export default async function ApiKeysPage() {
       </header>
 
       {/* Form card */}
-      <div className="rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] p-6">
+      <div className="rounded-xl border border-[#2A2A2A] bg-[#f7fafc] p-6">
         <ApiKeysForm status={status} saveApiKeys={saveApiKeys} />
       </div>
 

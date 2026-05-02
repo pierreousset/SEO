@@ -6,12 +6,12 @@ export function PositionHeatmap({ changes }: { changes: Array<number | null> }) 
       {changes.map((delta, i) => {
         const bg =
           delta === null
-            ? "bg-[#1A1A1A] border border-border"
+            ? "bg-[#f7fafc] border border-border"
             : delta > 0
-              ? "bg-[#34D399]"
+              ? "bg-[#0098f2]"
               : delta < 0
-                ? "bg-[#F87171]"
-                : "bg-[#2A2A2A]";
+                ? "bg-[#f200ca]"
+                : "bg-[#ececec]";
         return (
           <div
             key={i}

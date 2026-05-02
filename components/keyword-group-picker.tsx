@@ -79,7 +79,7 @@ export function KeywordGroupPicker({ keywordId, groups, memberOf }: Props) {
                 />
                 <span
                   className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: g.color ?? "#A855F7" }}
+                  style={{ backgroundColor: g.color ?? "#0098f2" }}
                 />
                 <span className="truncate">{g.name}</span>
               </label>

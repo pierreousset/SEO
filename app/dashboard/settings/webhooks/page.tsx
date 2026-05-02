@@ -73,7 +73,7 @@ export default async function WebhooksPage() {
           <div className="p-6">
             <h2 className="text-sm font-semibold mb-1">API Keys</h2>
             <p className="text-xs text-muted-foreground mb-4">
-              Generate Bearer tokens for the <code className="font-mono text-primary">/api/v1/*</code> REST API.
+              Generate Bearer tokens for the <code className="font-mono text-sky-teal">/api/v1/*</code> REST API.
               Keys are shown once at creation.
             </p>
             <ApiTokenSection tokens={tokens} />

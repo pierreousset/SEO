@@ -444,7 +444,7 @@ function StatusBanner({
   const cls =
     tone === "error"
       ? "bg-[var(--down)]/10 text-[var(--down)] border-[var(--down)]/30"
-      : "bg-primary/10 text-primary border-primary/30";
+      : "bg-sky-teal/10 text-sky-teal border-sky-teal/30";
   return (
     <div className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm ${cls}`}>
       {icon}
