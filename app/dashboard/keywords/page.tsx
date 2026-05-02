@@ -19,6 +19,8 @@ import { Search, ListOrdered } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { KeywordsFilterBar } from "@/components/keywords-filter-bar";
 import { ExportCsvButton } from "@/components/export-csv-button";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 import { applyFilters, parseFiltersFromSearchParams } from "@/lib/keyword-filters";
 import { listGroups, listAllMemberships } from "@/lib/actions/keyword-groups";
 import { KeywordGroupBar } from "@/components/keyword-group-bar";
@@ -223,9 +225,21 @@ export default async function KeywordsPage({
     });
 
   const filteredByFilters = applyFilters(rows, filters);
-  const filteredRows = activeGroupKeywordIds
+  const filteredByGroup = activeGroupKeywordIds
     ? filteredByFilters.filter((r) => activeGroupKeywordIds.has(r.id))
     : filteredByFilters;
+
+  // ── Sortable table state ───────────────────────────────────────
+  const { field: sortField, dir: sortDir } = parseSort(sp, "position", "asc");
+  const filteredRows = sortRows(filteredByGroup, sortField, sortDir, {
+    keyword: (r) => r.keyword.toLowerCase(),
+    position: (r) => r.position,
+    delta1d: (r) => r.delta1d,
+    delta7d: (r) => r.delta7d,
+    impressions: (r) => r.gscImpressions,
+    bestComp: (r) => r.bestCompPosition,
+    country: (r) => r.country.toUpperCase(),
+  });
 
   const unclassifiedCount = rows.filter((r) => r.intentStage == null).length;
 
@@ -448,16 +462,30 @@ export default async function KeywordsPage({
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.thKeyword}</th>
+              <th className="text-left px-4 py-2">
+                <SortableHeader field="keyword" label={i.thKeyword} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
               <th className="text-left px-3 py-2 text-caption text-ash-gray w-12">{i.thIntent}</th>
               <th className="text-left px-3 py-2 text-caption text-ash-gray">{i.thDiagnostic}</th>
-              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thPosition}</th>
-              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.th1d}</th>
-              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.th7d}</th>
+              <th className="text-right px-4 py-2">
+                <SortableHeader field="position" label={i.thPosition} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
+              <th className="text-right px-4 py-2">
+                <SortableHeader field="delta1d" label={i.th1d} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
+              <th className="text-right px-4 py-2">
+                <SortableHeader field="delta7d" label={i.th7d} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
               <th className="px-2 py-2 text-caption text-ash-gray text-center">{i.th7dShort}</th>
-              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thImpr}</th>
-              <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.thBestComp}</th>
-              <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.thCountry}</th>
+              <th className="text-right px-4 py-2">
+                <SortableHeader field="impressions" label={i.thImpr} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
+              <th className="text-right px-4 py-2">
+                <SortableHeader field="bestComp" label={i.thBestComp} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
+              <th className="text-left px-4 py-2">
+                <SortableHeader field="country" label={i.thCountry} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
               <th className="text-left px-3 py-2 text-caption text-ash-gray">{i.thTip}</th>
               <th className="px-4 py-2 w-8" aria-label="Actions" />
             </tr>
