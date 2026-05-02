@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Caveat, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-sans",
+const caveat = Caveat({
+  variable: "--font-caveat",
   subsets: ["latin"],
+  weight: ["600"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["500"],
 });
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s | SEO Dashboard",
   },
   description:
-    "Stop staring at data. Start getting results. AI-powered SEO coach that tells you what to fix, in what order, and why. Indie alternative to Semrush at 15\u20ac/mo.",
+    "Stop staring at data. Start getting results. AI-powered SEO coach that tells you what to fix, in what order, and why. Indie alternative to Semrush at 15€/mo.",
   keywords: [
     "SEO",
     "SEO dashboard",
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SEO Dashboard — Your AI SEO Coach",
     description:
-      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs. 15\u20ac/mo.",
+      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs. 15€/mo.",
     type: "website",
     locale: "fr_FR",
     alternateLocale: "en_US",
@@ -67,15 +68,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geist.variable} ${geistMono.variable} h-full antialiased dark`}
-      suppressHydrationWarning
+      className={`${caveat.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <LocaleProvider>
-            {children}
-          </LocaleProvider>
-        </ThemeProvider>
+      <body className="min-h-full flex flex-col bg-canvas-white text-ink-black">
+        <LocaleProvider>{children}</LocaleProvider>
         <Toaster position="top-right" />
       </body>
     </html>

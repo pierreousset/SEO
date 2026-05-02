@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ChangelogModal } from "@/components/changelog-modal";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { useLocale } from "@/components/locale-provider";
 import { t } from "@/lib/i18n";
@@ -179,7 +178,6 @@ export function ExpandableSidebar({
         >
           {isExpanded && accountSwitcherSlot}
           <div className={`flex ${isExpanded ? "gap-1" : "flex-col items-center gap-1"}`}>
-            <ThemeToggle />
             <LocaleToggle />
             <ChangelogModal />
           </div>
