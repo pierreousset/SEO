@@ -31,6 +31,27 @@ export type SeverityStrings = {
   low: string;
 };
 
+export type IssueCardLabels = {
+  whyThisMatters: string;
+  affectedPages: (n: number) => string;
+  affectedKeywords: (n: number) => string;
+  severity: SeverityStrings;
+};
+
+export const issueCardLabelsFR: IssueCardLabels = {
+  whyThisMatters: "Pourquoi c'est important",
+  affectedPages: (n) => `${n} page${n !== 1 ? "s" : ""}`,
+  affectedKeywords: (n) => `${n} mot${n !== 1 ? "s" : ""}-clé${n !== 1 ? "s" : ""}`,
+  severity: { high: "élevé", medium: "moyen", low: "faible" },
+};
+
+export const issueCardLabelsEN: IssueCardLabels = {
+  whyThisMatters: "Why this matters",
+  affectedPages: (n) => `${n} page${n !== 1 ? "s" : ""}`,
+  affectedKeywords: (n) => `${n} keyword${n !== 1 ? "s" : ""}`,
+  severity: { high: "high", medium: "medium", low: "low" },
+};
+
 export const issueStringsEN: IssueDict = {
   declining_traffic: {
     title: (n) => `${n} page${n > 1 ? "s" : ""} losing traffic`,

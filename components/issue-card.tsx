@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import {
+  issueCardLabelsEN,
+  type IssueCardLabels,
+} from "@/lib/issue-strings";
 
 export type IssueCardData = {
   type: string;
@@ -15,20 +19,21 @@ export type IssueCardData = {
 };
 
 // Severity badge per Acctual: pill, brand-palette colors only.
-// high = hot-pink (loud), medium = ash-gray (neutral), low = ash-gray.
 const severityBadge: Record<string, string> = {
   high: "bg-hot-pink/10 text-hot-pink",
-  medium: "bg-subtle-cream text-deep-slate",
+  medium: "bg-vivid-violet/10 text-vivid-violet",
   low: "bg-subtle-cream text-ash-gray",
 };
 
-const severityLabel: Record<string, string> = {
-  high: "high",
-  medium: "medium",
-  low: "low",
-};
-
-export function IssueCard({ issue, children }: { issue: IssueCardData; children?: React.ReactNode }) {
+export function IssueCard({
+  issue,
+  labels = issueCardLabelsEN,
+  children,
+}: {
+  issue: IssueCardData;
+  labels?: IssueCardLabels;
+  children?: React.ReactNode;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const affectedCount =
@@ -41,7 +46,7 @@ export function IssueCard({ issue, children }: { issue: IssueCardData; children?
         <span
           className={`shrink-0 inline-block text-caption px-2.5 py-0.5 rounded-full ${severityBadge[issue.severity]}`}
         >
-          {severityLabel[issue.severity]}
+          {labels.severity[issue.severity]}
         </span>
       </div>
       <p className="text-xs text-muted-foreground">{issue.description}</p>
@@ -52,10 +57,10 @@ export function IssueCard({ issue, children }: { issue: IssueCardData; children?
       {affectedCount > 0 && (
         <div className="text-xs text-muted-foreground mt-1.5">
           {issue.affectedPages && issue.affectedPages.length > 0 && (
-            <span>&rarr; {issue.affectedPages.length} page{issue.affectedPages.length !== 1 ? "s" : ""}</span>
+            <span>&rarr; {labels.affectedPages(issue.affectedPages.length)}</span>
           )}
           {issue.affectedKeywords && issue.affectedKeywords.length > 0 && (
-            <span>&rarr; {issue.affectedKeywords.length} keyword{issue.affectedKeywords.length !== 1 ? "s" : ""}</span>
+            <span>&rarr; {labels.affectedKeywords(issue.affectedKeywords.length)}</span>
           )}
         </div>
       )}
@@ -70,7 +75,7 @@ export function IssueCard({ issue, children }: { issue: IssueCardData; children?
           ) : (
             <ChevronRight className="h-3 w-3" strokeWidth={1.5} />
           )}
-          Why this matters
+          {labels.whyThisMatters}
         </button>
       )}
       {expanded && issue.whyItMatters && (

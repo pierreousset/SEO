@@ -288,7 +288,7 @@ export default async function PagesPage({
                     issue.type === "low_ctr_for_position";
                   const firstPage = issue.affectedPages?.[0];
                   return (
-                    <IssueCard key={issue.type} issue={issue}>
+                    <IssueCard key={issue.type} issue={issue} labels={i.issueCard}>
                       {showMetaCta && firstPage && (
                         <MetaSuggestionButton url={firstPage} />
                       )}

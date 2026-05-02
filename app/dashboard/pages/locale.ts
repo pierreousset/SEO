@@ -1,9 +1,15 @@
 // Per-page i18n strings for /dashboard/pages.
 
-import { issueStringsFR, issueStringsEN } from "@/lib/issue-strings";
+import {
+  issueStringsFR,
+  issueStringsEN,
+  issueCardLabelsFR,
+  issueCardLabelsEN,
+} from "@/lib/issue-strings";
 
 const fr = {
   issues: issueStringsFR,
+  issueCard: issueCardLabelsFR,
   headerKicker: (days: number) => `Pages indexées · ${days} derniers jours`,
   title: "Pages",
 
@@ -57,6 +63,7 @@ const fr = {
 
 const en: typeof fr = {
   issues: issueStringsEN,
+  issueCard: issueCardLabelsEN,
   headerKicker: (days: number) => `Indexed pages · last ${days} days`,
   title: "Pages",
 
