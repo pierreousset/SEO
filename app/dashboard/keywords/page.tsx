@@ -266,7 +266,7 @@ export default async function KeywordsPage({
     intentStage: r.intentStage != null ? Number(r.intentStage) : null,
   }));
 
-  const keywordIssues = detectKeywordIssues(keywordDataArray);
+  const keywordIssues = detectKeywordIssues(keywordDataArray, i.issues);
   const topIssues = keywordIssues.slice(0, 3);
 
   // Build a map from row id to tip for per-row rendering

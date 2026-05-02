@@ -9,6 +9,8 @@ import { MetaSuggestionButton } from "@/components/meta-suggestion-button";
 import { detectContentDecay } from "@/lib/content-decay";
 import { DecayMiniChart } from "@/components/decay-mini-chart";
 import { CheckVitalsButton } from "@/components/check-vitals-button";
+import { SortableHeader } from "@/components/sortable-header";
+import { parseSort, sortRows } from "@/lib/table-sort";
 import { getLocale } from "@/lib/i18n-server";
 import { locale } from "./locale";
 
@@ -62,10 +64,15 @@ const healthDotColor: Record<RowHealth, string> = {
   red: "bg-hot-pink",
 };
 
-export default async function PagesPage() {
+export default async function PagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await resolveAccountContext();
   const lng = await getLocale();
   const i = locale[lng];
+  const sp = await searchParams;
 
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - WINDOW_DAYS);
@@ -205,13 +212,24 @@ export default async function PagesPage() {
     };
   });
 
-  const issues: IssueCardData[] = detectPageIssues(pageDataArray) as IssueCardData[];
+  const issues: IssueCardData[] = detectPageIssues(pageDataArray, i.issues) as IssueCardData[];
   const topIssues = issues.slice(0, 5);
 
   const totalPages = aggregated.length;
   const totalClicks = aggregated.reduce((s, r) => s + r.clicks, 0);
   const totalImpressions = aggregated.reduce((s, r) => s + r.impressions, 0);
   const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+
+  // ── Sortable Top Pages table ───────────────────────────────────
+  const { field: sortField, dir: sortDir } = parseSort(sp, "clicks", "desc");
+  const aggregatedSorted = sortRows(aggregated, sortField, sortDir, {
+    url: (r) => r.url,
+    clicks: (r) => r.clicks,
+    impressions: (r) => r.impressions,
+    ctr: (r) => (r.impressions > 0 ? r.clicks / r.impressions : 0),
+    avgPosition: (r) => r.avgPosition,
+    lastDate: (r) => r.lastDate,
+  });
 
   // Build health lookup
   const healthMap = new Map<string, RowHealth>();
@@ -432,16 +450,28 @@ export default async function PagesPage() {
                 <thead>
                   <tr>
                     <th className="text-center px-2 py-3 text-caption text-ash-gray w-8"></th>
-                    <th className="text-left px-4 py-3 text-caption text-ash-gray">{i.thUrl}</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thClicks}</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thImpr}</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thCtr}</th>
-                    <th className="text-right px-3 py-3 text-caption text-ash-gray">{i.thAvgPos}</th>
-                    <th className="text-right px-4 py-3 text-caption text-ash-gray">{i.thLastSeen}</th>
+                    <th className="text-left px-4 py-3">
+                      <SortableHeader field="url" label={i.thUrl} currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="clicks" label={i.thClicks} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="impressions" label={i.thImpr} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="ctr" label={i.thCtr} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-3 py-3">
+                      <SortableHeader field="avgPosition" label={i.thAvgPos} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
+                    <th className="text-right px-4 py-3">
+                      <SortableHeader field="lastDate" label={i.thLastSeen} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {aggregated.map((r) => {
+                  {aggregatedSorted.map((r) => {
                     const ctr = r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0;
                     const health = healthMap.get(r.url) ?? "green";
                     let display = r.url;

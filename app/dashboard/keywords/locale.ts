@@ -1,7 +1,11 @@
 // Per-page i18n strings for /dashboard/keywords. See app/dashboard/locale.ts
 // for the canonical example.
 
+import { issueStringsFR, issueStringsEN, severityStrings } from "@/lib/issue-strings";
+
 const fr = {
+  issues: issueStringsFR,
+  severity: severityStrings.fr,
   // Empty state
   emptyTitle: "Aucun mot-clé suivi pour l'instant",
   emptyDescNoSites:
@@ -63,6 +67,8 @@ const fr = {
 };
 
 const en: typeof fr = {
+  issues: issueStringsEN,
+  severity: severityStrings.en,
   emptyTitle: "No keywords tracked yet",
   emptyDescNoSites:
     "Connect Google Search Console first, then add keywords to start monitoring your search positions.",

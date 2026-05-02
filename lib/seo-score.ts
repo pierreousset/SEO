@@ -246,7 +246,12 @@ export function computeGlobalScore(data: SiteData): { score: number; breakdown: 
 
 // ── Page Issues Detection ────────────────────────────────────────
 
-export function detectPageIssues(pages: PageData[]): Issue[] {
+import { defaultIssueStrings, type IssueDict } from "./issue-strings";
+
+export function detectPageIssues(
+  pages: PageData[],
+  strings: IssueDict = defaultIssueStrings,
+): Issue[] {
   const issues: Issue[] = [];
 
   // Declining traffic: pages losing >30% clicks in 14d
@@ -254,14 +259,18 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
     (p) => p.clicksPrev28d > 5 && p.clicks28d < p.clicksPrev28d * 0.7,
   );
   if (declining.length > 0) {
+    const s = strings.declining_traffic;
+    const clicksLost = declining.reduce(
+      (acc, p) => acc + (p.clicksPrev28d - p.clicks28d),
+      0,
+    );
     issues.push({
       type: "declining_traffic",
       severity: "high",
-      title: `${declining.length} page${declining.length > 1 ? "s" : ""} losing traffic`,
-      description: `These pages lost more than 30% of their clicks compared to the previous period.`,
-      impact: `~${declining.reduce((s, p) => s + (p.clicksPrev28d - p.clicks28d), 0)} clicks lost`,
-      whyItMatters:
-        "A sudden traffic drop usually means a competitor published better content, Google changed how it interprets the query, or your page's freshness signal decayed. Check what changed.",
+      title: s.title(declining.length),
+      description: s.description,
+      impact: s.impact(clicksLost),
+      whyItMatters: s.whyItMatters,
       affectedPages: declining.map((p) => p.url),
     });
   }
@@ -274,17 +283,20 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
     return actual < expected * 0.5; // less than half the expected CTR
   });
   if (lowCtr.length > 0) {
+    const s = strings.low_ctr_for_position;
+    const clicksGain = Math.round(
+      lowCtr.reduce((acc, p) => {
+        const expected = expectedCtr(p.avgPosition) * p.impressions28d;
+        return acc + Math.max(0, expected - p.clicks28d);
+      }, 0),
+    );
     issues.push({
       type: "low_ctr_for_position",
       severity: "medium",
-      title: `${lowCtr.length} page${lowCtr.length > 1 ? "s" : ""} with low click-through rate`,
-      description: `These pages rank well but get fewer clicks than expected. Usually means the title or meta description doesn't match what users are looking for.`,
-      impact: `Improving titles could add ~${Math.round(lowCtr.reduce((s, p) => {
-        const expected = expectedCtr(p.avgPosition) * p.impressions28d;
-        return s + Math.max(0, expected - p.clicks28d);
-      }, 0))} clicks/month`,
-      whyItMatters:
-        "Your page appears in search results but users skip it. The title tag is the #1 factor for click-through rate. A good title matches the searcher's intent and includes the keyword naturally.",
+      title: s.title(lowCtr.length),
+      description: s.description,
+      impact: s.impact(clicksGain),
+      whyItMatters: s.whyItMatters,
       affectedPages: lowCtr.map((p) => p.url),
     });
   }
@@ -294,14 +306,18 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
     (p) => p.impressions28d > 20 && p.clicks28d === 0,
   );
   if (zeroClicks.length > 0) {
+    const s = strings.zero_clicks;
+    const clicksRecover = zeroClicks.reduce(
+      (acc, p) => acc + Math.round(p.impressions28d * 0.01),
+      0,
+    );
     issues.push({
       type: "zero_clicks",
       severity: "low",
-      title: `${zeroClicks.length} page${zeroClicks.length > 1 ? "s" : ""} with zero clicks`,
-      description: `These pages show in search results but nobody clicks them.`,
-      impact: `Potential to recover ${zeroClicks.reduce((s, p) => s + Math.round(p.impressions28d * 0.01), 0)} clicks/month with better titles`,
-      whyItMatters:
-        "A page that gets impressions but zero clicks is wasting its position. Either the title doesn't match the intent, or the page targets queries nobody actually wants to click on.",
+      title: s.title(zeroClicks.length),
+      description: s.description,
+      impact: s.impact(clicksRecover),
+      whyItMatters: s.whyItMatters,
       affectedPages: zeroClicks.map((p) => p.url),
     });
   }
@@ -311,14 +327,14 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
     (p) => p.avgPosition >= 11 && p.avgPosition <= 20 && p.impressions28d > 100,
   );
   if (quickWins.length > 0) {
+    const s = strings.quick_win;
     issues.push({
       type: "quick_win",
       severity: "medium",
-      title: `${quickWins.length} page${quickWins.length > 1 ? "s" : ""} close to page 1`,
-      description: `These pages rank on page 2 with significant search volume. A small improvement could push them to page 1.`,
-      impact: `Moving to page 1 typically increases clicks by 5-10x`,
-      whyItMatters:
-        "Page 2 of Google gets less than 1% of clicks. Page 1 gets 90%+. The difference between position 11 and position 10 is enormous. Focus your content improvement efforts here first.",
+      title: s.title(quickWins.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedPages: quickWins.map((p) => p.url),
     });
   }
@@ -326,25 +342,28 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
   // Title issues
   const noTitle = pages.filter((p) => !p.title);
   if (noTitle.length > 0) {
+    const s = strings.title_missing;
     issues.push({
       type: "title_missing",
       severity: "high",
-      title: `${noTitle.length} page${noTitle.length > 1 ? "s" : ""} missing title`,
-      description: `Pages without a title tag rank poorly and get almost no clicks.`,
-      impact: `Adding titles is the highest-impact SEO fix`,
-      whyItMatters: "The title tag is the first thing Google and users see. Without it, Google generates one from your page content, which is almost always worse.",
+      title: s.title(noTitle.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedPages: noTitle.map((p) => p.url),
     });
   }
 
   const shortTitle = pages.filter((p) => p.title && p.titleLength < 30);
   if (shortTitle.length > 0) {
+    const s = strings.title_short;
     issues.push({
       type: "title_short",
       severity: "medium",
-      title: `${shortTitle.length} page${shortTitle.length > 1 ? "s" : ""} with short titles`,
-      description: `Titles under 30 characters miss keyword opportunities. Aim for 30-60 characters.`,
-      impact: `Better titles = higher CTR`,
+      title: s.title(shortTitle.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedPages: shortTitle.map((p) => p.url),
     });
   }
@@ -352,13 +371,14 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
   // Meta issues
   const noMeta = pages.filter((p) => !p.metaDescription);
   if (noMeta.length > 0) {
+    const s = strings.meta_missing;
     issues.push({
       type: "meta_missing",
       severity: "medium",
-      title: `${noMeta.length} page${noMeta.length > 1 ? "s" : ""} missing meta description`,
-      description: `Google shows the meta description in search results. Without one, it grabs random text from your page.`,
-      impact: `Good meta descriptions improve CTR by 5-10%`,
-      whyItMatters: "The meta description is your ad copy in search results. It doesn't directly affect ranking, but it affects whether people click. Write it like a call to action.",
+      title: s.title(noMeta.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedPages: noMeta.map((p) => p.url),
     });
   }
@@ -366,12 +386,14 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
   // Not in sitemap
   const notInSitemap = pages.filter((p) => !p.inSitemap && p.indexable);
   if (notInSitemap.length > 0) {
+    const s = strings.not_in_sitemap;
     issues.push({
       type: "not_in_sitemap",
       severity: "low",
-      title: `${notInSitemap.length} page${notInSitemap.length > 1 ? "s" : ""} not in sitemap`,
-      description: `These pages are indexed but not listed in your sitemap.xml.`,
-      impact: `Adding them helps Google discover and re-crawl them faster`,
+      title: s.title(notInSitemap.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedPages: notInSitemap.map((p) => p.url),
     });
   }
@@ -385,7 +407,10 @@ export function detectPageIssues(pages: PageData[]): Issue[] {
 
 // ── Keyword Issues Detection ─────��───────────────────────────────
 
-export function detectKeywordIssues(keywords: KeywordData[]): Issue[] {
+export function detectKeywordIssues(
+  keywords: KeywordData[],
+  strings: IssueDict = defaultIssueStrings,
+): Issue[] {
   const issues: Issue[] = [];
 
   // Dropping keywords
@@ -396,13 +421,14 @@ export function detectKeywordIssues(keywords: KeywordData[]): Issue[] {
       k.latestPosition - k.weekAgoPosition >= 5,
   );
   if (dropping.length > 0) {
+    const s = strings.keyword_dropping;
     issues.push({
       type: "keyword_dropping",
       severity: "high",
-      title: `${dropping.length} keyword${dropping.length > 1 ? "s" : ""} dropping fast`,
-      description: `These keywords lost 5+ positions in the last 7 days.`,
-      impact: `Each lost position on page 1 costs ~30% of clicks`,
-      whyItMatters: "A sudden position drop usually means a competitor published better content or Google re-evaluated your page. Check the SERP for these queries and see what changed.",
+      title: s.title(dropping.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedKeywords: dropping.map((k) => k.query),
     });
   }
@@ -416,13 +442,14 @@ export function detectKeywordIssues(keywords: KeywordData[]): Issue[] {
       k.impressions28d > 50,
   );
   if (opportunities.length > 0) {
+    const s = strings.keyword_opportunity;
     issues.push({
       type: "keyword_opportunity",
       severity: "medium",
-      title: `${opportunities.length} keyword${opportunities.length > 1 ? "s" : ""} close to top 3`,
-      description: `These keywords are on page 1 but not in the top 3, where most clicks go.`,
-      impact: `Top 3 gets 54% of all clicks vs 12% for positions 4-10`,
-      whyItMatters: "Positions 1-3 get dramatically more clicks than 4-10. Improving your content depth, internal linking, and title for these queries can push you into the high-click zone.",
+      title: s.title(opportunities.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedKeywords: opportunities.map((k) => k.query),
     });
   }
@@ -435,13 +462,14 @@ export function detectKeywordIssues(keywords: KeywordData[]): Issue[] {
     return actual < expected * 0.4;
   });
   if (lowCtrKw.length > 0) {
+    const s = strings.keyword_low_ctr;
     issues.push({
       type: "keyword_low_ctr",
       severity: "medium",
-      title: `${lowCtrKw.length} keyword${lowCtrKw.length > 1 ? "s" : ""} with low CTR`,
-      description: `These keywords rank decently but get fewer clicks than expected for their position.`,
-      impact: `Improving titles + meta descriptions for these could double their clicks`,
-      whyItMatters: "When your CTR is below average for your position, it tells Google your result isn't what searchers want. This can lead to further ranking drops. Fix the title to match the search intent.",
+      title: s.title(lowCtrKw.length),
+      description: s.description,
+      impact: s.impact(0),
+      whyItMatters: s.whyItMatters,
       affectedKeywords: lowCtrKw.map((k) => k.query),
     });
   }
