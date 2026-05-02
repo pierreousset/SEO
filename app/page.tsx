@@ -73,7 +73,7 @@ function AuthForm() {
           placeholder="your@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-11 rounded-xl text-sm px-4 border text-white placeholder:text-neutral-500"
+          className="h-11 rounded-xl text-sm px-4 border text-foreground placeholder:text-ash-gray"
           style={{
             backgroundColor: "#ffffff",
             borderColor: "#ececec",
@@ -84,7 +84,7 @@ function AuthForm() {
         type="submit"
         disabled={loading}
         className="w-full rounded-full text-white font-medium"
-        style={{ backgroundColor: "#0098f2" }}
+        style={{ backgroundColor: "#0d111b" }}
       >
         {loading ? "Sending code..." : "Start free — no credit card"}
       </Button>
@@ -143,9 +143,9 @@ function CompareCard({
       <div className="flex items-start gap-3">
         <span
           className="inline-block w-2 h-2 rounded-full mt-2 shrink-0"
-          style={{ backgroundColor: "#0098f2" }}
+          style={{ backgroundColor: "#0d111b" }}
         />
-        <p className="text-sm font-medium text-white">{ours}</p>
+        <p className="text-sm font-medium text-ink-black">{ours}</p>
       </div>
     </div>
   );
@@ -175,7 +175,7 @@ function FeatureTile({
       >
         <Icon className="w-5 h-5" style={{ color: "#0098f2" }} />
       </div>
-      <h3 className="text-base font-semibold text-white">{title}</h3>
+      <h3 className="text-base font-semibold text-ink-black">{title}</h3>
       <p className="text-sm" style={{ color: "#8d8d8d" }}>
         {description}
       </p>
@@ -215,7 +215,7 @@ function PricingCard({
           {name}
         </h3>
         <div className="flex items-baseline gap-1 mt-2">
-          <span className="text-4xl font-semibold text-white font-mono tabular-nums">
+          <span className="text-4xl font-semibold text-ink-black font-mono tabular-nums">
             {price}
           </span>
           {period && (
@@ -227,7 +227,7 @@ function PricingCard({
       </div>
       <ul className="flex flex-col gap-3 flex-1">
         {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-sm text-white">
+          <li key={f} className="flex items-start gap-2 text-sm text-ink-black">
             <Check
               className="w-4 h-4 shrink-0 mt-0.5"
               style={{ color: "#0098f2" }}
@@ -240,7 +240,7 @@ function PricingCard({
         <Button
           className="w-full rounded-full text-white font-medium"
           style={{
-            backgroundColor: highlighted ? "#0098f2" : "transparent",
+            backgroundColor: highlighted ? "#0d111b" : "transparent",
             border: highlighted ? "none" : "1.5px solid #ececec",
           }}
         >
@@ -301,19 +301,19 @@ export default function LandingPage() {
       <nav className="w-full max-w-[1200px] mx-auto px-6 md:px-10 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-            style={{ backgroundColor: "#0098f2" }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-canvas-white font-bold text-base"
+            style={{ backgroundColor: "#0d111b" }}
           >
             S
           </div>
-          <span className="text-white font-semibold text-lg">SEO Dashboard</span>
+          <span className="text-ink-black font-semibold text-lg">SEO Dashboard</span>
         </div>
         <div className="flex items-center gap-3">
           {session ? (
             <Link href="/dashboard">
               <Button
                 className="rounded-full text-white font-medium text-sm"
-                style={{ backgroundColor: "#0098f2" }}
+                style={{ backgroundColor: "#0d111b" }}
               >
                 Dashboard
               </Button>
@@ -331,7 +331,7 @@ export default function LandingPage() {
               <a href="#get-started">
                 <Button
                   className="rounded-full text-white font-medium text-sm"
-                  style={{ backgroundColor: "#0098f2" }}
+                  style={{ backgroundColor: "#0d111b" }}
                 >
                   Get started
                 </Button>
@@ -351,7 +351,7 @@ export default function LandingPage() {
           Indie alternative to Semrush
         </div>
 
-        <h1 className="text-[48px] md:text-[64px] font-semibold text-white leading-tight tracking-tight">
+        <h1 className="text-[48px] md:text-[64px] font-semibold text-ink-black leading-tight tracking-tight">
           Your AI SEO Coach
         </h1>
 
@@ -367,7 +367,7 @@ export default function LandingPage() {
           <a href="#get-started">
             <Button
               className="rounded-full text-white font-medium text-base px-8 py-6 h-auto"
-              style={{ backgroundColor: "#0098f2" }}
+              style={{ backgroundColor: "#0d111b" }}
             >
               Start free — no credit card
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -405,7 +405,7 @@ export default function LandingPage() {
                 <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   avg position
                 </span>
-                <span className="text-2xl font-mono font-semibold text-white">
+                <span className="text-2xl font-mono font-semibold text-ink-black">
                   8.4
                 </span>
               </div>
@@ -416,7 +416,7 @@ export default function LandingPage() {
                 <span className="text-[10px] font-mono" style={{ color: "#8d8d8d" }}>
                   keywords tracked
                 </span>
-                <span className="text-2xl font-mono font-semibold text-white">
+                <span className="text-2xl font-mono font-semibold text-ink-black">
                   42
                 </span>
               </div>
@@ -464,7 +464,7 @@ export default function LandingPage() {
       {/* ---- Problem section ---- */}
       <Section className="py-24">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
+          <h2 className="text-2xl md:text-3xl font-semibold text-ink-black mb-4">
             You already have Google Search Console. It&apos;s free.
           </h2>
           <p className="text-base" style={{ color: "#8d8d8d" }}>
@@ -490,7 +490,7 @@ export default function LandingPage() {
       {/* ---- Features bento grid ---- */}
       <Section className="py-24">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
+          <h2 className="text-2xl md:text-3xl font-semibold text-ink-black mb-4">
             Everything you need. Nothing you don&apos;t.
           </h2>
           <p className="text-base" style={{ color: "#8d8d8d" }}>
@@ -534,7 +534,7 @@ export default function LandingPage() {
       {/* ---- Pricing ---- */}
       <Section className="py-24">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-semibold text-white mb-4">
+          <h2 className="text-2xl md:text-3xl font-semibold text-ink-black mb-4">
             Simple pricing
           </h2>
           <p className="text-base" style={{ color: "#8d8d8d" }}>
@@ -580,23 +580,23 @@ export default function LandingPage() {
           className="rounded-2xl border p-6 text-center"
           style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
         >
-          <p className="text-sm font-medium text-white mb-3">
+          <p className="text-sm font-medium text-ink-black mb-3">
             Need more? Credit packs
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-mono tabular-nums" style={{ color: "#8d8d8d" }}>
             <span>
               50 credits —{" "}
-              <span className="text-white font-semibold">5&euro;</span>
+              <span className="text-ink-black font-semibold">5&euro;</span>
             </span>
             <span style={{ color: "#ececec" }}>|</span>
             <span>
               200 credits —{" "}
-              <span className="text-white font-semibold">18&euro;</span>
+              <span className="text-ink-black font-semibold">18&euro;</span>
             </span>
             <span style={{ color: "#ececec" }}>|</span>
             <span>
               500 credits —{" "}
-              <span className="text-white font-semibold">40&euro;</span>
+              <span className="text-ink-black font-semibold">40&euro;</span>
             </span>
           </div>
         </div>
@@ -609,7 +609,7 @@ export default function LandingPage() {
           style={{ backgroundColor: "#f7fafc", borderColor: "#ececec" }}
         >
           <Shield className="w-8 h-8" style={{ color: "#0098f2" }} />
-          <p className="text-lg md:text-xl font-medium text-white max-w-[600px]">
+          <p className="text-lg md:text-xl font-medium text-ink-black max-w-[600px]">
             Built for freelances, agencies, and solo entrepreneurs who want
             better SEO without the Semrush price tag.
           </p>
@@ -623,7 +623,7 @@ export default function LandingPage() {
       <Section id="get-started" className="py-24">
         <div className="flex flex-col items-center text-center">
           <Zap className="w-8 h-8 mb-4" style={{ color: "#0098f2" }} />
-          <h2 className="text-2xl md:text-3xl font-semibold text-white mb-3">
+          <h2 className="text-2xl md:text-3xl font-semibold text-ink-black mb-3">
             Ready to fix your SEO?
           </h2>
           <p className="text-base mb-8" style={{ color: "#8d8d8d" }}>
@@ -635,16 +635,16 @@ export default function LandingPage() {
           >
             <div className="flex items-center gap-3 mb-6">
               <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-                style={{ backgroundColor: "#0098f2" }}
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-canvas-white font-bold text-base"
+                style={{ backgroundColor: "#0d111b" }}
               >
                 S
               </div>
-              <span className="text-white font-semibold text-lg">
+              <span className="text-ink-black font-semibold text-lg">
                 SEO Dashboard
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-6">
+            <h3 className="text-lg font-semibold text-ink-black mb-6">
               Sign in to your dashboard
             </h3>
             <Suspense><AuthForm /></Suspense>

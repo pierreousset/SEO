@@ -60,16 +60,16 @@ function VerifyForm() {
         >
           S
         </div>
-        <span className="text-white font-semibold text-lg">SEO Dashboard</span>
+        <span className="text-ink-black font-semibold text-lg">SEO Dashboard</span>
       </div>
 
       {/* Heading */}
-      <h1 className="text-lg font-semibold text-white mb-1">
+      <h1 className="text-lg font-semibold text-ink-black mb-1">
         Enter your code
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
         Check{" "}
-        <span className="text-white font-medium">{email || "your email"}</span>{" "}
+        <span className="text-ink-black font-medium">{email || "your email"}</span>{" "}
         for a 6-digit code.
       </p>
 
@@ -88,7 +88,7 @@ function VerifyForm() {
             placeholder="123456"
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            className="h-11 rounded-xl text-sm px-4 border font-mono text-center text-lg tracking-widest text-white placeholder:text-neutral-500"
+            className="h-11 rounded-xl text-sm px-4 border font-mono text-center text-lg tracking-widest text-foreground placeholder:text-ash-gray"
             style={{
               backgroundColor: "#ffffff",
               borderColor: "#ececec",
@@ -107,7 +107,7 @@ function VerifyForm() {
 
       <button
         onClick={handleResend}
-        className="mt-6 text-xs text-muted-foreground hover:text-white transition-colors"
+        className="mt-6 text-xs text-muted-foreground hover:text-ink-black transition-colors"
       >
         Didn't get it? Resend code
       </button>
