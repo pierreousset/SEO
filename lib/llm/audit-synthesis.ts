@@ -24,7 +24,7 @@ export type AuditSynthesis = z.infer<typeof synthesisSchema> & { model: string }
 
 const MODEL = "claude-sonnet-4-6";
 
-function buildSystem(profile: BusinessProfile | null): string {
+function buildSystem(profile: BusinessProfile | null, lang: "fr" | "en"): string {
   const base = `You are a senior technical SEO consultant reading a freshly-collected on-page audit.
 
 Your job (call save_synthesis tool):
@@ -46,7 +46,10 @@ Rules:
   raw HTML — but client-side rendered or tag-manager-injected schema is invisible to us.
   Treat schema findings as low priority unless multiple severity:high signals also point to it.`;
 
-  if (!profile) return base + "\n\nWrite in French unless URLs and content suggest English.";
+  const writeIn = lang === "en" ? "English" : "French";
+  if (!profile) {
+    return base + `\n\nWrite every string in ${writeIn}.`;
+  }
 
   const lines: string[] = ["BUSINESS CONTEXT (always reference when writing actions):"];
   if (profile.businessName) lines.push(`- Business: ${profile.businessName}`);
@@ -54,7 +57,7 @@ Rules:
   if (profile.targetCities.length) lines.push(`- Target cities: ${profile.targetCities.join(", ")}`);
   if (profile.competitorUrls.length) lines.push(`- Competitors: ${profile.competitorUrls.join(", ")}`);
   if (profile.biggestSeoProblem) lines.push(`- Stated problem: ${profile.biggestSeoProblem}`);
-  lines.push(`- Language: write in ${profile.preferredLanguage === "en" ? "English" : "French"}.`);
+  lines.push(`- Language: write in ${writeIn}.`);
 
   return base + "\n\n" + lines.join("\n");
 }
@@ -64,6 +67,7 @@ export async function synthesizeAudit(input: {
   profile?: BusinessProfile | null;
   pagesCrawled: number;
   userId?: string;
+  lang?: "fr" | "en";
 }): Promise<AuditSynthesis> {
   const apiKey = input.userId
     ? await getAnthropicApiKey(input.userId)
@@ -115,7 +119,10 @@ Synthesize the most impactful actions. Group similar findings.`;
   const res = await client.messages.create({
     model: MODEL,
     max_tokens: 4096,
-    system: buildSystem(input.profile ?? null),
+    system: buildSystem(
+      input.profile ?? null,
+      input.lang ?? (input.profile?.preferredLanguage === "en" ? "en" : "fr"),
+    ),
     tools: [tool],
     tool_choice: { type: "tool", name: "save_synthesis" },
     messages: [{ role: "user", content: prompt }],

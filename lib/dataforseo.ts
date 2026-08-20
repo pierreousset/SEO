@@ -10,6 +10,11 @@
  * Auth: HTTP Basic, login + password (NOT bearer).
  */
 
+import {
+  parseLabsKeyword,
+  type SeoKeywordIdea,
+} from "@/lib/seo/keyword-ideas";
+
 const BASE = "https://api.dataforseo.com/v3";
 
 function authHeader() {
@@ -216,6 +221,181 @@ export async function fetchCompetitorRankedKeywords(
           : null,
     };
   });
+}
+
+async function labsLiveItems(path: string, body: unknown[]): Promise<unknown[]> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`DataForSEO ${path} failed: ${res.status} ${await res.text()}`);
+  }
+  const json: unknown = await res.json();
+  const task =
+    typeof json === "object" && json !== null && "tasks" in json
+      ? (json as { tasks?: unknown }).tasks
+      : undefined;
+  const first = Array.isArray(task) ? task[0] : undefined;
+  const statusCode =
+    typeof first === "object" && first !== null && "status_code" in first
+      ? (first as { status_code?: unknown }).status_code
+      : undefined;
+  const statusMessage =
+    typeof first === "object" && first !== null && "status_message" in first
+      ? (first as { status_message?: unknown }).status_message
+      : undefined;
+  if (typeof statusCode === "number" && statusCode >= 40000) {
+    throw new Error(typeof statusMessage === "string" ? statusMessage : `DataForSEO ${path} error`);
+  }
+  const result =
+    typeof first === "object" && first !== null && "result" in first
+      ? (first as { result?: unknown }).result
+      : undefined;
+  const firstResult = Array.isArray(result) ? result[0] : undefined;
+  const items =
+    typeof firstResult === "object" && firstResult !== null && "items" in firstResult
+      ? (firstResult as { items?: unknown }).items
+      : undefined;
+  return Array.isArray(items) ? items : [];
+}
+
+/**
+ * Keyword ideas from seed terms (Google Ads + DataForSEO Labs).
+ * Volume, CPC, competition, difficulty — not GSC impressions.
+ */
+export async function fetchKeywordIdeas(
+  seeds: string[],
+  opts: { limit?: number; locationCode?: number; languageCode?: string; minVolume?: number } = {},
+): Promise<SeoKeywordIdea[]> {
+  const keywords = seeds.map((s) => s.trim()).filter((s) => s.length >= 3).slice(0, 20);
+  if (keywords.length === 0) return [];
+
+  const items = await labsLiveItems("/dataforseo_labs/google/keyword_ideas/live", [
+    {
+      keywords,
+      location_code: opts.locationCode ?? 2250,
+      language_code: opts.languageCode ?? "fr",
+      closely_variants: true,
+      include_serp_info: false,
+      limit: opts.limit ?? 200,
+      filters: [["keyword_info.search_volume", ">=", opts.minVolume ?? 10]],
+      order_by: ["keyword_info.search_volume,desc"],
+    },
+  ]);
+
+  return items
+    .map((i) => parseLabsKeyword(i, "ideas"))
+    .filter((row): row is SeoKeywordIdea => row != null);
+}
+
+/**
+ * Keywords relevant to a domain (same category as the site in Google Ads).
+ * Complements seed ideas when the business profile is thin.
+ */
+export async function fetchKeywordsForSite(
+  domain: string,
+  opts: { limit?: number; locationCode?: number; languageCode?: string; minVolume?: number } = {},
+): Promise<SeoKeywordIdea[]> {
+  const target = domain.replace(/^www\./, "").toLowerCase();
+  if (!target) return [];
+
+  const items = await labsLiveItems("/dataforseo_labs/google/keywords_for_site/live", [
+    {
+      target,
+      location_code: opts.locationCode ?? 2250,
+      language_code: opts.languageCode ?? "fr",
+      include_serp_info: false,
+      include_subdomains: true,
+      limit: opts.limit ?? 200,
+      filters: [["keyword_info.search_volume", ">=", opts.minVolume ?? 10]],
+      order_by: ["relevance,desc", "keyword_info.search_volume,desc"],
+    },
+  ]);
+
+  return items
+    .map((i) => parseLabsKeyword(i, "site"))
+    .filter((row): row is SeoKeywordIdea => row != null);
+}
+
+export type SearchVolumeRow = {
+  keyword: string;
+  searchVolume: number | null;
+  cpc: number | null;
+};
+
+/**
+ * Google Ads search volume for an exact list of keywords.
+ * One request can cover up to 1,000 terms.
+ */
+export async function fetchSearchVolume(
+  keywords: string[],
+  opts: { locationCode?: number; languageCode?: string } = {},
+): Promise<SearchVolumeRow[]> {
+  const list = [...new Set(keywords.map((k) => k.trim().toLowerCase()).filter((k) => k.length >= 2))].slice(
+    0,
+    1000,
+  );
+  if (list.length === 0) return [];
+
+  const res = await fetch(`${BASE}/keywords_data/google_ads/search_volume/live`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader(),
+    },
+    body: JSON.stringify([
+      {
+        keywords: list,
+        location_code: opts.locationCode ?? 2250,
+        language_code: opts.languageCode ?? "fr",
+      },
+    ]),
+  });
+  if (!res.ok) {
+    throw new Error(`DataForSEO search_volume failed: ${res.status} ${await res.text()}`);
+  }
+  const json: unknown = await res.json();
+  const task =
+    typeof json === "object" && json !== null && "tasks" in json
+      ? (json as { tasks?: unknown }).tasks
+      : undefined;
+  const first = Array.isArray(task) ? task[0] : undefined;
+  const statusCode =
+    typeof first === "object" && first !== null && "status_code" in first
+      ? (first as { status_code?: unknown }).status_code
+      : undefined;
+  if (typeof statusCode === "number" && statusCode >= 40000) {
+    const msg =
+      typeof first === "object" && first !== null && "status_message" in first
+        ? (first as { status_message?: unknown }).status_message
+        : undefined;
+    throw new Error(typeof msg === "string" ? msg : "DataForSEO search_volume error");
+  }
+  const result =
+    typeof first === "object" && first !== null && "result" in first
+      ? (first as { result?: unknown }).result
+      : undefined;
+  const rows = Array.isArray(result) ? result : [];
+  const out: SearchVolumeRow[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue;
+    const rec = row as Record<string, unknown>;
+    const keyword = String(rec.keyword ?? "")
+      .trim()
+      .toLowerCase();
+    if (!keyword) continue;
+    out.push({
+      keyword,
+      searchVolume: typeof rec.search_volume === "number" ? rec.search_volume : null,
+      cpc: typeof rec.cpc === "number" ? rec.cpc : null,
+    });
+  }
+  return out;
 }
 
 /** Check which posted tasks are ready. Returns IDs that are ready to fetch. */

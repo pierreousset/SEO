@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { auth } from "@/lib/auth";
-import {
-  exchangeCodeForTokens,
-  listSites,
-  fetchTopQueries,
-  siteUrlToDomain,
-} from "@/lib/google-oauth";
+import { exchangeCodeForTokens } from "@/lib/google-oauth";
 import { encrypt } from "@/lib/encryption";
 import { tenantDb } from "@/db/client";
-import { classifyIntentRule } from "@/lib/llm/intent-classifier";
+import { bootstrapGscForUser } from "@/lib/gsc-bootstrap";
+import { bootstrapAdsForUser } from "@/lib/ads-bootstrap";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: req.headers });
@@ -19,15 +14,18 @@ export async function GET(req: NextRequest) {
 
   const code = req.nextUrl.searchParams.get("code");
   const error = req.nextUrl.searchParams.get("error");
+  const state = req.nextUrl.searchParams.get("state") ?? "";
+  const isAds = state.startsWith("ads_");
+  const failPath = isAds ? "/dashboard/settings" : "/dashboard/connect-google";
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/dashboard/connect-google?error=${encodeURIComponent(error)}`, req.url),
+      new URL(`${failPath}?error=${encodeURIComponent(error)}`, req.url),
     );
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/dashboard/connect-google?error=no_code", req.url));
+    return NextResponse.redirect(new URL(`${failPath}?error=no_code`, req.url));
   }
 
   try {
@@ -35,51 +33,57 @@ export async function GET(req: NextRequest) {
     const refreshToken = tokens.refresh_token!;
     const encrypted = encrypt(refreshToken);
     const t = tenantDb(session.user.id);
-    await t.upsertGscToken(encrypted, tokens.scope || "");
 
-    // Auto-import: pick first verified GSC property + its top 20 queries as keywords.
-    // Skip silently if the user has no existing data, no sites, or the API errors.
-    try {
-      const existingSites = await t.selectSites();
-      if (existingSites.length === 0) {
-        const sites = await listSites(refreshToken);
-        if (sites.length > 0) {
-          const property = sites[0];
-          const siteUrl = property.siteUrl!;
-          const domain = siteUrlToDomain(siteUrl);
+    const granted = tokens.scope ?? "";
+    const hasAds = isAds || granted.includes("adwords");
 
-          const [siteRow] = await t.insertSite({
-            id: randomUUID(),
-            domain,
-            gscPropertyUri: siteUrl,
-          });
-
-          const topQueries = await fetchTopQueries(refreshToken, siteUrl, 20);
-          const profile = await t.selectBusinessProfile();
-          const cities = profile?.targetCities ?? [];
-          for (const q of topQueries) {
-            if (!q.query.trim()) continue;
-            await t.insertKeyword({
-              id: randomUUID(),
-              siteId: siteRow.id,
-              query: q.query,
-              country: "fr",
-              device: "desktop",
-              intentStage: classifyIntentRule(q.query, cities),
-            });
-          }
-        }
+    if (isAds) {
+      await t.upsertAdsToken(encrypted, granted || "adwords");
+      let warning = "";
+      try {
+        const result = await bootstrapAdsForUser(session.user.id, refreshToken);
+        if (result.warning) warning = result.warning;
+      } catch (importErr) {
+        console.warn("[google/callback] ads bootstrap failed:", importErr);
+        warning = "import_failed";
       }
-    } catch (importErr) {
-      // Auto-import is best-effort. User can add keywords manually if it fails.
-      console.warn("[google/callback] auto-import failed:", importErr);
+      const qs = new URLSearchParams({ ads: "1" });
+      if (warning) qs.set("ads_warn", warning);
+      return NextResponse.redirect(new URL(`/dashboard?${qs.toString()}`, req.url));
     }
 
-    return NextResponse.redirect(new URL("/dashboard/keywords?imported=1", req.url));
+    await t.upsertGscToken(encrypted, granted || "");
+
+    let warning = "";
+    try {
+      const result = await bootstrapGscForUser(session.user.id, refreshToken);
+      if (result.warning) warning = result.warning;
+    } catch (importErr) {
+      console.warn("[google/callback] bootstrap failed:", importErr);
+      warning = "import_failed";
+    }
+
+    const qs = new URLSearchParams({ connected: "1" });
+    if (warning) qs.set("gsc", warning);
+
+    if (hasAds) {
+      await t.upsertAdsToken(encrypted, granted);
+      try {
+        const adsResult = await bootstrapAdsForUser(session.user.id, refreshToken);
+        qs.set("ads", "1");
+        if (adsResult.warning) qs.set("ads_warn", adsResult.warning);
+      } catch (importErr) {
+        console.warn("[google/callback] ads bootstrap after GSC failed:", importErr);
+        qs.set("ads", "1");
+        qs.set("ads_warn", "import_failed");
+      }
+    }
+
+    return NextResponse.redirect(new URL(`/dashboard?${qs.toString()}`, req.url));
   } catch (err) {
     console.error("[google/callback]", err);
     return NextResponse.redirect(
-      new URL("/dashboard/connect-google?error=exchange_failed", req.url),
+      new URL(`${failPath}?error=exchange_failed`, req.url),
     );
   }
 }

@@ -8,11 +8,22 @@ import { tenantDb, db, schema } from "@/db/client";
 import { decrypt } from "@/lib/encryption";
 import { getSearchConsoleClient } from "@/lib/google-oauth";
 import { classifyIntentRule } from "@/lib/llm/intent-classifier";
-import { fetchCompetitorRankedKeywords, urlToDomain } from "@/lib/dataforseo";
+import {
+  fetchCompetitorRankedKeywords,
+  fetchKeywordIdeas,
+  fetchKeywordsForSite,
+  urlToDomain,
+} from "@/lib/dataforseo";
 import { generateKeywordSuggestions, type KeywordSuggestion } from "@/lib/llm/keyword-suggestions";
-import { getUserPlan } from "@/lib/billing-helpers";
-import { debitCredits, InsufficientCreditsError } from "@/lib/credits";
-import { CREDIT_COSTS } from "@/lib/billing-constants";
+import { cooldownRemainingMs, formatRetryWait, guardMonthlyUsage, lastUsageUpdatedAt } from "@/lib/usage";
+import { KEYWORD_IDEAS_COOLDOWN_MS, MONTHLY_LIMITS } from "@/lib/billing-constants";
+import { getLocale } from "@/lib/i18n-server";
+import {
+  buildKeywordSeeds,
+  keywordMarket,
+  mergeKeywordIdeas,
+  type SeoKeywordIdea,
+} from "@/lib/seo/keyword-ideas";
 
 /**
  * Live GSC pull: ALL queries over the past N days (no tracked-keyword filter),
@@ -172,8 +183,18 @@ function positionLeverage(avgPos: number): number {
   return 0.2;
 }
 
+export type KeywordToAdd = {
+  query: string;
+  searchVolume?: number | null;
+  keywordDifficulty?: number | null;
+  cpc?: number | null;
+  searchIntent?: string | null;
+};
+
 /** Bulk add selected queries as tracked keywords. */
-export async function bulkAddKeywords(queries: string[]): Promise<{ added: number; skipped: number }> {
+export async function bulkAddKeywords(
+  input: string[] | KeywordToAdd[],
+): Promise<{ added: number; skipped: number }> {
   const ctx = await requireAccountContext();
 
   const t = tenantDb(ctx.ownerId);
@@ -181,11 +202,12 @@ export async function bulkAddKeywords(queries: string[]): Promise<{ added: numbe
   if (sites.length === 0) throw new Error("Connect GSC first");
   const siteId = sites[0].id;
   const cities = profile?.targetCities ?? [];
+  const items: KeywordToAdd[] = input.map((x) => (typeof x === "string" ? { query: x } : x));
 
   let added = 0;
   let skipped = 0;
-  for (const q of queries) {
-    const query = q.trim();
+  for (const item of items) {
+    const query = item.query.trim();
     if (!query) continue;
     try {
       await db.insert(schema.keywords).values({
@@ -196,13 +218,18 @@ export async function bulkAddKeywords(queries: string[]): Promise<{ added: numbe
         country: "fr",
         device: "desktop",
         intentStage: classifyIntentRule(query, cities),
+        searchVolume: item.searchVolume ?? null,
+        keywordDifficulty: item.keywordDifficulty ?? null,
+        cpc: item.cpc ?? null,
+        searchIntent: item.searchIntent ?? null,
+        volumeUpdatedAt: item.searchVolume != null ? new Date() : null,
       });
       added++;
-    } catch (e: any) {
-      // duplicate or constraint violation → skip silently
+    } catch {
       skipped++;
     }
   }
+
   revalidatePath("/dashboard/keywords");
   revalidatePath("/dashboard/keywords/discover");
   return { added, skipped };
@@ -247,23 +274,10 @@ export async function discoverCompetitorKeywords(opts: {
     };
   }
 
-  // Credits guard — free users with credits can still spend them.
-  try {
-    await debitCredits({
-      userId: ctx.ownerId,
-      amount: CREDIT_COSTS.competitorDiscovery,
-      reason: "competitor_discovery",
-    });
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      const plan = await getUserPlan(ctx.ownerId);
-      const msg =
-        plan === "free"
-          ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs.`
-          : `Need ${e.required} credits, you have ${e.available}. Buy a pack on /dashboard/billing.`;
-      return { keywords: [], competitorsScanned: 0, error: msg };
-    }
-    throw e;
+  // Fair-use guard — flat 99€/mo, monthly limit instead of credits.
+  const usage = await guardMonthlyUsage(ctx.ownerId, "competitorDiscovery");
+  if (!usage.ok) {
+    return { keywords: [], competitorsScanned: 0, error: usage.error };
   }
 
   const trackedNorm = new Set(
@@ -361,27 +375,12 @@ export async function suggestKeywordsWithAI(): Promise<{
     };
   }
 
-  // BYOK: skip credits if user has their own Anthropic key
+  // BYOK: skip the fair-use limit if user has their own Anthropic key.
   const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
   const keyStatus = await getApiKeyStatus(ctx.ownerId);
   if (!(keyStatus.byokEnabled && keyStatus.anthropic)) {
-    try {
-      await debitCredits({
-        userId: ctx.ownerId,
-        amount: CREDIT_COSTS.aiSuggestions,
-        reason: "ai_suggestions",
-      });
-    } catch (e) {
-      if (e instanceof InsufficientCreditsError) {
-        const plan = await getUserPlan(ctx.ownerId);
-        const msg =
-          plan === "free"
-            ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy packs, or add your own API key in Settings.`
-            : `Need ${e.required} credits, you have ${e.available}. Buy a pack on /dashboard/billing, or add your own API key in Settings.`;
-        return { suggestions: [], error: msg };
-      }
-      throw e;
-    }
+    const usage = await guardMonthlyUsage(ctx.ownerId, "aiSuggestions");
+    if (!usage.ok) return { suggestions: [], error: usage.error };
   }
 
   // Pull a sample of the user's GSC top queries as "already seen" signal to the LLM
@@ -407,4 +406,128 @@ export async function suggestKeywordsWithAI(): Promise<{
   });
 
   return { suggestions };
+}
+
+// ---------------------------------------------------------------------------
+// SEO keyword ideas — DataForSEO volume / difficulty / intent (not GSC)
+// ---------------------------------------------------------------------------
+
+export type { SeoKeywordIdea };
+
+export async function discoverSeoKeywordIdeas(opts: {
+  minSearchVolume?: number;
+} = {}): Promise<{
+  keywords: SeoKeywordIdea[];
+  seeds: string[];
+  sourcesUsed: Array<"ideas" | "site">;
+  error?: string;
+}> {
+  const ctx = await requireAccountContext();
+  const t = tenantDb(ctx.ownerId);
+  const [profile, keywords, sites] = await Promise.all([
+    t.selectBusinessProfile(),
+    t.selectKeywords(),
+    t.selectSites(),
+  ]);
+
+  const { locationCode, languageCode } = keywordMarket(profile?.preferredLanguage);
+  const seeds = buildKeywordSeeds({
+    primaryService: profile?.primaryService,
+    secondaryServices: profile?.secondaryServices ?? [],
+    targetCities: profile?.targetCities ?? [],
+  });
+  const domain = sites[0]?.domain ? urlToDomain(sites[0].domain) : "";
+
+  if (seeds.length === 0 && !domain) {
+    return {
+      keywords: [],
+      seeds: [],
+      sourcesUsed: [],
+      error:
+        "Renseignez le service principal (et les villes) dans le profil business, ou connectez un site.",
+    };
+  }
+
+  if (!process.env.DATAFORSEO_LOGIN || !process.env.DATAFORSEO_PASSWORD) {
+    return {
+      keywords: [],
+      seeds,
+      sourcesUsed: [],
+      error: "DataForSEO n'est pas configuré (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD).",
+    };
+  }
+
+  const lastAt = await lastUsageUpdatedAt(ctx.ownerId, "keywordIdeas");
+  const waitMs = cooldownRemainingMs(lastAt, KEYWORD_IDEAS_COOLDOWN_MS);
+  if (waitMs > 0) {
+    const lng = await getLocale();
+    const wait = formatRetryWait(waitMs);
+    const cap = MONTHLY_LIMITS.keywordIdeas ?? 8;
+    return {
+      keywords: [],
+      seeds,
+      sourcesUsed: [],
+      error:
+        lng === "en"
+          ? `Keyword research is limited to ${cap}/month. Try again in ${wait}.`
+          : `Recherche limitée à ${cap}/mois. Réessayez dans ${wait}.`,
+    };
+  }
+
+  const usage = await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
+  if (!usage.ok) {
+    return { keywords: [], seeds, sourcesUsed: [], error: usage.error };
+  }
+
+  const minVolume = opts.minSearchVolume ?? 10;
+  const trackedNorm = new Set(
+    keywords
+      .filter((k) => !k.removedAt)
+      .map((k) => k.query.toLowerCase().trim().replace(/\s+/g, " ")),
+  );
+
+  const sourcesUsed: Array<"ideas" | "site"> = [];
+  const settled = await Promise.allSettled([
+    seeds.length > 0
+      ? fetchKeywordIdeas(seeds, { locationCode, languageCode, minVolume, limit: 200 })
+      : Promise.resolve([] as SeoKeywordIdea[]),
+    domain
+      ? fetchKeywordsForSite(domain, { locationCode, languageCode, minVolume, limit: 200 })
+      : Promise.resolve([] as SeoKeywordIdea[]),
+  ]);
+
+  const collected: SeoKeywordIdea[] = [];
+  if (settled[0].status === "fulfilled") {
+    if (settled[0].value.length > 0) sourcesUsed.push("ideas");
+    collected.push(...settled[0].value);
+  } else {
+    console.warn("[discoverSeoKeywordIdeas] keyword_ideas failed:", settled[0].reason);
+  }
+  if (settled[1].status === "fulfilled") {
+    if (settled[1].value.length > 0) sourcesUsed.push("site");
+    collected.push(...settled[1].value);
+  } else {
+    console.warn("[discoverSeoKeywordIdeas] keywords_for_site failed:", settled[1].reason);
+  }
+
+  if (collected.length === 0) {
+    const firstErr =
+      settled.find((s) => s.status === "rejected") as PromiseRejectedResult | undefined;
+    return {
+      keywords: [],
+      seeds,
+      sourcesUsed,
+      error:
+        firstErr?.reason instanceof Error
+          ? firstErr.reason.message
+          : "Aucun mot-clé trouvé. Vérifiez le profil business ou DataForSEO.",
+    };
+  }
+
+  const merged = mergeKeywordIdeas(collected)
+    .filter((row) => !trackedNorm.has(row.keyword))
+    .filter((row) => (row.searchVolume ?? 0) >= minVolume)
+    .slice(0, 250);
+
+  return { keywords: merged, seeds, sourcesUsed };
 }

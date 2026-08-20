@@ -19,6 +19,7 @@ export async function triggerBacklinkPull() {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "backlinks",
     credits: CREDIT_COSTS.backlinks,
     reason: "backlinks",
   });

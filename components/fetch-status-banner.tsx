@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle, X } from "lucide-react";
 import { cancelStuckRun } from "@/lib/actions/keywords";
 import { toast } from "sonner";
+import { useLocale } from "@/components/locale-provider";
 
 type Run = {
   id: string;
@@ -18,8 +19,9 @@ type Run = {
   error: string | null;
 };
 
-function elapsed(fromIso: string): string {
-  const ms = Date.now() - new Date(fromIso).getTime();
+function elapsed(fromIso: string, nowMs: number | null): string {
+  if (nowMs == null) return "…";
+  const ms = Math.max(0, nowMs - new Date(fromIso).getTime());
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
@@ -28,34 +30,52 @@ function elapsed(fromIso: string): string {
 
 export function FetchStatusBanner({ run }: { run: Run | null }) {
   const router = useRouter();
-  const [, setTick] = useState(0);
+  const { locale } = useLocale();
+  const fr = locale === "fr";
+  const [now, setNow] = useState<number | null>(null);
+  const [kick, setKick] = useState(false);
+  const [kickAt, setKickAt] = useState<number | null>(null);
   const [cancelling, startCancel] = useTransition();
 
   const startedAtIso = run?.startedAt ?? run?.queuedAt ?? null;
-  const elapsedMs = startedAtIso ? Date.now() - new Date(startedAtIso).getTime() : 0;
-  const isStale = elapsedMs > 10 * 60_000;
+  const elapsedMs = startedAtIso && now != null ? now - new Date(startedAtIso).getTime() : 0;
+  const isStale = now != null && elapsedMs > 10 * 60_000;
+  const live = run?.status === "queued" || run?.status === "running";
+
+  useEffect(() => setNow(Date.now()), []);
 
   useEffect(() => {
-    if (!run) return;
-    if (run.status !== "queued" && run.status !== "running") return;
-    const i = setInterval(() => setTick((t) => t + 1), 1000);
+    const on = () => {
+      setKick(true);
+      setKickAt(Date.now());
+    };
+    window.addEventListener("seo-fetch-queued", on);
+    return () => window.removeEventListener("seo-fetch-queued", on);
+  }, []);
+
+  useEffect(() => {
+    if (run?.status === "queued" || run?.status === "running") setKick(false);
+  }, [run?.status, run?.id]);
+
+  useEffect(() => {
+    if (!live && !kick) return;
+    const i = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(i);
-  }, [run]);
+  }, [live, kick]);
 
   useEffect(() => {
-    if (!run) return;
-    if (run.status !== "queued" && run.status !== "running") return;
+    if (!live && !kick) return;
     if (isStale) return;
-    const i = setInterval(() => router.refresh(), 10_000);
+    const i = setInterval(() => router.refresh(), 2000);
     return () => clearInterval(i);
-  }, [run, router, isStale]);
+  }, [live, kick, router, isStale]);
 
   function onCancel() {
     if (!run) return;
     startCancel(async () => {
       try {
         await cancelStuckRun("fetch", run.id);
-        toast.success("Run marked as failed.");
+        toast.success(fr ? "Fetch annulé." : "Fetch cancelled.");
         router.refresh();
       } catch (e: any) {
         toast.error(e?.message ?? "Couldn't cancel");
@@ -63,138 +83,163 @@ export function FetchStatusBanner({ run }: { run: Run | null }) {
     });
   }
 
-  if (!run) return null;
+  const ranked = run?.resultCount ?? 0;
+  const total = run?.taskCount ?? 0;
+  const pct = total > 0 ? Math.min(100, Math.round((ranked / total) * 100)) : live || kick ? 12 : 0;
 
-  // Show success banner briefly after a recent completion (<60s)
   const isRecentDone =
-    run.status === "done" &&
+    run?.status === "done" &&
     run.finishedAt &&
-    Date.now() - new Date(run.finishedAt).getTime() < 60_000;
+    now != null &&
+    now - new Date(run.finishedAt).getTime() < 3 * 60_000;
 
-  if (run.status === "queued") {
+  if (kick && !live) {
     return (
-      <Banner
-        tone={isStale ? "warn" : "info"}
-        icon={
-          isStale ? (
-            <AlertTriangle className="h-4 w-4" strokeWidth={2} />
-          ) : (
-            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-          )
-        }
-      >
-        <span>
-          {isStale ? (
-            <><strong>Queued {elapsed(run.queuedAt)} — worker likely crashed.</strong></>
-          ) : (
-            <><strong>Queued</strong> · waiting for worker · {elapsed(run.queuedAt)}</>
-          )}
-        </span>
-        <button
-          onClick={onCancel}
-          disabled={cancelling}
-          className="ml-3 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border border-current/30 hover:bg-current/10 disabled:opacity-50"
-        >
-          <X className="h-3 w-3" strokeWidth={2} />
-          {cancelling ? "Cancelling…" : "Cancel"}
-        </button>
-      </Banner>
+      <ProgressSheet
+        title={fr ? "Lancement du fetch" : "Starting fetch"}
+        subtitle={fr ? "File d'attente. Les positions vont se mettre à jour." : "Queued. Rankings will refresh in place."}
+        pct={8}
+        indeterminate
+        elapsed={kickAt ? elapsed(new Date(kickAt).toISOString(), now) : "…"}
+      />
     );
   }
 
-  if (run.status === "running") {
-    const ranked = run.resultCount ?? 0;
-    const total = run.taskCount ?? 0;
+  if (!run) return null;
+
+  if (run.status === "queued" || run.status === "running") {
+    const title = isStale
+      ? fr
+        ? "Fetch bloqué"
+        : "Fetch stuck"
+      : run.status === "queued"
+        ? fr
+          ? "Positions en file"
+          : "Fetch queued"
+        : fr
+          ? "Récupération des positions"
+          : "Fetching positions";
+    const subtitle = isStale
+      ? fr
+        ? "Le worker ne répond plus. Annulez et relancez."
+        : "The worker stopped. Cancel and retry."
+      : total > 0
+        ? fr
+          ? `${ranked} / ${total} mots-clés traités`
+          : `${ranked} / ${total} keywords processed`
+        : fr
+          ? "Envoi des requêtes DataForSEO…"
+          : "Posting tasks to DataForSEO…";
     return (
-      <Banner
-        tone={isStale ? "warn" : "info"}
-        icon={
-          isStale ? (
-            <AlertTriangle className="h-4 w-4" strokeWidth={2} />
-          ) : (
-            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-          )
+      <ProgressSheet
+        title={title}
+        subtitle={subtitle}
+        pct={isStale ? 100 : pct}
+        indeterminate={!isStale && total === 0}
+        elapsed={elapsed(run.startedAt ?? run.queuedAt, now)}
+        warn={isStale}
+        action={
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={cancelling}
+            className="inline-flex items-center gap-1 h-8 px-3 rounded-full text-caption border border-current/30 hover:bg-current/10 disabled:opacity-50"
+          >
+            <X className="size-3" strokeWidth={2} />
+            {cancelling ? (fr ? "…" : "…") : fr ? "Annuler" : "Cancel"}
+          </button>
         }
-      >
-        <span>
-          {isStale ? (
-            <><strong>Fetch stuck</strong> · running {elapsed(run.startedAt ?? run.queuedAt)} — worker died</>
-          ) : (
-            <>
-              <strong>Fetching positions</strong>
-              {total > 0 ? (
-                <> · {ranked}/{total} processed</>
-              ) : (
-                <> · posting tasks to DataForSEO</>
-              )}{" "}
-              · {elapsed(run.startedAt ?? run.queuedAt)}
-            </>
-          )}
-        </span>
-        <button
-          onClick={onCancel}
-          disabled={cancelling}
-          className="ml-3 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border border-current/30 hover:bg-current/10 disabled:opacity-50"
-        >
-          <X className="h-3 w-3" strokeWidth={2} />
-          {cancelling ? "Cancelling…" : "Cancel"}
-        </button>
-      </Banner>
+      />
     );
   }
 
   if (isRecentDone) {
     return (
-      <Banner tone="success" icon={<CheckCircle2 className="h-4 w-4" strokeWidth={2} />}>
-        <strong>Done</strong> · {run.resultCount ?? 0}/{run.taskCount ?? 0} keywords ranked ·
-        finished {elapsed(run.finishedAt!)} ago
-      </Banner>
+      <ProgressSheet
+        title={fr ? "Positions à jour" : "Rankings updated"}
+        subtitle={
+          fr
+            ? `${run.resultCount ?? 0} / ${run.taskCount ?? 0} mots-clés classés`
+            : `${run.resultCount ?? 0} / ${run.taskCount ?? 0} keywords ranked`
+        }
+        pct={100}
+        done
+        elapsed={elapsed(run.finishedAt!, now)}
+      />
     );
   }
 
   if (run.status === "failed") {
+    const dump = run.error?.startsWith("Failed query:");
     return (
-      <Banner tone="error" icon={<XCircle className="h-4 w-4" strokeWidth={2} />}>
-        <strong>Last fetch failed</strong>
-        {run.error && (
-          <span className="text-xs opacity-80 ml-2 font-mono tabular">{run.error}</span>
-        )}
-      </Banner>
-    );
-  }
-
-  if (run.status === "skipped") {
-    return (
-      <Banner tone="warn" icon={<AlertTriangle className="h-4 w-4" strokeWidth={2} />}>
-        <strong>Skipped</strong> — {run.error ?? "nothing to fetch"}
-      </Banner>
+      <ProgressSheet
+        title={fr ? "Fetch échoué" : "Fetch failed"}
+        subtitle={dump ? (fr ? "Erreur base de données. Relancez." : "Database error. Retry.") : (run.error ?? "")}
+        pct={100}
+        error
+      />
     );
   }
 
   return null;
 }
 
-function Banner({
-  tone,
-  icon,
-  children,
+function ProgressSheet({
+  title,
+  subtitle,
+  pct,
+  elapsed,
+  indeterminate,
+  done,
+  error,
+  warn,
+  action,
 }: {
-  tone: "info" | "success" | "error" | "warn";
-  icon: React.ReactNode;
-  children: React.ReactNode;
+  title: string;
+  subtitle: string;
+  pct: number;
+  elapsed?: string;
+  indeterminate?: boolean;
+  done?: boolean;
+  error?: boolean;
+  warn?: boolean;
+  action?: React.ReactNode;
 }) {
-  const cls =
-    tone === "success"
-      ? "bg-[var(--up)]/10 text-[var(--up)] border-[var(--up)]/30"
-      : tone === "error"
-        ? "bg-[var(--down)]/10 text-[var(--down)] border-[var(--down)]/30"
-        : tone === "warn"
-          ? "bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet border-yellow-500/30"
-          : "bg-sky-teal/10 text-sky-teal border-sky-teal/30";
+  const icon = error ? (
+    <XCircle className="size-4 text-hot-pink" strokeWidth={1.75} />
+  ) : done ? (
+    <CheckCircle2 className="size-4 text-sky-teal" strokeWidth={1.75} />
+  ) : warn ? (
+    <AlertTriangle className="size-4 text-vivid-violet" strokeWidth={1.75} />
+  ) : (
+    <Loader2 className="size-4 animate-spin text-ink-black" strokeWidth={1.75} />
+  );
+
   return (
-    <div className={`mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${cls}`}>
-      {icon}
-      <div className="flex-1 min-w-0">{children}</div>
+    <div className="sheet px-5 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="mt-0.5">{icon}</span>
+          <div className="min-w-0">
+            <p className="text-body-sm font-medium text-ink-black">{title}</p>
+            <p className="text-caption text-ash-gray mt-0.5">{subtitle}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {elapsed ? (
+            <span className="text-caption tabular-nums text-ash-gray">{elapsed}</span>
+          ) : null}
+          {action}
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 rounded-full bg-subtle-cream overflow-hidden">
+        <div
+          className={`h-full rounded-full ${
+            error ? "bg-hot-pink" : done ? "bg-sky-teal" : warn ? "bg-vivid-violet" : "bg-ink-black"
+          } ${indeterminate ? "w-1/3 animate-pulse" : "transition-[width] duration-500 ease-out"}`}
+          style={indeterminate ? undefined : { width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }

@@ -7,6 +7,9 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 export const dynamic = "force-dynamic";
 
 export default async function ApiKeysPage() {
+  // BYOK API Keys are hidden for now. Remove this redirect to re-enable the page.
+  redirect("/dashboard/settings");
+
   const ctx = await resolveAccountContext();
   if (!ctx.isOwner) redirect("/dashboard");
 

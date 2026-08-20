@@ -2,38 +2,35 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ChangelogModal } from "@/components/changelog-modal";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { useLocale } from "@/components/locale-provider";
-import { t } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import {
   PanelLeftOpen,
   PanelLeftClose,
-  LogOut,
   LayoutDashboard,
   ListOrdered,
   FileText,
   Settings,
-  Briefcase,
   Stethoscope,
   Sparkles,
   Split,
   Crosshair,
-  CreditCard,
   MessageSquare,
   FileStack,
   Tags,
-  Users,
   RotateCw,
   Radio,
   PenTool,
-  KeyRound,
   Link2,
   Menu,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   "layout-dashboard": LayoutDashboard,
@@ -48,11 +45,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   tags: Tags,
   split: Split,
   crosshair: Crosshair,
-  briefcase: Briefcase,
-  users: Users,
-  "credit-card": CreditCard,
   "pen-tool": PenTool,
-  "key-round": KeyRound,
   link: Link2,
   settings: Settings,
 };
@@ -61,23 +54,40 @@ type NavItem = {
   href: string;
   label: string;
   iconName: string;
+  group?: "main" | "tools";
 };
 
 type Props = {
   nav: NavItem[];
   email: string;
   isOwner: boolean;
+  setupMode?: boolean;
   accountSwitcherSlot: React.ReactNode | null;
 };
+
+function navLabel(item: NavItem, locale: Locale) {
+  const key = `nav.${item.label.toLowerCase().replace(/ /g, "_")}`;
+  const translated = t(key, locale);
+  return translated !== key ? translated : item.label;
+}
 
 export function ExpandableSidebar({
   nav,
   email,
   isOwner,
+  setupMode = false,
   accountSwitcherSlot,
 }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const activeHref = [...nav]
+    .filter(
+      (item) =>
+        pathname === item.href ||
+        (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
@@ -116,10 +126,7 @@ export function ExpandableSidebar({
             isExpanded ? "px-4 pt-5 pb-4 gap-3" : "justify-center pt-5 pb-4"
           }`}
         >
-          <div className="w-9 h-9 rounded-[10px] bg-primary flex items-center justify-center shrink-0">
-            <span className="text-primary-foreground text-base font-bold">S</span>
-          </div>
-          {isExpanded && <span className="text-[15px] font-semibold truncate">SEO</span>}
+          <BrandMark href="/dashboard" collapsed={!isExpanded} />
           {isExpanded && (
             <button
               onClick={() => (isMobile ? closeMobile() : setExpanded(false))}
@@ -149,25 +156,58 @@ export function ExpandableSidebar({
               <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.5} />
             </button>
           )}
-          {nav.map((item) => {
-            const Icon = ICON_MAP[item.iconName] ?? LayoutDashboard;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={!isExpanded ? item.label : undefined}
-                onClick={isMobile ? closeMobile : undefined}
-                className={`flex items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ${
-                  isExpanded
-                    ? "gap-2.5 px-3 py-2.5 text-[13px]"
-                    : "w-10 h-10 justify-center mx-auto"
-                }`}
-              >
-                <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
-                {isExpanded && <span className="truncate">{t(`nav.${item.label.toLowerCase().replace(/ /g, "_")}`, locale) !== `nav.${item.label.toLowerCase().replace(/ /g, "_")}` ? t(`nav.${item.label.toLowerCase().replace(/ /g, "_")}`, locale) : item.label}</span>}
-              </Link>
+          {(() => {
+            const renderItem = (item: NavItem) => {
+              const Icon = ICON_MAP[item.iconName] ?? LayoutDashboard;
+              const label = navLabel(item, locale);
+              const active = item.href === activeHref;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={!isExpanded ? label : undefined}
+                  onClick={isMobile ? closeMobile : undefined}
+                  className={`flex items-center rounded-full transition-colors duration-150 ease-out ${
+                    isExpanded
+                      ? "gap-2.5 px-3 py-2.5 text-[13px]"
+                      : "w-10 h-10 justify-center mx-auto"
+                  } ${
+                    active
+                      ? "bg-subtle-cream text-ink-black font-medium"
+                      : "text-ash-gray hover:text-ink-black hover:bg-subtle-cream/70"
+                  }`}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
+                  {isExpanded && <span className="truncate">{label}</span>}
+                </Link>
+              );
+            };
+            const main = nav.filter(
+              (item) => (item.group ?? "main") === "main" && item.href !== "/dashboard/settings",
             );
-          })}
+            const tools = nav.filter((item) => item.group === "tools");
+            const settings = nav.filter((item) => item.href === "/dashboard/settings");
+            return (
+              <>
+                {main.map(renderItem)}
+                {tools.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-hairline">
+                    {isExpanded && (
+                      <p className="px-3 pb-1.5 text-caption text-ash-gray">
+                        {t("nav.tools", locale)}
+                      </p>
+                    )}
+                    {tools.map(renderItem)}
+                  </div>
+                )}
+                {settings.length > 0 && (
+                  <div className={tools.length > 0 ? "mt-3 pt-3 border-t border-hairline" : ""}>
+                    {settings.map(renderItem)}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </nav>
 
         {/* Bottom */}
@@ -183,25 +223,37 @@ export function ExpandableSidebar({
           </div>
 
           {isExpanded ? (
-            <div className="rounded-xl bg-secondary p-3 space-y-2">
-              <div className="text-xs text-muted-foreground truncate" title={email}>
-                {email}
+            <div className="pt-3 mt-1 border-t border-hairline flex items-start gap-2.5 px-1">
+              <span
+                className="size-8 rounded-full bg-ink-black text-canvas-white text-caption font-medium flex items-center justify-center shrink-0 mt-0.5"
+                aria-hidden
+              >
+                {(email.split("@")[0]?.[0] ?? "?").toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-caption font-medium text-ink-black truncate" title={email}>
+                  {email.split("@")[0]}
+                </p>
+                <p className="text-caption text-ash-gray truncate">
+                  {email.includes("@") ? email.slice(email.indexOf("@") + 1) : ""}
+                </p>
                 {!isOwner && (
-                  <span className="block text-[10px] mt-0.5 text-[var(--up)]">
-                    Shared account
-                  </span>
+                  <p className="text-caption text-sky-teal mt-0.5">{t("nav.shared_account", locale)}</p>
                 )}
+                <div className="mt-2">
+                  <SignOutButton label={t("actions.sign_out", locale)} />
+                </div>
               </div>
-              <SignOutButton />
             </div>
           ) : (
-            <div
-              className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground text-[13px] font-semibold cursor-pointer"
+            <button
+              type="button"
+              className="size-9 rounded-full bg-ink-black text-canvas-white text-caption font-medium flex items-center justify-center"
               title={email}
               onClick={() => setExpanded(true)}
             >
-              {email[0].toUpperCase()}
-            </div>
+              {(email.split("@")[0]?.[0] ?? "?").toUpperCase()}
+            </button>
           )}
         </div>
       </>
@@ -213,7 +265,7 @@ export function ExpandableSidebar({
       {/* Mobile hamburger button — fixed top-left, visible only on < md */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-3 left-3 z-50 md:hidden w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+        className="fixed top-3 left-3 z-50 md:hidden w-10 h-10 rounded-full sheet flex items-center justify-center text-muted-foreground hover:text-foreground"
         aria-label="Open navigation"
       >
         <Menu className="h-5 w-5" strokeWidth={1.5} />
@@ -229,7 +281,7 @@ export function ExpandableSidebar({
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           {/* Drawer */}
           <aside
-            className="absolute top-0 left-0 h-full w-[220px] bg-background border-r border-border flex flex-col"
+            className="absolute top-3 left-3 h-[calc(100%-1.5rem)] w-[240px] sheet flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {sidebarContent(true)}
@@ -240,8 +292,8 @@ export function ExpandableSidebar({
       {/* Desktop sidebar — hidden on mobile */}
       <aside
         className={`${
-          expanded ? "w-[220px]" : "w-16"
-        } shrink-0 bg-background sticky top-0 h-screen hidden md:flex flex-col transition-all duration-200 ease-out border-r border-border`}
+          expanded ? "w-[240px]" : "w-16"
+        } shrink-0 sheet sticky top-3 h-[calc(100vh-1.5rem)] hidden md:flex flex-col transition-all duration-200 ease-out`}
       >
         {sidebarContent(false)}
       </aside>

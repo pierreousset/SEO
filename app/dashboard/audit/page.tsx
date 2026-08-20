@@ -1,7 +1,6 @@
 import { resolveAccountContext } from "@/lib/account-context";
 import { db, schema } from "@/db/client";
 import { eq, desc, and } from "drizzle-orm";
-import { Badge } from "@/components/ui/badge";
 import { RunAuditButton } from "@/components/run-audit-button";
 import { AuditStatusBanner } from "@/components/audit-status-banner";
 import { ExportCsvButton } from "@/components/export-csv-button";
@@ -10,20 +9,20 @@ import { Stethoscope } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { getLocale } from "@/lib/i18n-server";
 import { locale } from "./locale";
+import { AuditFixCards } from "@/components/audit-fix-cards";
+import { AuditFindingsList } from "@/components/audit-findings-list";
+import { auditCopy, localizeFinding, resolveAuditLang } from "@/lib/audit/messages";
+import { missingTrackedKeywords, titleFromDetail } from "@/lib/audit/keyword-context";
+import { tenantDb } from "@/db/client";
 
 export const dynamic = "force-dynamic";
 
-const SEVERITY_TONE: Record<string, string> = {
-  high: "bg-[var(--down)]/10 text-[var(--down)]",
-  medium: "bg-vivid-violet/10 text-vivid-violet dark:text-vivid-violet",
-  low: "bg-muted text-muted-foreground",
-  info: "bg-sky-teal/10 text-sky-teal",
-};
-
 export default async function AuditPage() {
   const ctx = await resolveAccountContext();
+  const t = tenantDb(ctx.ownerId);
   const lng = await getLocale();
   const i = locale[lng];
+  const profile = await t.selectBusinessProfile();
 
   const [latestRun] = await db
     .select()
@@ -32,13 +31,28 @@ export default async function AuditPage() {
     .orderBy(desc(schema.auditRuns.queuedAt))
     .limit(1);
 
-  const findings = latestRun
+  const rawFindings = latestRun
     ? await db
         .select()
         .from(schema.auditFindings)
         .where(eq(schema.auditFindings.runId, latestRun.id))
         .orderBy(desc(schema.auditFindings.severity))
     : [];
+  const siteLang = resolveAuditLang({
+    urls: rawFindings.map((f) => f.url),
+    profileLang: profile?.preferredLanguage,
+    uiLang: lng,
+  });
+  const keywordRows = await t.selectKeywords();
+  const tracked = keywordRows.filter((k) => !k.removedAt).map((k) => k.query);
+  const findings = rawFindings.map((f) => {
+    const loc = localizeFinding(f, siteLang);
+    if (loc.checkKey !== "title_no_keyword") return { ...loc, keywords: [] as string[] };
+    const title = titleFromDetail(loc.detail);
+    const keywords = missingTrackedKeywords(loc.url, title, tracked);
+    const copy = auditCopy("title_no_keyword", siteLang, { missing: keywords.join(", ") });
+    return { ...loc, keywords, fix: copy?.fix ?? loc.fix };
+  });
 
   const banner = latestRun
     ? {
@@ -94,18 +108,20 @@ export default async function AuditPage() {
   // Build "Fix these first" top 3 high-severity findings with impact estimates
   const highFindings = findings.filter((f) => f.severity === "high");
 
-  // Group high findings by checkKey to aggregate counts
-  const highByCheck = new Map<string, { count: number; message: string; checkKey: string }>();
+  const highByCheck = new Map<
+    string,
+    { message: string; checkKey: string; pages: typeof highFindings }
+  >();
   for (const f of highFindings) {
     const existing = highByCheck.get(f.checkKey);
     if (existing) {
-      existing.count++;
+      existing.pages.push(f);
     } else {
-      highByCheck.set(f.checkKey, { count: 1, message: f.message, checkKey: f.checkKey });
+      highByCheck.set(f.checkKey, { message: f.message, checkKey: f.checkKey, pages: [f] });
     }
   }
   const topFixFirst = Array.from(highByCheck.values())
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.pages.length - a.pages.length)
     .slice(0, 3);
 
   // Group findings by URL for the detail table
@@ -165,28 +181,30 @@ export default async function AuditPage() {
           {topFixFirst.length > 0 && (
             <div>
               <h2 className="text-caption text-ash-gray mb-3">{i.fixFirst}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {topFixFirst.map((item, idx) => {
-                  const borderColor =
-                    idx === 0 ? "border-l-[var(--down)]" : idx === 1 ? "border-l-yellow-500" : "border-l-[var(--primary)]";
-                  const impact =
-                    i.impactEstimates[item.checkKey] ?? i.defaultImpact(item.count);
-                  return (
-                    <div
-                      key={item.checkKey}
-                      className={`rounded-2xl bg-card p-4 border-l-[3px] ${borderColor}`}
-                    >
-                      <div className="text-sm font-medium">{item.message}</div>
-                      <div className="text-caption text-ash-gray mt-2">
-                        {i.pagesAffected(item.count)}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                        {impact}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <AuditFixCards
+                lang={siteLang}
+                copy={{
+                  howToFix: i.detailHowTo,
+                  pages: i.detailPages,
+                  open: i.detailOpen,
+                  copy: i.detailCopy,
+                  copied: i.detailCopied,
+                  keywords: i.detailKeywords,
+                  tryFirst: i.detailTryFirst,
+                  aiPaste: i.detailAiPaste,
+                }}
+                items={topFixFirst.map((item) => ({
+                  checkKey: item.checkKey,
+                  message: item.message,
+                  countLabel: i.pagesAffected(item.pages.length),
+                  impact:
+                    auditCopy(item.checkKey, siteLang)?.impact ??
+                    i.defaultImpact(item.pages.length),
+                  fix: item.pages.find((p) => p.fix)?.fix ?? null,
+                  pages: item.pages.map((p) => ({ url: p.url, detail: p.detail })),
+                  keywords: [...new Set(item.pages.flatMap((p) => p.keywords ?? []))],
+                }))}
+              />
             </div>
           )}
         </section>
@@ -265,47 +283,42 @@ export default async function AuditPage() {
           <h2 className="text-caption text-ash-gray mb-3">
             {i.allFindings(findings.length)}
           </h2>
-          <div className="space-y-4">
-            {Array.from(byUrl.entries()).map(([url, items]) => (
-              <div key={url} className="rounded-2xl bg-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-4 flex-wrap">
-                  <div className="font-mono tabular text-xs text-muted-foreground truncate flex-1 min-w-0">
-                    {url}
-                  </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    {i.findingCount(items.length)}
-                  </div>
-                </div>
-                <div className="divide-y divide-border">
-                  {items.map((f) => (
-                    <div key={f.id} className="px-5 py-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`inline-block text-caption px-2.5 py-1 rounded-full ${SEVERITY_TONE[f.severity]}`}
-                        >
-                          {f.severity}
-                        </span>
-                        <Badge variant="outline" className="text-[10px] uppercase rounded-full">
-                          {f.category}
-                        </Badge>
-                        <span className="text-sm font-medium">{f.message}</span>
-                      </div>
-                      {f.detail && (
-                        <div className="text-xs text-muted-foreground mt-1 font-mono tabular">
-                          {f.detail}
-                        </div>
-                      )}
-                      {f.fix && (
-                        <div className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                          {f.fix}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <AuditFindingsList
+            lang={siteLang}
+            copy={{
+              howToFix: i.detailHowTo,
+              seen: i.detailSeen,
+              inspect: i.detailInspect,
+              selector: i.detailSelector,
+              open: i.detailOpen,
+              copy: i.detailCopy,
+              copied: i.detailCopied,
+              keywords: i.detailKeywords,
+              tryFirst: i.detailTryFirst,
+              aiPaste: i.detailAiPaste,
+              severity: {
+                high: i.severityHigh,
+                medium: i.severityMedium,
+                low: i.severityLow,
+                info: i.severityInfo,
+              },
+            }}
+            groups={Array.from(byUrl.entries()).map(([url, items]) => ({
+              url,
+              countLabel: i.findingCount(items.length),
+              items: items.map((f) => ({
+                id: f.id,
+                url: f.url,
+                checkKey: f.checkKey,
+                severity: f.severity,
+                category: f.category,
+                message: f.message,
+                detail: f.detail,
+                fix: f.fix,
+                keywords: f.keywords ?? [],
+              })),
+            }))}
+          />
         </section>
       )}
     </div>

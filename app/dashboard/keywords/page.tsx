@@ -4,6 +4,7 @@ import { eq, and, gte, desc } from "drizzle-orm";
 import { RankDelta } from "@/components/rank-delta";
 import { AddKeywordForm } from "@/components/add-keyword-form";
 import { FetchNowButton } from "@/components/fetch-now-button";
+import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { RemoveKeywordButton } from "@/components/remove-keyword-button";
 import { IntentStageBadge } from "@/components/intent-stage-badge";
 import { ClassifyAllButton } from "@/components/classify-all-button";
@@ -88,7 +89,7 @@ export default async function KeywordsPage({
             ) : (
               <Link
                 href="/dashboard/connect-google"
-                className="inline-flex items-center gap-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg px-4 py-2 hover:opacity-90 transition-opacity"
+                className="inline-flex items-center h-11 px-5 rounded-full bg-button-black text-canvas-white text-sm shadow-button"
               >
                 {i.connectGsc}
               </Link>
@@ -104,7 +105,7 @@ export default async function KeywordsPage({
   sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 30);
   const cutoff = sevenDaysAgo.toISOString().slice(0, 10);
 
-  const [positions, competitorPositions, gscMetricsRows] = await Promise.all([
+  const [positions, competitorPositions, gscMetricsRows, recentFetchRuns] = await Promise.all([
     db
       .select()
       .from(schema.positions)
@@ -132,7 +133,32 @@ export default async function KeywordsPage({
           gte(schema.gscMetrics.date, cutoff),
         ),
       ),
+    db
+      .select()
+      .from(schema.fetchRuns)
+      .where(eq(schema.fetchRuns.userId, ctx.ownerId))
+      .orderBy(desc(schema.fetchRuns.queuedAt))
+      .limit(1),
   ]);
+  const latestFetch = recentFetchRuns[0] ?? null;
+  const fetchBanner = latestFetch
+    ? {
+        id: latestFetch.id,
+        source: latestFetch.source,
+        status: latestFetch.status as
+          | "queued"
+          | "running"
+          | "done"
+          | "failed"
+          | "skipped",
+        queuedAt: latestFetch.queuedAt.toISOString(),
+        startedAt: latestFetch.startedAt?.toISOString() ?? null,
+        finishedAt: latestFetch.finishedAt?.toISOString() ?? null,
+        taskCount: latestFetch.taskCount,
+        resultCount: latestFetch.resultCount,
+        error: latestFetch.error,
+      }
+    : null;
 
   // Sum GSC impressions + clicks per keyword over the last 30 days
   const gscImpByKw = new Map<string, number>();
@@ -202,6 +228,7 @@ export default async function KeywordsPage({
         compCount: ranked.length,
         gscImpressions: gscImpByKw.get(k.id) ?? 0,
         gscClicks: gscClicksByKw.get(k.id) ?? 0,
+        searchVolume: k.searchVolume ?? null,
         sparkline7d: kPos.slice(-7).map((p) => p.position).filter((p): p is number => p != null),
         heatmap7d: (() => {
           const last8 = kPos.slice(-8);
@@ -237,6 +264,7 @@ export default async function KeywordsPage({
     delta1d: (r) => r.delta1d,
     delta7d: (r) => r.delta7d,
     impressions: (r) => r.gscImpressions,
+    volume: (r) => r.searchVolume,
     bestComp: (r) => r.bestCompPosition,
     country: (r) => r.country.toUpperCase(),
   });
@@ -339,21 +367,26 @@ export default async function KeywordsPage({
           </Link>
           <AddKeywordForm />
           {unclassifiedCount > 0 && <ClassifyAllButton />}
-          <FetchNowButton />
+          <FetchNowButton
+            activeStatus={(latestFetch?.status as "queued" | "running" | "done" | "failed" | "skipped" | null) ?? null}
+            runningLabel="Récupération…"
+          />
           <ExportCsvButton type="keywords" />
         </div>
       </header>
 
+      <FetchStatusBanner run={fetchBanner} />
+
       {/* ── Keyword Health Summary ──────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         {[
-          { label: i.stats.top3, value: top3Count, color: "#0098f2" },
-          { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#0098f2" },
-          { label: i.stats.dropping, value: droppingCount, color: "#f200ca" },
-          { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#0098f2" },
-          { label: i.stats.totalTracked, value: totalActive, color: "#0d111b" },
+          { label: i.stats.top3, value: top3Count, color: "#1c1814" },
+          { label: i.stats.striking, value: strikingCount, subtitle: i.stats.strikingSubtitle, color: "#0d6b7c" },
+          { label: i.stats.dropping, value: droppingCount, color: "#9c2f5a" },
+          { label: i.stats.quickWins, value: quickWinCount, subtitle: i.stats.quickWinsSubtitle, color: "#1c1814" },
+          { label: i.stats.totalTracked, value: totalActive, color: "#1c1814" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-card rounded-2xl px-4 py-3">
+          <div key={stat.label} className="sheet px-4 py-3">
             <div className="text-caption text-ash-gray">
               {stat.label}
               {stat.subtitle && (
@@ -374,7 +407,7 @@ export default async function KeywordsPage({
       {topIssues.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
           {topIssues.map((issue, idx) => (
-            <div key={idx} className="bg-card rounded-2xl p-4">
+            <div key={idx} className="sheet p-4">
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <span className="text-sm font-semibold leading-snug truncate">
                   {issue.title}
@@ -399,7 +432,7 @@ export default async function KeywordsPage({
       {/* ── Top Movers (1-day delta) ─────────────────────────────── */}
       {(topUp.length > 0 || topDown.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-          <div className="bg-card rounded-2xl p-5">
+          <div className="sheet p-5">
             <h3 className="text-caption text-ash-gray mb-3">{i.topUp}</h3>
             {topUp.length === 0 ? (
               <p className="text-[11px] text-muted-foreground py-2">{i.noUpMovers}</p>
@@ -415,7 +448,7 @@ export default async function KeywordsPage({
               </div>
             )}
           </div>
-          <div className="bg-card rounded-2xl p-5">
+          <div className="sheet p-5">
             <h3 className="text-caption text-ash-gray mb-3">{i.topDown}</h3>
             {topDown.length === 0 ? (
               <p className="text-[11px] text-muted-foreground py-2">{i.noDownMovers}</p>
@@ -458,7 +491,7 @@ export default async function KeywordsPage({
         <KeywordsFilterBar totalCount={rows.length} filteredCount={filteredRows.length} />
       </div>
 
-      <div className="bg-card rounded-2xl overflow-x-auto">
+      <div className="sheet overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
@@ -481,6 +514,9 @@ export default async function KeywordsPage({
                 <SortableHeader field="impressions" label={i.thImpr} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
               </th>
               <th className="text-right px-4 py-2">
+                <SortableHeader field="volume" label={i.thVolume} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
+              </th>
+              <th className="text-right px-4 py-2">
                 <SortableHeader field="bestComp" label={i.thBestComp} align="right" currentSort={sortField} currentDir={sortDir} searchParams={sp} />
               </th>
               <th className="text-left px-4 py-2">
@@ -493,7 +529,7 @@ export default async function KeywordsPage({
           <tbody>
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={13} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   {i.noFilterMatch} <strong>{i.noFilterMatchReset}</strong> {i.noFilterMatchEnd}
                 </td>
               </tr>
@@ -539,6 +575,9 @@ export default async function KeywordsPage({
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
                   {r.gscImpressions > 0 ? r.gscImpressions.toLocaleString() : "—"}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                  {r.searchVolume != null ? r.searchVolume.toLocaleString(lng) : "—"}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums">
                   {r.bestCompPosition != null ? (

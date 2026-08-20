@@ -3,15 +3,16 @@ import { db, tenantDb, schema } from "@/db/client";
 import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
 import { postSerpTasks, fetchTaskResultMulti, urlToDomain } from "@/lib/dataforseo";
 import { fetchGscHistoryByQuery, fetchGscSiteTotals, fetchGscPagesByDate } from "@/lib/google-oauth";
+import { fetchSearchTerms } from "@/lib/google-ads";
+import { persistSearchTerms } from "@/lib/ads-bootstrap";
 import { decrypt } from "@/lib/encryption";
 import { fetchPage, fetchPagesRendered, discoverUrls } from "@/lib/audit/crawler";
 import { runPageChecks, runSiteWideChecks } from "@/lib/audit/checks";
+import { auditCopy, detectPageLang, resolveAuditLang } from "@/lib/audit/messages";
 import { synthesizeAudit } from "@/lib/llm/audit-synthesis";
 import { sendWeeklyBriefEmail } from "@/lib/email/weekly-brief";
 import { sendOnboardingEmail1, sendOnboardingEmail2, sendOnboardingEmail3 } from "@/lib/email/onboarding";
 import { getUserPlan } from "@/lib/billing-helpers";
-import { getCreditsBalance, debitCredits } from "@/lib/credits";
-import { CREDIT_COSTS } from "@/lib/billing-constants";
 import { generateBrief } from "@/lib/llm/brief";
 import { checkAndFireAlerts } from "@/lib/alerts/check-alerts";
 import { fireWebhook } from "@/lib/webhooks";
@@ -708,6 +709,11 @@ export const gscHistoryPull = inngest.createFunction(
           .where(eq(schema.gscRuns.id, runId!)),
       );
 
+      await step.run("recompute-seo-score", async () => {
+        const { recomputeSeoScore } = await import("@/lib/seo-score-recompute");
+        return recomputeSeoScore(userId);
+      });
+
       return { rows: rows.length, upserted, days };
     } catch (err: any) {
       await step.run("mark-failed", async () =>
@@ -727,6 +733,109 @@ export const gscHistoryPull = inngest.createFunction(
 
 // Daily incremental GSC pull — runs at 04:00 UTC for all users with GSC connected.
 // Skip in dev mode so local experimentation doesn't trigger automatic pulls overnight.
+export const adsSearchTermsPull = inngest.createFunction(
+  {
+    id: "ads-search-terms-pull",
+    concurrency: { limit: 2 },
+    triggers: [{ event: "ads/search-terms.pull" }],
+    timeouts: { start: "1m", finish: "3m" },
+  },
+  async ({ event, step }) => {
+    const userId = event.data.userId;
+    const t = tenantDb(userId);
+
+    let runId = event.data.runId as string | undefined;
+    if (!runId) {
+      runId = randomUUID();
+      await step.run("create-run", async () =>
+        db.insert(schema.adsRuns).values({
+          id: runId!,
+          userId,
+          source: "cron",
+          status: "queued",
+        }),
+      );
+    }
+
+    await step.run("mark-running", async () =>
+      db
+        .update(schema.adsRuns)
+        .set({ status: "running", startedAt: new Date() })
+        .where(eq(schema.adsRuns.id, runId!)),
+    );
+
+    try {
+      const [token] = await step.run("load-token", () => t.selectAdsToken());
+      if (!token) {
+        await step.run("skip-no-token", async () =>
+          db
+            .update(schema.adsRuns)
+            .set({ status: "skipped", finishedAt: new Date(), error: "Ads not connected" })
+            .where(eq(schema.adsRuns.id, runId!)),
+        );
+        return { skipped: true };
+      }
+
+      const accounts = await step.run("load-accounts", () => t.selectAdsAccounts());
+      const selected = accounts.find((a) => a.selected) ?? accounts.find((a) => !a.manager);
+      if (!selected) {
+        await step.run("skip-no-account", async () =>
+          db
+            .update(schema.adsRuns)
+            .set({ status: "skipped", finishedAt: new Date(), error: "no Ads account" })
+            .where(eq(schema.adsRuns.id, runId!)),
+        );
+        return { skipped: true };
+      }
+
+      const refreshToken = decrypt(token.encryptedRefreshToken);
+      const loginId = accounts.find((a) => a.manager)?.customerId;
+      const rows = await step.run("fetch-terms", () =>
+        fetchSearchTerms(refreshToken, selected.customerId, 500, loginId),
+      );
+      const upserted = await step.run("persist", () =>
+        persistSearchTerms(userId, selected.customerId, rows),
+      );
+
+      await step.run("mark-done", async () =>
+        db
+          .update(schema.adsRuns)
+          .set({ status: "done", finishedAt: new Date(), rowsFetched: upserted })
+          .where(eq(schema.adsRuns.id, runId!)),
+      );
+      return { upserted };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await step.run("mark-failed", async () =>
+        db
+          .update(schema.adsRuns)
+          .set({ status: "failed", finishedAt: new Date(), error: message })
+          .where(eq(schema.adsRuns.id, runId!)),
+      );
+      throw err;
+    }
+  },
+);
+
+export const adsDailyScheduler = inngest.createFunction(
+  { id: "ads-daily-scheduler", triggers: [{ cron: "30 4 * * *" }] },
+  async ({ step }) => {
+    if (process.env.INNGEST_DEV === "1" || process.env.NODE_ENV !== "production") {
+      return { skipped: "dev_mode" };
+    }
+    const users = await step.run("list", async () =>
+      db.selectDistinct({ userId: schema.adsTokens.userId }).from(schema.adsTokens),
+    );
+    for (const u of users) {
+      await step.sendEvent("fanout", {
+        name: "ads/search-terms.pull",
+        data: { userId: u.userId },
+      });
+    }
+    return { fannedOut: users.length };
+  },
+);
+
 export const gscDailyScheduler = inngest.createFunction(
   { id: "gsc-daily-scheduler", triggers: [{ cron: "0 4 * * *" }] },
   async ({ step }) => {
@@ -823,6 +932,18 @@ export const siteAudit = inngest.createFunction(
 
       // Run checks on the rendered HTML when available, fall back to SSR.
       // This way schema/microdata injected client-side is correctly detected.
+      const htmlLangs = ssrPages
+        .map((p) => detectPageLang(p.html ?? "", p.url))
+        .filter((l): l is "fr" | "en" => l != null);
+      const htmlFr = htmlLangs.filter((l) => l === "fr").length;
+      const htmlEn = htmlLangs.filter((l) => l === "en").length;
+      const lang = resolveAuditLang({
+        htmlLang: htmlFr === 0 && htmlEn === 0 ? null : htmlFr >= htmlEn ? "fr" : "en",
+        urls,
+        profileLang: profile?.preferredLanguage,
+        uiLang: "fr",
+      });
+
       for (let i = 0; i < urls.length; i++) {
         const url = urls[i];
         const ssr = ssrPages[i];
@@ -830,14 +951,15 @@ export const siteAudit = inngest.createFunction(
         const source = rendered.html.length > 100 ? rendered : ssr;
 
         if ((source as any).fetchError) {
+          const copy = auditCopy("fetch_failed", lang);
           allFindings.push({
             url,
             category: "tech",
             checkKey: "fetch_failed",
             severity: "high",
-            message: "Failed to fetch page",
+            message: copy?.message ?? "fetch_failed",
             detail: (source as any).fetchError,
-            fix: "Check that the URL is reachable and not blocked by your firewall.",
+            fix: copy?.fix,
           });
           continue;
         }
@@ -851,6 +973,7 @@ export const siteAudit = inngest.createFunction(
             responseMs: ssr.responseMs,
             bytes: ssr.bytes,
             trackedKeywords: trackedQueries,
+            lang,
           }),
         );
         allFindings.push(...findings);
@@ -858,7 +981,7 @@ export const siteAudit = inngest.createFunction(
 
       // Site-wide checks
       const siteFindings = await step.run("site-wide-checks", () =>
-        runSiteWideChecks(homepageUrl),
+        runSiteWideChecks(homepageUrl, lang),
       );
       allFindings.push(...siteFindings);
 
@@ -883,25 +1006,17 @@ export const siteAudit = inngest.createFunction(
       // AI synthesis: BYOK users skip credits, others need enough balance.
       let synthesis: Awaited<ReturnType<typeof synthesizeAudit>> | null = null;
       const synthesisDecision = await step.run("synthesis-eligibility", async () => {
-        // Check BYOK — user has their own Anthropic key → skip credit check
+        // BYOK — user has their own Anthropic key → skip the fair-use limit.
         const { getApiKeyStatus } = await import("@/lib/actions/api-keys");
         const keyStatus = await getApiKeyStatus(userId);
         if (keyStatus.byokEnabled && keyStatus.anthropic) {
           return { run: true, reason: "byok" };
         }
 
-        const balance = await getCreditsBalance(userId);
-        if (balance < CREDIT_COSTS.audit) return { run: false, reason: "insufficient_credits", balance };
-        try {
-          await debitCredits({
-            userId,
-            amount: CREDIT_COSTS.audit,
-            reason: "audit_synthesis",
-            metadata: { runId },
-          });
-        } catch {
-          return { run: false, reason: "debit_failed" };
-        }
+        // Flat 99€/mo: enforce the monthly fair-use limit instead of credits.
+        const { guardMonthlyUsage } = await import("@/lib/usage");
+        const usage = await guardMonthlyUsage(userId, "audit");
+        if (!usage.ok) return { run: false, reason: "monthly_limit_reached" };
         return { run: true, reason: "ok" };
       });
 
@@ -912,6 +1027,7 @@ export const siteAudit = inngest.createFunction(
             profile,
             pagesCrawled: urls.length,
             userId,
+            lang,
           }),
         );
       }
@@ -953,13 +1069,16 @@ export const siteAudit = inngest.createFunction(
         synthesisRan: !!synthesis,
       };
     } catch (err: any) {
+      const raw = String(err?.message ?? err);
       await step.run("mark-failed", async () =>
         db
           .update(schema.auditRuns)
           .set({
             status: "failed",
             finishedAt: new Date(),
-            error: String(err?.message ?? err).slice(0, 500),
+            error: raw.startsWith("Failed query:")
+              ? "Erreur base de données. Relancez l'audit."
+              : raw.slice(0, 200),
           })
           .where(eq(schema.auditRuns.id, runId)),
       );
@@ -2137,6 +2256,8 @@ export const functions = [
   weeklyBrief,
   gscHistoryPull,
   gscDailyScheduler,
+  adsSearchTermsPull,
+  adsDailyScheduler,
   siteAudit,
   fullMetaCrawl,
   llmVisibilityCheck,

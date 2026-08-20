@@ -11,7 +11,7 @@ const fr = {
   emptyDescNoSites:
     "Connectez d'abord Google Search Console, puis ajoutez des mots-clés pour commencer à surveiller vos positions.",
   emptyDescWithSites:
-    "Ajoutez des mots-clés pour commencer à surveiller vos positions. Nous récupérerons les classements quotidiennement et analyserons les tendances.",
+    "Ajoutez des mots-clés à suivre. Search Console ne montre que ce que vous avez déjà : utilisez Découvrir pour des requêtes à volume réel.",
   connectGsc: "Connecter GSC",
 
   // Header
@@ -54,6 +54,7 @@ const fr = {
   th7d: "7j Δ",
   th7dShort: "7j",
   thImpr: "Impr 30j",
+  thVolume: "Volume",
   thBestComp: "Best comp",
   thCountry: "Pays",
   thTip: "Conseil",
@@ -73,7 +74,7 @@ const en: typeof fr = {
   emptyDescNoSites:
     "Connect Google Search Console first, then add keywords to start monitoring your search positions.",
   emptyDescWithSites:
-    "Add keywords to start monitoring your search positions. We'll fetch rankings daily and analyze trends.",
+    "Add keywords to track. Search Console only shows queries you already appear for — use Discover for real-volume ideas.",
   connectGsc: "Connect GSC",
 
   headerKicker: "rank tracking",
@@ -111,6 +112,7 @@ const en: typeof fr = {
   th7d: "7d Δ",
   th7dShort: "7d",
   thImpr: "Impr 30d",
+  thVolume: "Volume",
   thBestComp: "Best comp",
   thCountry: "Country",
   thTip: "Tip",

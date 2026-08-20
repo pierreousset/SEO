@@ -3,8 +3,6 @@ import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import { db, schema } from "@/db/client";
-import { addCredits } from "@/lib/credits";
-import { CREDIT_PACK_AMOUNTS } from "@/lib/billing-constants";
 import { claimReferralReward } from "@/lib/actions/referrals";
 
 // Stripe webhooks need the raw body to verify the signature. Disable Next.js body parsing.
@@ -101,25 +99,13 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
   }
 
   if (kind === "credits") {
-    // One-time credit pack purchase
-    const priceId = session.metadata?.priceId ?? "";
-    const credits = CREDIT_PACK_AMOUNTS[priceId];
-    if (!credits) {
-      console.warn(`[stripe webhook] unknown credit pack price ${priceId}`);
-      return;
-    }
-    await addCredits({
-      userId,
-      amount: credits,
-      reason: "purchase",
-      stripeEventId: event.id,
-      metadata: {
-        priceId,
-        sessionId: session.id,
-        amountPaid: session.amount_total,
-      },
-    });
-    console.log(`[stripe webhook] credit pack applied: ${credits} credits for user ${userId}`);
+    // Credit packs are removed under the flat 99€/mo plan. This path should no
+    // longer fire (packs are not sold in the UI). If a stray "credits" checkout
+    // arrives, log and ignore instead of granting a now-meaningless balance.
+    console.warn(
+      `[stripe webhook] ignoring legacy credit-pack checkout for user ${userId} — credits removed under flat plan`,
+    );
+    return;
   } else if (kind === "subscription" || session.subscription) {
     // Subscription checkout — ensure subscription row exists (race with subscription.created).
     // Retrieve the full subscription object from Stripe.

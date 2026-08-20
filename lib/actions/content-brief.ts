@@ -24,6 +24,7 @@ export async function triggerContentBrief(keywordId: string) {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "contentBrief",
     credits: CREDIT_COSTS.contentBrief,
     reason: "content_brief",
     metadata: { keywordId },

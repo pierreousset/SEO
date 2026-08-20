@@ -283,5 +283,6 @@ export async function triggerFetchNow() {
     data: { userId: ctx.ownerId, runId },
   });
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/keywords");
   return { ok: true, runId };
 }

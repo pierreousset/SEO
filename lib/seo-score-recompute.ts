@@ -29,6 +29,7 @@ export async function recomputeSeoScore(userId: string) {
     keywords,
     positions,
     gscPageMetrics,
+    gscKeywordMetrics,
     auditFindings,
     crawlData,
     sites,
@@ -57,6 +58,21 @@ export async function recomputeSeoScore(userId: string) {
         ),
       )
       .groupBy(schema.gscPageMetrics.url),
+    db
+      .select({
+        keywordId: schema.gscMetrics.keywordId,
+        date: schema.gscMetrics.date,
+        clicks: schema.gscMetrics.clicks,
+        impressions: schema.gscMetrics.impressions,
+        position: schema.gscMetrics.gscPosition,
+      })
+      .from(schema.gscMetrics)
+      .where(
+        and(
+          eq(schema.gscMetrics.userId, userId),
+          gte(schema.gscMetrics.date, cutoff),
+        ),
+      ),
     // Latest audit findings
     db
       .select({ severity: schema.auditFindings.severity, category: schema.auditFindings.category })
@@ -138,26 +154,48 @@ export async function recomputeSeoScore(userId: string) {
     };
   });
 
-  // Build KeywordData
+  const gscByKeyword = new Map<string, typeof gscKeywordMetrics>();
+  for (const row of gscKeywordMetrics) {
+    const arr = gscByKeyword.get(row.keywordId) ?? [];
+    arr.push(row);
+    gscByKeyword.set(row.keywordId, arr);
+  }
+
   const keywordData: KeywordData[] = activeKeywords.map((k) => {
-    const history = positions
+    const serpHistory = positions
       .filter((p) => p.keywordId === k.id)
       .sort((a, b) => a.date.localeCompare(b.date));
-    const latest = history.at(-1)?.position ?? null;
-    const prev = history.at(-2)?.position ?? null;
-    const weekAgo = history.at(-8)?.position ?? null;
+    const gscHistory = (gscByKeyword.get(k.id) ?? []).sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
-    // GSC metrics for this keyword
-    const gscRows = gscPageMetrics; // simplified: we don't have per-keyword GSC in page metrics
-    // Use keyword-level GSC metrics if available
+    const gscLatest = gscHistory.at(-1);
+    const gscWeekAgo =
+      gscHistory.filter((r) => r.date <= cutoff7d).at(-1) ?? gscHistory[0];
+    const serpLatest = serpHistory.at(-1)?.position ?? null;
+    const serpPrev = serpHistory.at(-2)?.position ?? null;
+    const serpWeekAgo = serpHistory.at(-8)?.position ?? null;
+
+    const parsePos = (v: string | null | undefined) => {
+      if (v == null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+
+    const clicks28d = gscHistory.reduce((s, r) => s + (r.clicks ?? 0), 0);
+    const impressions28d = gscHistory.reduce(
+      (s, r) => s + (r.impressions ?? 0),
+      0,
+    );
+
     return {
       id: k.id,
       query: k.query,
-      latestPosition: latest,
-      previousPosition: prev,
-      weekAgoPosition: weekAgo,
-      impressions28d: 0, // would need per-keyword GSC join
-      clicks28d: 0,
+      latestPosition: parsePos(gscLatest?.position) ?? serpLatest,
+      previousPosition: parsePos(gscHistory.at(-2)?.position) ?? serpPrev,
+      weekAgoPosition: parsePos(gscWeekAgo?.position) ?? serpWeekAgo,
+      impressions28d,
+      clicks28d,
       intentStage: k.intentStage,
     };
   });

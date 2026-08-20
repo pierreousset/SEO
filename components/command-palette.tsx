@@ -20,7 +20,6 @@ import {
   Users,
   CreditCard,
   Settings,
-  Key,
   Zap,
   Play,
   Download,
@@ -52,7 +51,7 @@ const PAGES: Item[] = [
   { id: "team", label: "Team", section: "Pages", href: "/dashboard/team", icon: <Users className="h-4 w-4 text-muted-foreground" /> },
   { id: "billing", label: "Billing", section: "Pages", href: "/dashboard/billing", icon: <CreditCard className="h-4 w-4 text-muted-foreground" /> },
   { id: "connections", label: "Connections", section: "Pages", href: "/dashboard/connect-google", icon: <Settings className="h-4 w-4 text-muted-foreground" /> },
-  { id: "api-keys", label: "API Keys", section: "Pages", href: "/dashboard/settings/api-keys", icon: <Key className="h-4 w-4 text-muted-foreground" /> },
+  // API Keys (BYOK) hidden for now.
 ];
 
 const ACTIONS: Item[] = [
@@ -76,7 +75,15 @@ function fuzzyMatch(query: string, text: string): boolean {
   return qi === q.length;
 }
 
-export function CommandPalette() {
+const SETUP_HREFS = new Set([
+  "/dashboard",
+  "/dashboard/keywords",
+  "/dashboard/settings",
+  "/dashboard/connect-google",
+  "/dashboard/billing",
+]);
+
+export function CommandPalette({ setupMode = false }: { setupMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -84,9 +91,12 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const filtered = query
-    ? ALL_ITEMS.filter((item) => fuzzyMatch(query, item.label))
+  const catalog = setupMode
+    ? ALL_ITEMS.filter((item) => SETUP_HREFS.has(item.href.split("?")[0] ?? item.href))
     : ALL_ITEMS;
+  const filtered = query
+    ? catalog.filter((item) => fuzzyMatch(query, item.label))
+    : catalog;
 
   const pages = filtered.filter((i) => i.section === "Pages");
   const actions = filtered.filter((i) => i.section === "Actions");

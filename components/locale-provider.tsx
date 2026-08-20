@@ -6,12 +6,12 @@ const LocaleContext = createContext<{
   locale: Locale;
   setLocale: (l: Locale) => void;
 }>({
-  locale: "en",
+  locale: "fr",
   setLocale: () => {},
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("fr");
 
   useEffect(() => {
     const saved = localStorage.getItem("locale") as Locale | null;

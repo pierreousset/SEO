@@ -22,6 +22,7 @@ export async function triggerCompetitorGapScan() {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "competitorGap",
     credits: CREDIT_COSTS.competitorGap,
     reason: "competitor_gap",
   });

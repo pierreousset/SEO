@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { eq, desc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { Badge } from "@/components/ui/badge";
+import { localizeFinding, resolveAuditLang } from "@/lib/audit/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -177,11 +178,13 @@ async function SharedAudit({
 
   if (!run) notFound();
 
-  const findings = await db
+  const rawFindings = await db
     .select()
     .from(schema.auditFindings)
     .where(eq(schema.auditFindings.runId, run.id))
     .orderBy(desc(schema.auditFindings.severity));
+  const siteLang = resolveAuditLang({ urls: rawFindings.map((f) => f.url), uiLang: "fr" });
+  const findings = rawFindings.map((f) => localizeFinding(f, siteLang));
 
   // Group by URL
   const byUrl = new Map<string, typeof findings>();

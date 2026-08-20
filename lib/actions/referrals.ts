@@ -5,10 +5,7 @@ import { cookies } from "next/headers";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { requireAccountContext } from "@/lib/account-context";
-import { addCredits } from "@/lib/credits";
 import { getUserPlan } from "@/lib/billing-helpers";
-
-const REFERRAL_CREDITS_REWARD = 20;
 
 function appUrl(): string {
   return process.env.BETTER_AUTH_URL ?? "http://localhost:3100";
@@ -62,7 +59,9 @@ export async function getReferralStats(): Promise<{
     }),
   );
 
-  const totalRewards = rows.filter((r) => r.creditsAwarded).length * REFERRAL_CREDITS_REWARD;
+  // Number of completed referrals (referred user subscribed). No credit value
+  // under the flat plan — the UI shows this as "friends subscribed".
+  const totalRewards = rows.filter((r) => r.creditsAwarded).length;
 
   return { referrals, totalRewards };
 }
@@ -100,11 +99,15 @@ export async function recordReferral(
 }
 
 /**
- * Claim referral reward when a referred user subscribes to Pro.
+ * Mark a referral as completed when the referred user subscribes to Pro.
  * Called from the Stripe webhook or subscription handler.
+ *
+ * Under the flat 99€/mo plan there is no automatic reward (credits are gone).
+ * We keep the referral graph and completion status so a reward (e.g. a free
+ * month via a Stripe coupon) can be granted manually or added later. The
+ * `creditsAwarded` column now means "referral completed & processed".
  */
 export async function claimReferralReward(referredUserId: string): Promise<void> {
-  // Find unrewarded referral for this user
   const [referral] = await db
     .select()
     .from(schema.referrals)
@@ -118,15 +121,7 @@ export async function claimReferralReward(referredUserId: string): Promise<void>
 
   if (!referral) return;
 
-  // Award credits to the referrer
-  await addCredits({
-    userId: referral.referrerId,
-    amount: REFERRAL_CREDITS_REWARD,
-    reason: "referral_reward",
-    metadata: { referredUserId, referredEmail: referral.referredEmail },
-  });
-
-  // Mark as awarded
+  // No auto-reward (credits removed). Just mark the referral as completed.
   await db
     .update(schema.referrals)
     .set({ creditsAwarded: true })

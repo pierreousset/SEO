@@ -28,9 +28,12 @@ const SCOPES = [
   { value: "tracked", label: "Tracked only" },
 ] as const;
 
+const GROWTH = "#3dbe78";
+const EFFORT = "#5b87d6";
+
 const config = {
-  clicks: { label: "Clicks", color: "var(--primary)" },
-  impressions: { label: "Impressions", color: "var(--muted-foreground)" },
+  clicks: { label: "Clicks", color: GROWTH },
+  impressions: { label: "Impressions", color: EFFORT },
 } satisfies ChartConfig;
 
 export function GscPerformanceChart({
@@ -73,114 +76,90 @@ export function GscPerformanceChart({
 
   if (trackedData.length === 0 && siteData.length === 0) {
     return (
-      <div className="rounded-2xl bg-secondary p-8 text-sm text-muted-foreground">
-        No GSC data yet. Click <strong>Pull GSC history</strong> above to fetch up to 90 days.
+      <div className="sheet p-8 text-sm text-ash-gray">
+        No GSC data yet. Click <strong className="text-ink-black">Pull GSC history</strong> above to fetch up to 90 days.
       </div>
     );
   }
 
   if (compact) {
+    const maxClicks = Math.max(1, ...sliced.map((d) => d.clicks));
     return (
       <div className="h-full w-full flex flex-col">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="inline-flex rounded-lg bg-background p-0.5">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <h3 className="text-body font-medium text-ink-black">Search Console</h3>
+          <p className="text-caption text-ash-gray rounded-full bg-subtle-cream px-2.5 py-1 shrink-0">
+            {range}d
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+          <div>
+            <p className="text-caption text-ash-gray">Clicks</p>
+            <p className="mt-1 font-semibold tabular-nums text-ink-black tracking-[-0.04em] text-[clamp(1.75rem,4vw,2.35rem)] leading-none">
+              {totals.clicks.toLocaleString()}
+            </p>
+          </div>
+          <ul className="flex flex-col gap-1 text-caption sm:items-end">
+            <li className="flex items-center gap-2 text-deep-slate">
+              <span className="size-2 rounded-full" style={{ background: GROWTH }} />
+              clicks
+              <span className="tabular-nums text-ink-black font-medium">{totals.clicks.toLocaleString()}</span>
+            </li>
+            <li className="flex items-center gap-2 text-deep-slate">
+              <span className="size-2 rounded-full" style={{ background: EFFORT }} />
+              impressions
+              <span className="tabular-nums text-ink-black font-medium">{totals.impressions.toLocaleString()}</span>
+            </li>
+          </ul>
+        </div>
+        <div className="flex-1 min-h-[140px] flex items-end gap-[3px]">
+          {sliced.map((d) => (
+            <div
+              key={d.date}
+              title={`${d.date}: ${d.clicks} clicks`}
+              className="flex-1 rounded-t-[3px] min-h-[3px]"
+              style={{
+                height: `${Math.max(3, (d.clicks / maxClicks) * 100)}%`,
+                background: GROWTH,
+              }}
+            />
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="seg">
             {SCOPES.map((s) => (
               <button
                 key={s.value}
+                type="button"
                 onClick={() => setScope(s.value)}
                 disabled={s.value === "site" ? siteData.length === 0 : trackedData.length === 0}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  scope === s.value
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-pressed={scope === s.value}
+                className="seg-btn"
               >
                 {s.label}
               </button>
             ))}
           </div>
-          <div className="inline-flex rounded-lg bg-background p-0.5">
+          <div className="seg">
             {RANGES.map((r) => (
               <button
                 key={r.days}
+                type="button"
                 onClick={() => setRange(r.days)}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-md transition-colors ${
-                  range === r.days
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-pressed={range === r.days}
+                className="seg-btn"
               >
                 {r.label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-4 ml-auto">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-caption text-ash-gray">clicks</span>
-              <span className="font-mono text-xs font-semibold">{totals.clicks.toLocaleString()}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-              <span className="text-caption text-ash-gray">impressions</span>
-              <span className="font-mono text-xs font-semibold">{totals.impressions.toLocaleString()}</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-caption text-ash-gray">ctr</span>
-              <span className="font-mono text-xs font-semibold">{totals.ctr.toFixed(1)}%</span>
-            </span>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0">
-          <ChartContainer config={config} className="h-full w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sliced} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="fillClicksC" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-clicks)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--color-clicks)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v: string) => {
-                    const d = new Date(v);
-                    return `${d.toLocaleString("en", { month: "short" })} ${d.getDate()}`;
-                  }}
-                />
-                <YAxis hide />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="clicks"
-                  stroke="var(--color-clicks)"
-                  strokeWidth={2}
-                  fill="url(#fillClicksC)"
-                  dot={false}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="impressions"
-                  stroke="var(--color-impressions)"
-                  strokeWidth={1}
-                  fill="none"
-                  dot={false}
-                  strokeDasharray="4 4"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartContainer>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-secondary p-6 md:p-8">
+    <div className="sheet p-6 md:p-8">
       <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -194,32 +173,28 @@ export function GscPerformanceChart({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <div className="inline-flex rounded-full bg-background p-1">
+          <div className="seg">
             {SCOPES.map((s) => (
               <button
                 key={s.value}
+                type="button"
                 onClick={() => setScope(s.value)}
                 disabled={s.value === "site" ? siteData.length === 0 : trackedData.length === 0}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  scope === s.value
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-pressed={scope === s.value}
+                className="seg-btn"
               >
                 {s.label}
               </button>
             ))}
           </div>
-          <div className="inline-flex rounded-full bg-background p-1">
+          <div className="seg">
             {RANGES.map((r) => (
               <button
                 key={r.days}
+                type="button"
                 onClick={() => setRange(r.days)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                  range === r.days
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-pressed={range === r.days}
+                className="seg-btn"
               >
                 {r.label}
               </button>

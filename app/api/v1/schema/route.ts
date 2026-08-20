@@ -29,6 +29,7 @@ export async function POST(req: Request) {
 
   const guard = await guardMeteredAction({
     userId,
+    action: "schemaGeneration",
     credits: CREDIT_COSTS.schemaGeneration,
     reason: "schema_generation_api",
     metadata: { url },

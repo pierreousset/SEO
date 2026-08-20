@@ -15,8 +15,11 @@ type Run = {
   error: string | null;
 };
 
-function elapsed(fromIso: string): string {
-  const ms = Date.now() - new Date(fromIso).getTime();
+// `nowMs` is null during SSR and the first client render (before mount), so the
+// server and client agree and hydration doesn't mismatch on the live timer.
+function elapsed(fromIso: string, nowMs: number | null): string {
+  if (nowMs == null) return "…";
+  const ms = nowMs - new Date(fromIso).getTime();
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
@@ -25,12 +28,17 @@ function elapsed(fromIso: string): string {
 
 export function CannibalizationStatusBanner({ run }: { run: Run | null }) {
   const router = useRouter();
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState<number | null>(null);
+
+  // Set the clock once on mount (all statuses need it, e.g. isRecentDone).
+  // Intentional client-only initializer so SSR/first render stay deterministic.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setNow(Date.now()), []);
 
   useEffect(() => {
     if (!run) return;
     if (run.status !== "queued" && run.status !== "running") return;
-    const i = setInterval(() => setTick((t) => t + 1), 1000);
+    const i = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(i);
   }, [run]);
 
@@ -46,12 +54,12 @@ export function CannibalizationStatusBanner({ run }: { run: Run | null }) {
   const isRecentDone =
     run.status === "done" &&
     run.finishedAt &&
-    Date.now() - new Date(run.finishedAt).getTime() < 60_000;
+    now != null && now - new Date(run.finishedAt).getTime() < 60_000;
 
   if (run.status === "queued") {
     return (
       <Banner tone="info" icon={<Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}>
-        <strong>Scan queued</strong> · {elapsed(run.queuedAt)}
+        <strong>Scan queued</strong> · {elapsed(run.queuedAt, now)}
       </Banner>
     );
   }
@@ -60,7 +68,7 @@ export function CannibalizationStatusBanner({ run }: { run: Run | null }) {
     return (
       <Banner tone="info" icon={<Split className="h-4 w-4 animate-pulse" strokeWidth={2} />}>
         <strong>Scanning for cannibalization</strong> · pulling GSC query × page data ·{" "}
-        {elapsed(run.startedAt ?? run.queuedAt)}
+        {elapsed(run.startedAt ?? run.queuedAt, now)}
       </Banner>
     );
   }

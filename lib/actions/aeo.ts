@@ -27,6 +27,7 @@ export async function runAeoCheck(keywordIds?: string[]) {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "aeoCheck",
     credits: CREDIT_COSTS.aeoCheck,
     reason: "aeo_check",
     metadata: { engines, keywordCount: keywordIds?.length ?? 0 },

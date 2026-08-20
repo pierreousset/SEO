@@ -13,6 +13,7 @@ export async function generateSchemaMarkup(url: string) {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "schemaGeneration",
     credits: CREDIT_COSTS.schemaGeneration,
     reason: "schema_generation",
     metadata: { url },

@@ -75,8 +75,8 @@ export default function WeeklyBriefEmail(props: WeeklyBriefEmailProps) {
       <Head />
       <Preview>{s.preview(periodText)}</Preview>
       <Tailwind>
-        <Body className="bg-[#fafafa] font-sans text-[#0a0a0a] m-0 p-0 py-6">
-          <Container className="max-w-[640px] w-full mx-auto bg-white rounded-2xl overflow-hidden">
+        <Body className="bg-[#f7fafc] font-sans text-[#000000] m-0 p-0 py-6">
+          <Container className="max-w-[640px] w-full mx-auto bg-white rounded-[20px] overflow-hidden border border-solid border-[#ececec]">
             {/* Header */}
             <Section className="px-8 pt-8 pb-6">
               <Text className="text-[11px] font-semibold text-[#737373] uppercase tracking-[0.06em] m-0">
@@ -101,7 +101,7 @@ export default function WeeklyBriefEmail(props: WeeklyBriefEmailProps) {
                 </Text>
                 {props.topMovers.map((m, i) => {
                   const color =
-                    m.delta > 0 ? "#16a34a" : m.delta < 0 ? "#dc2626" : "#737373";
+                    m.delta > 0 ? "#0098f2" : m.delta < 0 ? "#f200ca" : "#8d8d8d";
                   const sign = m.delta > 0 ? "+" : "";
                   return (
                     <div
@@ -172,10 +172,10 @@ export default function WeeklyBriefEmail(props: WeeklyBriefEmailProps) {
                 {props.tickets.map((t, i) => {
                   const color =
                     t.priority === "high"
-                      ? "#dc2626"
+                      ? "#f200ca"
                       : t.priority === "medium"
-                        ? "#ca8a04"
-                        : "#737373";
+                        ? "#0d111b"
+                        : "#8d8d8d";
                   const label =
                     s.priorities[t.priority as keyof typeof s.priorities] ?? t.priority;
                   return (
@@ -284,7 +284,7 @@ export default function WeeklyBriefEmail(props: WeeklyBriefEmailProps) {
             <Section className="px-8 py-8">
               <Link
                 href={props.dashboardUrl}
-                className="bg-[#0a0a0a] text-white no-underline rounded-full px-6 py-3 inline-block text-sm font-medium"
+                className="bg-[#0d111b] text-white no-underline rounded-full px-6 py-3 inline-block text-sm font-medium"
               >
                 {s.openDashboard} →
               </Link>
@@ -293,7 +293,7 @@ export default function WeeklyBriefEmail(props: WeeklyBriefEmailProps) {
             <Hr className="border-[#e5e5e5] m-0" />
 
             {/* Footer */}
-            <Section className="px-8 py-6 bg-[#fafafa]">
+            <Section className="px-8 py-6 bg-[#f7fafc]">
               <Text className="text-[11px] text-[#a3a3a3] leading-[1.6] m-0">
                 {s.footer}
                 <br />

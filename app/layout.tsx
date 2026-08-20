@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Caveat, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/components/locale-provider";
+import { getLocale } from "@/lib/i18n-server";
 import "./globals.css";
 
 const caveat = Caveat({
@@ -19,58 +20,55 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "https://seo.240company.com"),
   title: {
-    default: "SEO Dashboard — Your AI SEO Coach",
+    default: "SEO Dashboard — Quoi corriger, dans quel ordre",
     template: "%s | SEO Dashboard",
   },
   description:
-    "Stop staring at data. Start getting results. AI-powered SEO coach that tells you what to fix, in what order, and why. Indie alternative to Semrush at 15€/mo.",
+    "Coach SEO branché sur Search Console. Brief hebdo, audit, suivi de positions. 99€/mois après un free sans carte. Par 240 Company.",
   keywords: [
     "SEO",
-    "SEO dashboard",
-    "SEO tool",
-    "rank tracking",
-    "AI SEO",
-    "keyword tracking",
-    "site audit",
-    "alternative semrush",
+    "coach SEO",
+    "Search Console",
+    "audit SEO",
+    "suivi de positions",
+    "brief SEO",
   ],
   authors: [{ name: "240 Company" }],
   creator: "240 Company",
   openGraph: {
-    title: "SEO Dashboard — Your AI SEO Coach",
+    title: "SEO Dashboard — Quoi corriger, dans quel ordre",
     description:
-      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs. 15€/mo.",
+      "Coach SEO branché sur Search Console. Brief hebdo, audit, suivi. 99€/mois.",
     type: "website",
     locale: "fr_FR",
     alternateLocale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "SEO Dashboard — Your AI SEO Coach",
+    title: "SEO Dashboard — Quoi corriger, dans quel ordre",
     description:
-      "AI-powered SEO coaching. Health score, issue detection, keyword tracking, AI briefs.",
+      "Coach SEO branché sur Search Console. Brief hebdo, audit, suivi. 99€/mois.",
   },
   robots: {
     index: true,
     follow: true,
   },
   icons: { icon: "/favicon.svg" },
-  alternates: {
-    canonical: "/",
-  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const lng = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={lng}
       className={`${caveat.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-canvas-white text-ink-black">
+      <body className="min-h-full flex flex-col bg-background text-ink-black">
         <LocaleProvider>{children}</LocaleProvider>
         <Toaster position="top-right" />
       </body>

@@ -9,31 +9,33 @@ The dashboard is a clean, sharp accounting-software interface defined by abundan
 
 | Name | Value | Token | Role |
 |---|---|---|---|
-| Canvas White | `#ffffff` | `--color-canvas-white` | Page + card backgrounds. Default surface. |
-| Ink Black | `#000000` | `--color-ink-black` | Primary text, critical headings, brand emphasis. |
-| Graphite | `#0f0f0f` | `--color-graphite` | Prominent headings and body text. |
-| Deep Slate | `#1e1e1e` | `--color-deep-slate` | Secondary body text and descriptions. |
-| Ash Gray | `#8d8d8d` | `--color-ash-gray` | Subtle text, metadata, disabled states. |
-| Button Black | `#0d111b` | `--color-button-black` | Primary action button background. |
-| Sky Teal | `#0098f2` | `--color-sky-teal` | THE accent — links, checkmarks, focus rings, positive deltas. |
-| Hot Pink | `#f200ca` | `--color-hot-pink` | Decorative icon accent + destructive/down indicators. |
-| Vivid Violet | `#6d56fc` | `--color-vivid-violet` | Decorative icon accent. |
-| Subtle Cream | `#f7fafc` | `--color-subtle-cream` | Alternating section backgrounds, muted surfaces. |
-| Hairline | `#ececec` | `--color-hairline` | Subtle borders, dividers. |
+| Canvas White | `#fffcf7` | `--color-canvas-white` | Paper sheets, sidebar. |
+| Ink Black | `#1c1814` | `--color-ink-black` | Primary text, headings, brand emphasis. |
+| Graphite | `#241f1a` | `--color-graphite` | Prominent body. |
+| Deep Slate | `#4a433c` | `--color-deep-slate` | Secondary body. |
+| Ash Gray | `#6f675f` | `--color-ash-gray` | Captions, metadata, disabled. |
+| Button Black | `#1c1814` | `--color-button-black` | Primary action. |
+| Sky Teal | `#0d6b7c` | `--color-sky-teal` | Links, checkmarks, handwritten coach notes, positive deltas. |
+| Hot Pink | `#9c2f5a` | `--color-hot-pink` | Negative deltas, errors. |
+| Vivid Violet | `#5a4a8a` | `--color-vivid-violet` | Rare decorative accent. |
+| Subtle Cream | `#f4efe8` | `--color-subtle-cream` | Warm marble canvas, alt bands. |
+| Hairline | `#e4d9ce` | `--color-hairline` | Borders, crop marks, dividers. |
 
 ### Semantic mappings (existing utility classes keep working)
 | Tailwind class | Resolves to |
 |---|---|
-| `bg-background`, `bg-card`, `bg-popover` | `#ffffff` |
-| `text-foreground`, `text-card-foreground` | `#000000` |
-| `text-muted-foreground` | `#8d8d8d` (ash-gray) |
-| `bg-primary`, `bg-button-black` | `#0d111b` |
-| `text-primary-foreground` | `#ffffff` |
-| `bg-secondary`, `bg-muted`, `bg-subtle-cream` | `#f7fafc` |
-| `text-accent`, `bg-accent`, `text-sky-teal` | `#0098f2` |
-| `border-border`, `border-hairline` | `#ececec` |
-| `text-up` (custom) | `#0098f2` (positive = teal) |
-| `text-down` (custom) | `#f200ca` (negative = hot-pink) |
+| `bg-background` | `#f4efe8` (warm marble) |
+| `bg-popover` | `#fffcf7` |
+| `bg-card` | `#fffcf7` — paper on marble |
+| `text-foreground`, `text-card-foreground` | `#1c1814` |
+| `text-muted-foreground` | `#6f675f` |
+| `bg-primary`, `bg-button-black` | `#1c1814` |
+| `text-primary-foreground` | `#fffcf7` |
+| `bg-secondary`, `bg-muted`, `bg-subtle-cream` | `#f4efe8` |
+| `text-accent`, `bg-accent`, `text-sky-teal` | `#0d6b7c` |
+| `border-border`, `border-hairline` | `#e4d9ce` |
+| `text-up` (custom) | `#0d6b7c` |
+| `text-down` (custom) | `#9c2f5a` |
 
 ## 2. Typography
 
@@ -74,11 +76,10 @@ The dashboard is a clean, sharp accounting-software interface defined by abundan
 - Text-only, no background, no border
 - Open Runde Regular, color `text-ash-gray` default, `text-ink-black` on hover/active
 
-### Card
-- `bg-canvas-white` on a `bg-canvas-white` page → distinguished by `shadow-subtle` OR a `bg-subtle-cream` alt section
-- `radius-card` = 20px
-- Padding: `p-6` (24px)
-- No internal shadows beyond `shadow-subtle`
+### Card (`.sheet`)
+- Paper `#fffcf7` floating on marble `#f4efe8`. Soft lift, 28px radius, hairline.
+- Padding 24–32px. Big tabular number, caption label, pill controls.
+- Data color lives in the chart: growth `#3dbe78`, effort `#5b87d6`, annotation violet. Chrome stays ink/cream.
 
 ### Badge / Pill
 - `radius-badge` = 1250px (effectively full pill at any size)
@@ -101,10 +102,8 @@ The dashboard is a clean, sharp accounting-software interface defined by abundan
 
 | Token | Use |
 |---|---|
-| `shadow-subtle` | Cards. `0 2.5px 2.5px 0 rgba(0,0,0,0.06)`. |
+| `shadow-subtle` | Sheets. `0 1px 2px rgba(28,24,20,0.04), 0 12px 40px rgba(28,24,20,0.07)`. |
 | `shadow-button` | Primary buttons. Per Acctual spec. |
-
-No other shadows. For depth, prefer subtle background changes (`bg-subtle-cream`) or a `border-hairline` line.
 
 ## 6. Imagery & Icons
 
@@ -114,16 +113,17 @@ No other shadows. For depth, prefer subtle background changes (`bg-subtle-cream`
 ## 7. Do's and Don'ts
 
 ### Do
-- Canvas White (`#ffffff`) is the dominant background. Use Subtle Cream (`#f7fafc`) only for alternating sections.
+- Subtle Cream (`#f4efe8`) is the warm canvas. Canvas White (`#fffcf7`) is paper sitting on it. Cards use paper + hairline + `shadow-subtle`.
 - Open Runde for all main headings and body. Vary weight (400/500/600) by role.
-- Sky Teal (`#0098f2`) **only** for interactive/positive elements — never decorative.
-- 100px radius for all buttons and pill elements. 20px for cards.
+- Sky Teal (`#0d6b7c`) for interactive/positive elements and Caveat coach notes. Never as a large fill.
+- Growth green and effort blue are for charts only, not chrome.
+- 100px radius for all buttons and pill elements. 28px for sheets.
 - Generous padding (24px / 40px). Whitespace is the design.
-- Caveat for testimonials and short impactful pull-quotes only.
+- Caveat for testimonials and short impactful pull-quotes only. Never for UI chrome, nav, or KPIs.
 
 ### Don't
-- Don't introduce new chromatic colors beyond Sky Teal, Hot Pink, Vivid Violet.
-- Don't use box shadows for elevation beyond `shadow-subtle`. Prefer cream-bg alt sections.
+- Don't introduce new chromatic colors beyond Sky Teal, Hot Pink, Vivid Violet, and the two chart inks (growth / effort).
+- Don't use box shadows beyond `shadow-subtle`. Sheets lift; marble stays flat.
 - Don't use system sans-serif for headlines or body — only for tiny UI chrome.
 - Don't deviate from the letter-spacing values for Open Runde.
 - Don't pack content without whitespace — the design's strength is space.
@@ -132,7 +132,7 @@ No other shadows. For depth, prefer subtle background changes (`bg-subtle-cream`
 ## 8. Migration notes (from previous Dark Bento)
 
 - `font-mono` classes still resolve (aliased to Open Runde + tnum). Text remains visually fine; numbers stay aligned. New code should not use `font-mono` — use `tabular-nums` directly.
-- `bg-card` no longer differs visually from `bg-background` (both `#ffffff`). Cards must use `shadow-subtle` or `bg-subtle-cream` for delineation. Audit `rounded-2xl bg-card` blocks.
+- `bg-card` resolves to `#f7fafc` (subtle-cream), so cards already differ from the `#ffffff` page as cream panels. Add `shadow-subtle` for extra crispness — the dashboard tiles use `bg-card rounded-2xl shadow-subtle`.
 - The old purple primary `#A855F7` is gone. Anything that read "primary action" → `bg-button-black`. Anything that meant "interactive accent" → `bg-sky-teal` / `text-sky-teal`.
 - The `text-[10px] font-mono uppercase tracking-[1.2px]` page-header label pattern is dropped. Use `text-caption text-ash-gray`.
 - Dark mode is removed. No `.dark` class, no toggle, no `next-themes`. The `prefers-color-scheme` is no longer respected — the app is light-only.

@@ -32,9 +32,60 @@ export const PRO_LIMITS = {
   gscHistoryDaysMax: 90,
 };
 
+/** Flat plan price. Single paid tier, no credits, no packs. The real charge
+ *  lives in Stripe (STRIPE_PRICE_BASE_MONTHLY must point to a 99€/mo price). */
+export const PLAN_PRICE_EUR = 99;
+
 /**
- * Credit costs for metered actions.
- * Designed at ~2.5x markup over real cost (per pricing design doc).
+ * Metered actions gated by fair-use monthly limits (replaces credits).
+ * `null` = unlimited (cheap Haiku / free GSC calls). A number = generous
+ * monthly cap that resets each calendar month, invisible unless exceeded.
+ * Tune freely — this is the single source of truth for margin protection.
+ */
+export type MeteredAction =
+  | "audit"
+  | "competitorDiscovery"
+  | "competitorGap"
+  | "backlinks"
+  | "aeoCheck"
+  | "contentBrief"
+  | "articleGeneration"
+  | "briefManual"
+  | "metaSuggestion"
+  | "metaSuggestionBulk"
+  | "schemaGeneration"
+  | "aiSuggestions"
+  | "cannibalization"
+  | "keywordIdeas";
+
+export const MONTHLY_LIMITS: Record<MeteredAction, number | null> = {
+  // Expensive external calls (DataForSEO $$$ / multi-provider AEO) — capped.
+  backlinks: 8,
+  competitorDiscovery: 10,
+  /** Labs keyword_ideas + keywords_for_site — not on every fetch. */
+  keywordIdeas: 8,
+  competitorGap: 10,
+  aeoCheck: 8,
+  // Moderate LLM/DataForSEO cost — generous caps.
+  audit: 30,
+  contentBrief: 30,
+  articleGeneration: 20,
+  briefManual: 20,
+  // Cheap (Haiku) or free (GSC) — unlimited.
+  metaSuggestion: null,
+  metaSuggestionBulk: null,
+  schemaGeneration: null,
+  aiSuggestions: null,
+  cannibalization: null,
+};
+
+/** Min time between DataForSEO keyword-idea pulls. Volume does not change daily. */
+export const KEYWORD_IDEAS_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * @deprecated Credits are removed under the flat 99€/mo plan. These values are
+ * kept only so legacy imports don't break during the switch; nothing debits
+ * credits anymore. Gating now goes through MONTHLY_LIMITS + lib/usage.ts.
  */
 export const CREDIT_COSTS = {
   audit: 4, // ~$0.15 cost → 0.40€ retail

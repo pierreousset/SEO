@@ -1,5 +1,6 @@
 import { getUserPlan } from "@/lib/billing-helpers";
-import { debitCredits, InsufficientCreditsError } from "@/lib/credits";
+import { guardMonthlyUsage } from "@/lib/usage";
+import type { MeteredAction } from "@/lib/billing-constants";
 import { getApiKeyStatus } from "@/lib/api-key-status";
 
 export type GuardResult =
@@ -14,24 +15,32 @@ export type GuardResult =
 export type AiProvider = "anthropic" | "googleGemini" | "huggingface" | "nvidia" | "ollama" | "lmStudio";
 
 /**
- * Standard guard for any metered action. Debits credits atomically.
+ * Standard guard for any metered action. Enforces the flat-99€/mo fair-use
+ * monthly limit for the action (no credits).
  *
  * BYOK (Bring Your Own Key) policy:
- * If the user has configured their own API key for the AI provider this
- * action uses, credits are NOT debited. They pay for tokens directly to
- * the provider. Only the subscription (15€/mo) is required.
+ * If the user has configured their own API key for the AI provider this action
+ * uses, the fair-use limit is skipped — they pay the provider directly, so the
+ * action costs us nothing. Only the subscription is required.
  *
  * Actions that use DataForSEO or other non-AI paid APIs should NOT pass
- * aiProvider — those always cost credits regardless of BYOK.
+ * aiProvider — those always count against the fair-use limit regardless of BYOK.
+ *
+ * `credits` and `reason` are retained for backward-compatible call sites; only
+ * `action` drives gating now (`credits` is ignored).
  */
 export async function guardMeteredAction(opts: {
   userId: string;
-  credits: number;
-  reason: string;
+  /** The metered action — drives the fair-use monthly limit. */
+  action: MeteredAction;
+  /** @deprecated no longer used for gating (credits removed). */
+  credits?: number;
+  /** @deprecated retained for call-site compatibility. */
+  reason?: string;
   metadata?: Record<string, unknown>;
-  /** Block even free users holding credits. Defaults false. */
+  /** Block free users from this action entirely. Defaults false. */
   strictProOnly?: boolean;
-  /** If set, skip credits when user has their own key for this provider. */
+  /** If set, skip the fair-use limit when the user has their own key here. */
   aiProvider?: AiProvider;
 }): Promise<GuardResult> {
   if (opts.strictProOnly) {
@@ -39,12 +48,12 @@ export async function guardMeteredAction(opts: {
     if (plan === "free") {
       return {
         ok: false,
-        error: "Pro subscription required. Upgrade on /dashboard/billing.",
+        error: "Abonnement requis. Passe au plan 99€/mois sur /dashboard/billing.",
       };
     }
   }
 
-  // BYOK: user enabled "use my own keys" mode AND has a key for this provider → skip credits
+  // BYOK: user enabled "use my own keys" AND has a key for this provider → free, no limit.
   if (opts.aiProvider) {
     const keyStatus = await getApiKeyStatus(opts.userId);
     if (keyStatus.byokEnabled) {
@@ -62,25 +71,7 @@ export async function guardMeteredAction(opts: {
     }
   }
 
-  if (opts.credits === 0) return { ok: true };
-
-  try {
-    await debitCredits({
-      userId: opts.userId,
-      amount: opts.credits,
-      reason: opts.reason,
-      metadata: opts.metadata,
-    });
-    return { ok: true };
-  } catch (e) {
-    if (e instanceof InsufficientCreditsError) {
-      const plan = await getUserPlan(opts.userId);
-      const msg =
-        plan === "free"
-          ? `Need ${e.required} credits, you have ${e.available}. Subscribe to Pro to buy credit packs, or add your own API key in Settings.`
-          : `Need ${e.required} credits, you have ${e.available}. Buy a pack on /dashboard/billing, or add your own API key in Settings.`;
-      return { ok: false, error: msg };
-    }
-    throw e;
-  }
+  const usage = await guardMonthlyUsage(opts.userId, opts.action);
+  if (!usage.ok) return { ok: false, error: usage.error };
+  return { ok: true };
 }

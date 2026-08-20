@@ -68,4 +68,5 @@ export default async function Page() {
 
 ## Design
 
-See `DESIGN.md`. Dark bento, lowercase mono labels, no shadows, rounded-2xl.
+See `DESIGN.md`. Light-only "Acctual": white surfaces, Open Runde (no mono),
+sky-teal accent, `shadow-subtle` only, rounded cards (20px).

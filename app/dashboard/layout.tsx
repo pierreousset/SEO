@@ -8,24 +8,27 @@ import { UsageMeter } from "@/components/usage-meter";
 import { AccountSwitcher } from "@/components/account-switcher";
 import { ExpandableSidebar } from "@/components/expandable-sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { tenantDb } from "@/db/client";
 
 const NAV = [
-  { href: "/dashboard", label: "Overview", iconName: "layout-dashboard" as const },
-  { href: "/dashboard/chat", label: "Chat", iconName: "message-square" as const },
-  { href: "/dashboard/keywords", label: "Keywords", iconName: "list-ordered" as const },
-  { href: "/dashboard/pages", label: "Pages", iconName: "file-stack" as const },
-  { href: "/dashboard/refresh", label: "Refresh", iconName: "rotate-cw" as const },
-  { href: "/dashboard/brief", label: "Brief", iconName: "file-text" as const },
-  { href: "/dashboard/aeo", label: "AEO", iconName: "sparkles" as const },
-  { href: "/dashboard/audit", label: "Audit", iconName: "stethoscope" as const },
-  { href: "/dashboard/audit/metas", label: "Metas", iconName: "tags" as const },
-  { href: "/dashboard/internal-links", label: "Links", iconName: "link" as const },
-  { href: "/dashboard/cannibalization", label: "Cannibalization", iconName: "split" as const },
-  { href: "/dashboard/gap", label: "Gap", iconName: "crosshair" as const },
-  { href: "/dashboard/content", label: "Content", iconName: "pen-tool" as const },
-  { href: "/dashboard/activity", label: "Activity", iconName: "radio" as const },
-  { href: "/dashboard/settings", label: "Settings", iconName: "settings" as const },
+  { href: "/dashboard", label: "Overview", iconName: "layout-dashboard" as const, group: "main" as const },
+  { href: "/dashboard/keywords", label: "Keywords", iconName: "list-ordered" as const, group: "main" as const },
+  { href: "/dashboard/pages", label: "Pages", iconName: "file-stack" as const, group: "main" as const },
+  { href: "/dashboard/brief", label: "Brief", iconName: "file-text" as const, group: "main" as const },
+  { href: "/dashboard/audit", label: "Audit", iconName: "stethoscope" as const, group: "main" as const },
+  { href: "/dashboard/chat", label: "Chat", iconName: "message-square" as const, group: "tools" as const },
+  { href: "/dashboard/refresh", label: "Refresh", iconName: "rotate-cw" as const, group: "tools" as const },
+  { href: "/dashboard/aeo", label: "AEO", iconName: "sparkles" as const, group: "tools" as const },
+  { href: "/dashboard/audit/metas", label: "Metas", iconName: "tags" as const, group: "tools" as const },
+  { href: "/dashboard/internal-links", label: "Links", iconName: "link" as const, group: "tools" as const },
+  { href: "/dashboard/cannibalization", label: "Cannibalization", iconName: "split" as const, group: "tools" as const },
+  { href: "/dashboard/gap", label: "Gap", iconName: "crosshair" as const, group: "tools" as const },
+  { href: "/dashboard/content", label: "Content", iconName: "pen-tool" as const, group: "tools" as const },
+  { href: "/dashboard/activity", label: "Activity", iconName: "radio" as const, group: "tools" as const },
+  { href: "/dashboard/settings", label: "Settings", iconName: "settings" as const, group: "main" as const },
 ];
+
+const SETUP_HREFS = new Set(["/dashboard", "/dashboard/keywords", "/dashboard/settings"]);
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let ctx: Awaited<ReturnType<typeof resolveAccountContext>>;
@@ -41,15 +44,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Fire onboarding email sequence for new users (fire-and-forget)
   maybeStartOnboarding(ctx.sessionUserId, ctx.sessionUserEmail).catch(() => {});
 
+  const t = tenantDb(ctx.ownerId);
+  const [gsc] = await t.selectGscToken();
+  const setupMode = !gsc;
+
   const nav = NAV.filter((item) => {
     if ("ownerOnly" in item && item.ownerOnly && !ctx.isOwner) return false;
+    if (setupMode && !SETUP_HREFS.has(item.href)) return false;
     return true;
   });
 
   return (
-    <div className="flex-1 flex">
+    <div className="flex-1 flex dashboard-shell md:p-3 md:gap-3">
       <ExpandableSidebar
         nav={nav}
+        setupMode={setupMode}
         email={ctx.sessionUserEmail}
         isOwner={ctx.isOwner}
         accountSwitcherSlot={
@@ -60,7 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top bar — credits + jobs indicator, fixed top-right */}
-        <div className="sticky top-0 z-30 flex items-center justify-end gap-2 md:gap-3 px-3 md:px-6 py-3 bg-background/80 backdrop-blur-sm">
+        <div className="sticky top-0 z-30 flex items-center justify-end gap-2 md:gap-3 px-5 md:px-8 py-4 bg-background/80 backdrop-blur-sm md:rounded-[28px]">
           {/* Leave space for mobile hamburger button */}
           <div className="md:hidden w-10 shrink-0" />
           <ActiveJobsIndicator />
@@ -71,7 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
         <main className="flex-1 min-w-0">{children}</main>
       </div>
-      <CommandPalette />
+      <CommandPalette setupMode={setupMode} />
     </div>
   );
 }

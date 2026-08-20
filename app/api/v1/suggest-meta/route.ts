@@ -37,6 +37,7 @@ export async function POST(req: Request) {
 
   const guard = await guardMeteredAction({
     userId,
+    action: "metaSuggestion",
     credits: CREDIT_COSTS.metaSuggestion,
     reason: "meta_suggestion_api",
     metadata: { url },

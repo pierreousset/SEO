@@ -85,6 +85,7 @@ export async function suggestMetaForPage(url: string): Promise<MetaSuggestionRes
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "metaSuggestion",
     credits: CREDIT_COSTS.metaSuggestion,
     reason: "meta_suggestion",
     metadata: { url },
@@ -186,6 +187,7 @@ export async function suggestMetaBulk(): Promise<BulkMetaSuggestionResult> {
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "metaSuggestionBulk",
     credits: CREDIT_COSTS.metaSuggestionBulk,
     reason: "meta_suggestion_bulk",
     aiProvider: "anthropic",

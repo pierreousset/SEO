@@ -2,18 +2,20 @@ import { resolveAccountContext } from "@/lib/account-context";
 import { tenantDb, db, schema } from "@/db/client";
 import { eq, and, gte, desc, sql } from "drizzle-orm";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, Target, ListOrdered, MousePointerClick, Activity, TrendingDown, MousePointer, FileX, EyeOff } from "lucide-react";
 import { FetchNowButton } from "@/components/fetch-now-button";
 import { FetchStatusBanner } from "@/components/fetch-status-banner";
 import { BriefStatusBanner } from "@/components/brief-status-banner";
 import { GscStatusBanner } from "@/components/gsc-status-banner";
 import { SyncGscButton } from "@/components/sync-gsc-button";
-import { RankDelta } from "@/components/rank-delta";
 import { computeDiagnostic } from "@/lib/diagnostics";
 import { type IssueCardData } from "@/components/issue-card";
-import { SetupChecklist } from "@/components/setup-checklist";
 import { GscPerformanceChart, HealthScoreChart } from "@/components/dashboard-charts";
-import { WelcomeTour } from "@/components/welcome-tour";
+import { OnboardingSetup } from "@/components/onboarding-setup";
+import { DashboardFlashToasts, type FlashToast } from "@/components/dashboard-flash-toasts";
+import { getAuthUrl } from "@/lib/google-oauth";
+import { adsDeveloperTokenConfigured, getAdsAuthUrl } from "@/lib/google-ads";
+import { selectAdsOpportunities } from "@/lib/ads-opportunities";
+import { randomBytes } from "node:crypto";
 import { getLocale } from "@/lib/i18n-server";
 import { locale } from "./locale";
 
@@ -61,11 +63,50 @@ function formatUntil(iso: string): string {
   return `in ${Math.round(diffMin / (60 * 24))}d`;
 }
 
-export default async function DashboardHome() {
+export default async function DashboardHome({
+  searchParams,
+}: {
+  searchParams: Promise<{ connected?: string; gsc?: string; ads?: string; ads_warn?: string }>;
+}) {
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
   const lng = await getLocale();
   const i = locale[lng];
+  const sp = await searchParams;
+
+  const [gscEarly] = await t.selectGscToken();
+  const keywordsEarly = await t.selectKeywords();
+  const gscConnected = Boolean(gscEarly);
+  if (!gscConnected || keywordsEarly.length === 0) {
+    const authUrl = process.env.GOOGLE_CLIENT_ID
+      ? getAuthUrl(randomBytes(16).toString("hex"))
+      : null;
+    const onboardFlashes: FlashToast[] = [];
+    if (sp.connected === "1" && !sp.gsc) {
+      onboardFlashes.push({ type: "success", message: i.onboarding.justConnected });
+    }
+    if (sp.gsc === "no_property") {
+      onboardFlashes.push({ type: "error", message: i.onboarding.warnNoProperty });
+    }
+    if (sp.gsc === "no_queries") {
+      onboardFlashes.push({ type: "warning", message: i.onboarding.warnNoQueries });
+    }
+    if (sp.gsc === "import_failed") {
+      onboardFlashes.push({ type: "error", message: i.onboarding.warnImportFailed });
+    }
+    return (
+      <div className="py-5 px-4 md:py-7 md:px-9 max-w-[1400px] mx-auto">
+        <DashboardFlashToasts flashes={onboardFlashes} />
+        <OnboardingSetup
+          i={i}
+          connected={gscConnected}
+          keywordCount={keywordsEarly.length}
+          authUrl={authUrl}
+          isOwner={ctx.isOwner}
+        />
+      </div>
+    );
+  }
 
   // 30-day window for distribution + delta computation
   const thirtyDaysAgo = new Date();
@@ -106,6 +147,8 @@ export default async function DashboardHome() {
     pageAgg28d,
     pageDelta14d,
     kwAgg7d,
+    adsTokenRows,
+    adsTermRows,
   ] = await Promise.all([
       t.selectGscToken(),
       t.selectSites(),
@@ -208,6 +251,8 @@ export default async function DashboardHome() {
         .from(schema.gscMetrics)
         .where(and(eq(schema.gscMetrics.userId, ctx.ownerId), gte(schema.gscMetrics.date, cutoff7d)))
         .groupBy(schema.gscMetrics.keywordId),
+      t.selectAdsToken(),
+      t.selectAdsSearchTerms(),
     ]);
 
   const hasAuditRun = auditRunRows.length > 0;
@@ -379,9 +424,6 @@ export default async function DashboardHome() {
     unranked: perKeyword.length - ranked.length,
   };
 
-  const setupComplete =
-    connected && sites.length > 0 && activeKeywords.length > 0 && totalPositions > 0;
-
   // 28-day GSC aggregate for mini KPI cards
   const recent28d = gscChartData.filter((d) => d.date >= cutoff28d);
   const clicks28d = recent28d.reduce((s, d) => s + d.clicks, 0);
@@ -449,15 +491,31 @@ export default async function DashboardHome() {
     .sort((a, b) => b.impressions - a.impressions)
     .slice(0, 5);
 
+  let scoreRows = seoScoreRows;
+  if (scoreRows.length === 0) {
+    try {
+      const { recomputeSeoScore } = await import("@/lib/seo-score-recompute");
+      await recomputeSeoScore(ctx.ownerId);
+      scoreRows = await db
+        .select()
+        .from(schema.seoScores)
+        .where(eq(schema.seoScores.userId, ctx.ownerId))
+        .orderBy(desc(schema.seoScores.computedAt))
+        .limit(8);
+    } catch (err) {
+      console.warn("[dashboard] seo score recompute failed:", err);
+    }
+  }
+
   // Score history for health chart
-  const scoreHistory = seoScoreRows.slice().reverse().map((s) => ({
+  const scoreHistory = scoreRows.slice().reverse().map((s) => ({
     date: s.computedAt.toISOString().slice(0, 10),
     score: s.score,
   }));
 
   // SEO health score from latest computation
-  const latestScore = seoScoreRows[0] ?? null;
-  const prevScore = seoScoreRows[1] ?? null;
+  const latestScore = scoreRows[0] ?? null;
+  const prevScore = scoreRows[1] ?? null;
   const healthScore = latestScore?.score ?? null;
   const healthDelta = latestScore && prevScore ? latestScore.score - prevScore.score : null;
   const healthIssues = (latestScore?.issues ?? []) as IssueCardData[];
@@ -562,347 +620,265 @@ export default async function DashboardHome() {
     });
   }
 
+  const adsOpps = selectAdsOpportunities(
+    adsTermRows.map((r) => ({
+      query: r.query,
+      clicks: r.clicks,
+      impressions: r.impressions,
+      costMicros: r.costMicros,
+      conversions: r.conversions,
+    })),
+    perKeyword.map((s) => ({ query: s.keyword, position: s.latest })),
+  );
+  const eur = (n: number) =>
+    n.toLocaleString(lng === "fr" ? "fr-FR" : "en-US", { maximumFractionDigits: 0 });
+  for (const opp of adsOpps) {
+    if (opp.kind === "paid_overlap") {
+      actionList.push({
+        key: `ads-overlap-${opp.query}`,
+        priority: 100,
+        title: i.actions.paidOverlap(opp.query),
+        subtitle: i.actions.paidOverlapSubtitle(eur(opp.costEur), opp.position),
+        href: `/dashboard/keywords?q=${encodeURIComponent(opp.query)}`,
+        iconKey: "alert",
+        tone: "warn",
+      });
+    } else if (opp.kind === "paid_gap") {
+      actionList.push({
+        key: `ads-gap-${opp.query}`,
+        priority: 88,
+        title: i.actions.paidGap(opp.query),
+        subtitle: i.actions.paidGapSubtitle(eur(opp.costEur)),
+        href: `/dashboard/keywords?q=${encodeURIComponent(opp.query)}`,
+        iconKey: "target",
+        tone: "default",
+      });
+    } else {
+      actionList.push({
+        key: `ads-new-${opp.query}`,
+        priority: 48,
+        title: i.actions.adsNew(opp.query),
+        subtitle: i.actions.adsNewSubtitle(opp.impressions.toLocaleString(), eur(opp.costEur)),
+        href: `/dashboard/keywords?q=${encodeURIComponent(opp.query)}`,
+        iconKey: "target",
+        tone: "default",
+      });
+    }
+  }
+
   const topActions = actionList.sort((a, b) => b.priority - a.priority).slice(0, 3);
 
+  const flashes: FlashToast[] = [];
+  if (sp.connected === "1") {
+    flashes.push({ type: "success", message: i.onboarding.justConnected });
+  }
+  if (sp.ads === "1" && !sp.ads_warn) {
+    flashes.push({ type: "success", message: i.onboarding.adsConnected });
+  }
+  if (sp.ads_warn === "no_account") {
+    flashes.push({ type: "warning", message: i.onboarding.adsNoAccount });
+  }
+  if (sp.ads_warn === "token_test_only") {
+    flashes.push({
+      type: "warning",
+      message: i.onboarding.adsTokenTest,
+      action: "apicenter",
+      actionLabel: "API Center",
+    });
+  }
+  if (sp.ads_warn === "import_failed") {
+    flashes.push({
+      type: "error",
+      message: i.onboarding.adsImportFailed,
+      action: ctx.isOwner ? "retry-ads" : undefined,
+      actionLabel: i.onboarding.adsRetry,
+    });
+  }
+
   return (
-    <div className="py-5 px-4 md:py-7 md:px-9 max-w-[1400px] mx-auto space-y-3">
-      <WelcomeTour />
-      {/* Header */}
-      <header className="flex items-end justify-between gap-6 flex-wrap mb-4">
-        <div>
-          <p className="text-caption text-muted-foreground">
-            {ctx.sessionUserEmail}
-          </p>
-          <h1 className="text-[36px] font-semibold leading-tight">{i.title}</h1>
+    <div className="px-5 sm:px-8 md:px-12 py-12 md:py-16 max-w-[1240px] mx-auto space-y-16">
+      <DashboardFlashToasts flashes={flashes} />
+      {gscConnected && adsTokenRows.length === 0 && (
+        <div className="sheet flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-5">
+          <p className="text-body-sm text-deep-slate flex-1">{i.onboarding.adsHint}</p>
+          {ctx.isOwner && adsDeveloperTokenConfigured() && process.env.GOOGLE_CLIENT_ID ? (
+            <a
+              href={getAdsAuthUrl(randomBytes(16).toString("hex"))}
+              className="inline-flex items-center justify-center h-10 px-5 rounded-full bg-button-black text-canvas-white text-sm shadow-button shrink-0"
+            >
+              {i.onboarding.adsCta}
+            </a>
+          ) : (
+            <p className="text-caption text-ash-gray">{i.onboarding.adsMissingToken}</p>
+          )}
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      )}
+      {gscChartData.length === 0 && (
+        <div className="sheet flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-5">
+          <p className="text-body-sm text-deep-slate flex-1">{i.onboarding.pullHint}</p>
+          <SyncGscButton
+            days={90}
+            label={i.onboarding.pullCta}
+            activeStatus={(latestGscRun?.status as "queued" | "running" | "done" | "failed" | "skipped" | null) ?? null}
+          />
+        </div>
+      )}
+
+      <header className="flex items-end justify-end gap-2 flex-wrap">
           {connected && (
             <SyncGscButton
               days={90}
-              label="Pull GSC"
-              activeStatus={(latestGscRun?.status as any) ?? null}
+              label={i.pullGsc}
+              activeStatus={(latestGscRun?.status as "queued" | "running" | "done" | "failed" | "skipped" | null) ?? null}
             />
           )}
-          <FetchNowButton activeStatus={(latestRun?.status as any) ?? null} />
-        </div>
+          <FetchNowButton
+            activeStatus={(latestRun?.status as "queued" | "running" | "done" | "failed" | "skipped" | null) ?? null}
+            label={i.fetchNow}
+            runningLabel="Récupération…"
+          />
       </header>
 
-      {/* Status banners */}
       <FetchStatusBanner run={runForBanner} />
       <BriefStatusBanner run={briefRunForBanner} />
       <GscStatusBanner run={gscRunForBanner} />
 
-      {/* Today's actions — top 3 prioritized items across issues + insights */}
-      {topActions.length > 0 && (
-        <section className="bg-card rounded-2xl p-6">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <span className="text-caption text-ash-gray">{i.actionsCard.label}</span>
-              <h2 className="text-xl font-semibold mt-0.5">
-                {topActions.length === 1 ? i.actionsCard.titleSingular : i.actionsCard.titlePlural(topActions.length)}
-              </h2>
-            </div>
-            {issueCount > topActions.length && (
-              <span className="text-caption text-ash-gray">
-                {i.actionsCard.moreCount(issueCount - topActions.length)}
-              </span>
-            )}
-          </div>
-          <div className="space-y-1">
-            {topActions.map((a) => (
-              <Link
-                key={a.key}
-                href={a.href}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-background/60 transition-colors"
-              >
-                <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${actionToneBg(a.tone)}`}>
-                  {actionIcon(a.iconKey)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{a.title}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 truncate">{a.subtitle}</div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Bento Row 1: Hero KPI + Mini KPI Stack */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch">
-        {/* Hero KPI tile — SEO Health Score */}
-        <div className="flex-1 min-h-[200px] bg-card rounded-2xl p-7 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-sky-teal" strokeWidth={1.5} />
-              <span className="text-caption text-muted-foreground">{i.bento.seoHealth}</span>
-            </div>
+      <section className="sheet px-6 py-8 md:px-10 md:py-10 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+        <div className="lg:col-span-5">
+          <p className="font-caveat text-2xl text-ink-black leading-none">{i.headerKicker}</p>
+          <p className="text-caption text-ash-gray mt-7">{i.bento.seoHealth}</p>
+          <p className="mt-1 font-semibold tabular-nums text-ink-black leading-[0.86] tracking-[-0.05em] text-[clamp(4.5rem,10vw,7rem)]">
+            {healthScore ?? "—"}
             {healthDelta !== null && healthDelta !== 0 && (
               <span
-                className={`text-caption font-medium rounded-full px-2.5 py-1 ${
-                  healthDelta > 0
-                    ? "bg-[var(--up)]/15 text-[var(--up)]"
-                    : "bg-[var(--down)]/15 text-[var(--down)]"
+                className={`ml-3 align-top text-subheading font-medium tabular-nums ${
+                  healthDelta > 0 ? "text-sky-teal" : "text-hot-pink"
                 }`}
               >
-                {healthDelta > 0 ? "+" : ""}{healthDelta} pts
+                {healthDelta > 0 ? "+" : ""}
+                {healthDelta}
               </span>
             )}
-          </div>
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <div
-                className="font-mono text-[64px] font-semibold leading-[0.85] tabular-nums"
-                style={{
-                  color: healthScore === null
-                    ? undefined
-                    : healthScore >= 70
-                      ? "#0098f2"
-                      : healthScore >= 40
-                        ? "#f200ca"
-                        : "#f200ca",
-                }}
-              >
-                {healthScore ?? "—"}
-              </div>
-              <div className="font-mono text-sm text-muted-foreground mt-2">
-                {issueCount > 0
-                  ? i.bento.issuesDetected(issueCount)
-                  : healthScore !== null
-                    ? i.bento.noIssues
-                    : i.bento.waitingFirstScore}
-              </div>
-            </div>
-            {scoreHistory.length >= 2 ? (
-              <div className="flex-1 max-w-[60%] h-[80px]">
-                <HealthScoreChart data={scoreHistory} />
-              </div>
-            ) : (
-              <div className="text-right text-caption text-ash-gray/60 leading-relaxed">
-                <div>history</div>
-                <div>builds after</div>
-                <div>each fetch</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Mini KPI Stack */}
-        <div className="w-full md:w-[280px] flex flex-col gap-3">
-          <StatTile
-            label={i.bento.avgPosition}
-            value={avgPosition ?? "—"}
-            icon={<Target className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
-          />
-          <StatTile
-            label={i.bento.clicks28d}
-            value={clicks28d.toLocaleString()}
-            icon={<MousePointerClick className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
-          />
-          <StatTile
-            label={i.bento.keywords}
-            value={activeKeywords.length.toLocaleString()}
-            icon={<ListOrdered className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />}
-          />
-        </div>
-      </div>
-
-      {/* Bento Row 2: Chart + Gap Zone */}
-      <div className="flex flex-col md:flex-row gap-3">
-        {/* Chart tile */}
-        <div className="flex-1 min-h-[240px] md:h-[280px] bg-card rounded-2xl p-6 flex flex-col overflow-hidden">
-          <div className="mb-3">
-            <span className="text-caption text-ash-gray">{i.bento.performance}</span>
-            <h2 className="text-xl font-semibold">{i.bento.searchConsole}</h2>
-          </div>
-          <div className="flex-1 min-h-0">
-            {connected ? (
-              <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} compact />
-            ) : (
-              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                {i.bento.connectGsc}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Gap Zone tile */}
-        <div className="w-full md:w-[400px] min-h-[240px] md:h-[280px] bg-card rounded-2xl overflow-hidden flex flex-col">
-          <div className="px-6 pt-5 pb-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Target className="h-3.5 w-3.5 text-sky-teal" strokeWidth={1.5} />
-              <span className="text-caption text-ash-gray">{i.bento.gapZone}</span>
-            </div>
-            <h2 className="text-xl font-semibold">{i.bento.highestRoi}</h2>
-          </div>
-          <div className="flex-1 overflow-auto">
-            {gapZone.length > 0 ? (() => {
-              const hasAny7d = gapZone.some(
-                (g) => g.weekAgo != null && g.latest != null,
-              );
-              return (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 text-caption text-ash-gray">{i.bento.colKeyword}</th>
-                    <th className="text-right px-3 py-2 text-caption text-ash-gray">{i.bento.colPos}</th>
-                    {hasAny7d && (
-                      <th className="text-right px-4 py-2 text-caption text-ash-gray">{i.bento.col7d}</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {gapZone.map((g) => {
-                    const delta7d =
-                      g.weekAgo != null && g.latest != null ? g.weekAgo - g.latest : null;
-                    return (
-                      <tr key={g.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 text-xs truncate max-w-[200px]" title={g.keyword}>
-                          {g.keyword}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{g.latest}</td>
-                        {hasAny7d && (
-                          <td className="px-4 py-2 text-right">
-                            <RankDelta value={delta7d} />
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              );
-            })() : (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-6">
-                {i.bento.gapEmpty}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Setup checklist — dismissible, with progress bar */}
-      {!setupComplete && (
-        <SetupChecklist
-          steps={[
-            { label: "Connect Google Search Console", done: connected },
-            { label: "Add keywords", done: activeKeywords.length > 0 },
-            { label: "First SERP fetch", done: totalPositions > 0 },
-            { label: "First audit", done: hasAuditRun },
-            { label: "First brief", done: latestBrief.length > 0 },
-          ]}
-        />
-      )}
-
-      {/* Bento Row 3: AI Brief + Distribution */}
-      <div className="flex flex-col md:flex-row gap-3">
-        {/* AI Brief tile — inverted dark card to highlight the AI surface */}
-        {latestBrief.length > 0 ? (
-          <Link
-            href="/dashboard/brief"
-            className="flex-1 h-[180px] rounded-2xl bg-button-black p-6 flex flex-col justify-between hover:opacity-95 transition-opacity"
-          >
-            <div className="flex items-start justify-between">
-              <span className="text-caption text-ash-gray">
-                {i.bento.latestBriefAt(latestBrief[0].periodStart, latestBrief[0].periodEnd)}
-              </span>
-              <ArrowRight className="h-4 w-4 text-canvas-white shrink-0" strokeWidth={1.5} />
-            </div>
-            <p className="text-body-sm text-canvas-white leading-relaxed line-clamp-3">
-              {latestBrief[0].summary}
-            </p>
-          </Link>
-        ) : (
-          <div className="flex-1 h-[180px] rounded-2xl bg-card p-6 flex flex-col justify-between">
-            <span className="text-caption text-ash-gray">{i.bento.aiBrief}</span>
-            <p className="text-sm text-muted-foreground">
-              {i.bento.aiBriefEmpty}
-            </p>
-          </div>
-        )}
-
-        {/* Distribution tile */}
-        <div className="w-full md:w-[300px] h-[180px] bg-card rounded-2xl p-5 flex flex-col gap-3.5">
-          <span className="text-caption text-ash-gray">{i.bento.positionDistribution}</span>
-
-          {/* Bar */}
-          {ranked.length > 0 ? (
-            <>
-              <div className="flex h-1.5 rounded-full overflow-hidden bg-background">
-                {[
-                  { v: buckets.top3, bg: "#0098f2" },
-                  { v: buckets.top10, bg: "#0098f288" },
-                  { v: buckets.top20, bg: "#0098f2" },
-                  { v: buckets.top50, bg: "#0098f266" },
-                  { v: buckets.rest, bg: "#8d8d8d55" },
-                ].map((b, i) =>
-                  b.v > 0 ? (
-                    <div
-                      key={i}
-                      style={{
-                        width: `${(b.v / perKeyword.length) * 100}%`,
-                        backgroundColor: b.bg,
-                      }}
-                    />
-                  ) : null,
-                )}
-              </div>
-              <div className="flex justify-between">
-                <Bucket label="1-3" value={buckets.top3} color="#0098f2" />
-                <Bucket label="4-10" value={buckets.top10} color="#0098f2" />
-                <Bucket label="11-20" value={buckets.top20} color="#0d111b" />
-                <Bucket label="21-50" value={buckets.top50} color="#8d8d8d" />
-                <Bucket label="51+" value={buckets.rest + buckets.unranked} color="#8d8d8d" />
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-              {i.bento.noPositionData}
+          </p>
+          <p className="font-caveat text-[1.75rem] text-sky-teal mt-4 leading-tight max-w-[18rem]">
+            {i.coachNote(topActions.length)}
+          </p>
+          {scoreHistory.length >= 2 && (
+            <div className="mt-8 h-16 max-w-[280px]">
+              <HealthScoreChart data={scoreHistory} />
             </div>
           )}
-
-          {/* Upcoming schedule */}
-          <div className="space-y-2 mt-auto">
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              <span className="text-[#8d8d8d]">{i.bento.serpFetch}</span>
-              <span className="flex-1 border-b border-border" />
-              <span className="font-mono font-medium">{formatUntil(nextDailyFetch())}</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-              <span className="text-[#8d8d8d]">{i.bento.aiBriefShort}</span>
-              <span className="flex-1 border-b border-border" />
-              <span className="font-mono font-medium">{formatUntil(nextMondayBrief())}</span>
-            </div>
-          </div>
         </div>
-      </div>
 
+        <ol className="lg:col-span-7 space-y-0">
+          {topActions.length > 0 ? (
+            topActions.map((a, idx) => (
+              <li key={a.key} className="border-t border-hairline first:border-t-0">
+                <Link
+                  href={a.href}
+                  className="group grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 py-5"
+                >
+                  <span className="text-subheading font-semibold tabular-nums text-ink-black leading-none">
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="text-subheading font-semibold text-ink-black group-hover:text-sky-teal transition-colors duration-150 ease-out">
+                      {a.title}
+                    </span>
+                    <span className="block text-caption text-ash-gray mt-2">{a.subtitle}</span>
+                  </span>
+                </Link>
+              </li>
+            ))
+          ) : (
+            <li className="border-t border-hairline pt-6">
+              <p className="text-body text-ash-gray">{i.bento.aiBriefEmpty}</p>
+            </li>
+          )}
+        </ol>
+      </section>
+
+      <section className="grid grid-cols-3 gap-3 md:gap-4">
+        <div className="sheet px-5 py-5">
+          <p className="text-caption text-ash-gray">{i.bento.avgPosition}</p>
+          <p className="text-heading font-semibold tabular-nums tracking-tight mt-2">{avgPosition ?? "—"}</p>
+        </div>
+        <div className="sheet px-5 py-5">
+          <p className="text-caption text-ash-gray">{i.bento.clicks28d}</p>
+          <p className="text-heading font-semibold tabular-nums tracking-tight mt-2">{clicks28d.toLocaleString()}</p>
+        </div>
+        <div className="sheet px-5 py-5">
+          <p className="text-caption text-ash-gray">{i.bento.keywords}</p>
+          <p className="text-heading font-semibold tabular-nums tracking-tight mt-2">
+            {activeKeywords.length.toLocaleString()}
+          </p>
+        </div>
+      </section>
+
+      <section className="sheet px-6 py-6 md:px-8 md:py-8">
+        <div className="h-[320px]">
+          {connected ? (
+            <GscPerformanceChart trackedData={gscChartData} siteData={gscSiteChartData} compact />
+          ) : (
+            <p className="text-body-sm text-ash-gray">{i.bento.connectGsc}</p>
+          )}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4">
+        <div className="sheet px-6 py-6 md:px-8 md:py-8 lg:col-span-7">
+          <p className="text-caption text-ash-gray">{i.bento.aiBrief}</p>
+          {latestBrief.length > 0 ? (
+            <Link href="/dashboard/brief" className="block mt-3 group">
+              <p className="font-caveat text-3xl md:text-4xl text-ink-black leading-snug">
+                {latestBrief[0].summary}
+              </p>
+              <p className="text-caption text-ash-gray mt-4 group-hover:text-sky-teal transition-colors">
+                {i.bento.latestBriefAt(latestBrief[0].periodStart, latestBrief[0].periodEnd)}
+              </p>
+            </Link>
+          ) : (
+            <p className="text-body text-ash-gray mt-3">{i.bento.aiBriefEmpty}</p>
+          )}
+        </div>
+
+        <div className="sheet px-6 py-6 md:px-8 md:py-8 lg:col-span-5">
+          <p className="text-caption text-ash-gray">{i.bento.highestRoi}</p>
+          {gapZone.length > 0 ? (
+            <ul className="mt-4 space-y-3">
+              {gapZone.slice(0, 6).map((g) => (
+                <li key={g.id} className="flex items-baseline justify-between gap-4 border-b border-hairline pb-3 last:border-0 last:pb-0">
+                  <span className="text-body-sm text-ink-black truncate">{g.keyword}</span>
+                  <span className="text-body-sm tabular-nums text-ash-gray shrink-0">{g.latest}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-body-sm text-ash-gray mt-3">{i.bento.gapEmpty}</p>
+          )}
+        </div>
+      </section>
+
+      {ranked.length > 0 && (
+        <section className="sheet px-6 py-6 md:px-8 md:py-8 flex flex-wrap gap-8 md:gap-12">
+          <Bucket label="1–3" value={buckets.top3} />
+          <Bucket label="4–10" value={buckets.top10} />
+          <Bucket label="11–20" value={buckets.top20} />
+          <Bucket label="21–50" value={buckets.top50} />
+          <Bucket label="51+" value={buckets.rest + buckets.unranked} />
+        </section>
+      )}
     </div>
   );
 }
 
-function Bucket({ label, value, color }: { label: string; value: number; color: string }) {
+function Bucket({ label, value }: { label: string; value: number }) {
   return (
-    <div className="text-center">
-      <div className="font-mono text-lg font-semibold tabular-nums" style={{ color }}>
+    <div>
+      <div className="text-heading font-semibold tabular-nums text-ink-black leading-none">
         {value}
       </div>
-      <div className="text-caption text-ash-gray">{label}</div>
-    </div>
-  );
-}
-
-function StatTile({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex-1 bg-card rounded-2xl px-5 py-4 flex items-center justify-between">
-      <div>
-        <div className="text-caption text-ash-gray">{label}</div>
-        <div className="font-mono text-[28px] font-semibold leading-tight tabular-nums">{value}</div>
-      </div>
-      {icon}
+      <div className="text-caption text-ash-gray mt-2">{label}</div>
     </div>
   );
 }
@@ -917,22 +893,4 @@ function shortUrl(u: string): string {
   }
 }
 
-function actionIcon(key: "alert" | "ctr" | "lost" | "decline" | "target" | "filex") {
-  const cls = "h-4 w-4";
-  switch (key) {
-    case "alert": return <AlertCircle className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
-    case "ctr": return <MousePointer className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
-    case "lost": return <EyeOff className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
-    case "decline": return <TrendingDown className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
-    case "target": return <Target className={`${cls} text-sky-teal`} strokeWidth={1.5} />;
-    case "filex": return <FileX className={`${cls} text-[#f200ca]`} strokeWidth={1.5} />;
-  }
-}
 
-function actionToneBg(tone: "default" | "warn" | "down") {
-  switch (tone) {
-    case "down": return "bg-[#f200ca]/15 ring-1 ring-inset ring-[#f200ca]/30";
-    case "warn": return "bg-[#f200ca]/15 ring-1 ring-inset ring-[#f200ca]/30";
-    default: return "bg-sky-teal/10 ring-1 ring-inset ring-sky-teal/25";
-  }
-}

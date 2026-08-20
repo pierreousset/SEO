@@ -8,7 +8,15 @@ import { google } from "googleapis";
  * The refresh token is stored encrypted in gsc_tokens table.
  */
 
-const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+export const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+export const ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
+
+/** GSC always. Ads too when the Ads developer token is configured. */
+export function googleConnectScopes(): string[] {
+  const scopes = [GSC_SCOPE];
+  if (process.env.GOOGLE_ADS_DEVELOPER_TOKEN) scopes.push(ADS_SCOPE);
+  return scopes;
+}
 
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -23,7 +31,7 @@ export function getAuthUrl(state: string) {
   return client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent", // force refresh_token each time
-    scope: [SCOPE],
+    scope: googleConnectScopes(),
     state,
   });
 }

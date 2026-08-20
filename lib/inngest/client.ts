@@ -15,6 +15,7 @@ export type Events = {
   "serp/task.ready": { data: { userId: string; taskIds: string[]; date: string } };
   "brief/generate.weekly": { data: { userId: string; runId?: string } };
   "gsc/history.pull": { data: { userId: string; runId?: string; days?: number } };
+  "ads/search-terms.pull": { data: { userId: string; runId?: string } };
   "audit/run": { data: { userId: string; runId: string; siteId?: string } };
   "meta-crawl/run": { data: { userId: string; runId: string } };
   "content/generate.article": { data: { userId: string; articleId: string; keywordId?: string; topic?: string } };

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { BrandMark } from "@/components/brand-mark";
 
 function VerifyForm() {
   const router = useRouter();
@@ -48,19 +49,9 @@ function VerifyForm() {
   }
 
   return (
-    <div
-      className="w-full max-w-[400px] rounded-2xl p-8"
-      style={{ backgroundColor: "#f7fafc" }}
-    >
-      {/* Logo + Brand */}
-      <div className="flex items-center gap-3 mb-8">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-base"
-          style={{ backgroundColor: "#0098f2" }}
-        >
-          S
-        </div>
-        <span className="text-ink-black font-semibold text-lg">SEO Dashboard</span>
+    <div className="w-full max-w-[400px] sheet p-8">
+      <div className="mb-8">
+        <BrandMark href="/" />
       </div>
 
       {/* Heading */}
@@ -85,21 +76,16 @@ function VerifyForm() {
             autoFocus
             autoComplete="one-time-code"
             maxLength={6}
-            placeholder="123456"
+            placeholder=""
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            className="h-11 rounded-xl text-sm px-4 border font-mono text-center text-lg tracking-widest text-foreground placeholder:text-ash-gray"
-            style={{
-              backgroundColor: "#ffffff",
-              borderColor: "#ececec",
-            }}
+            className="h-11 rounded-xl text-sm px-4 border border-hairline bg-canvas-white text-center text-lg tracking-[0.28em] tabular-nums text-foreground placeholder:text-ash-gray"
           />
         </div>
         <Button
           type="submit"
           disabled={loading || code.length !== 6}
-          className="w-full rounded-full text-white font-medium"
-          style={{ backgroundColor: "#0098f2" }}
+          className="w-full shadow-button"
         >
           {loading ? "Verifying..." : "Verify & sign in"}
         </Button>
@@ -117,10 +103,7 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <main
-      className="flex-1 flex flex-col items-center justify-center px-4"
-      style={{ backgroundColor: "#ffffff" }}
-    >
+    <main className="flex-1 flex flex-col items-center justify-center px-4 bg-background">
       <Suspense
         fallback={
           <div className="text-sm text-muted-foreground">Loading...</div>
@@ -130,7 +113,7 @@ export default function VerifyPage() {
       </Suspense>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        Indie alternative to Semrush
+        240 Company
       </p>
     </main>
   );

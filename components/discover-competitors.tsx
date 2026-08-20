@@ -65,7 +65,17 @@ export function DiscoverCompetitors() {
     if (selected.size === 0) return;
     start(async () => {
       try {
-        const res = await bulkAddKeywords(Array.from(selected));
+        const res = await bulkAddKeywords(
+          Array.from(selected).map((q) => {
+            const row = data.find((d) => d.keyword === q);
+            return {
+              query: q,
+              searchVolume: row?.searchVolume ?? null,
+              keywordDifficulty: row?.keywordDifficulty ?? null,
+              cpc: row?.cpc ?? null,
+            };
+          }),
+        );
         toast.success(`Added ${res.added} keyword(s)${res.skipped ? ` · ${res.skipped} skipped` : ""}.`);
         setSelected(new Set());
       } catch (e: any) {

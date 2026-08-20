@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { auditCopy, type AuditLang, type FindingVars } from "@/lib/audit/messages";
 
 export type Severity = "high" | "medium" | "low" | "info";
 
@@ -73,40 +74,49 @@ export function runPageChecks(opts: {
   responseMs: number;
   bytes: number;
   trackedKeywords: string[];
+  lang?: AuditLang;
 }): Finding[] {
   const findings: Finding[] = [];
   const $ = cheerio.load(opts.html);
+  const lang: AuditLang = opts.lang ?? "fr";
+  const add = (
+    checkKey: string,
+    fields: {
+      category: string;
+      severity: Severity;
+      vars?: FindingVars;
+      detail?: string;
+    },
+  ) => {
+    const copy = auditCopy(checkKey, lang, fields.vars);
+    findings.push({
+      url: opts.url,
+      category: fields.category,
+      checkKey,
+      severity: fields.severity,
+      message: copy?.message ?? checkKey,
+      detail: copy?.detail ?? fields.detail,
+      fix: copy?.fix,
+    });
+  };
 
   // ---- Title ----
   const title = $("head > title").first().text().trim();
   if (!title) {
-    findings.push({
-      url: opts.url,
-      category: "title",
-      checkKey: "title_missing",
-      severity: "high",
-      message: "Missing <title> tag",
-      fix: "Add a unique title tag describing the page in 30-60 characters.",
-    });
+    add("title_missing", { category: "title", severity: "high" });
   } else if (title.length < 30) {
-    findings.push({
-      url: opts.url,
+    add("title_short", {
       category: "title",
-      checkKey: "title_short",
       severity: "medium",
-      message: `Title too short (${title.length} chars)`,
+      vars: { n: title.length },
       detail: `"${title}"`,
-      fix: "Expand to 30-60 chars with the primary keyword and a benefit.",
     });
   } else if (title.length > 70) {
-    findings.push({
-      url: opts.url,
+    add("title_long", {
       category: "title",
-      checkKey: "title_long",
       severity: "medium",
-      message: `Title too long (${title.length} chars) — Google truncates`,
+      vars: { n: title.length },
       detail: `"${title}"`,
-      fix: "Trim to 50-60 chars. Front-load the keyword.",
     });
   }
 
@@ -115,14 +125,12 @@ export function runPageChecks(opts: {
     const lc = title.toLowerCase();
     const hit = opts.trackedKeywords.find((k) => lc.includes(k.toLowerCase()));
     if (!hit) {
-      findings.push({
-        url: opts.url,
+      const missing = opts.trackedKeywords.filter((k) => !lc.includes(k.toLowerCase()));
+      add("title_no_keyword", {
         category: "title",
-        checkKey: "title_no_keyword",
         severity: "medium",
-        message: "Title contains none of your tracked keywords",
         detail: `"${title}"`,
-        fix: "Include at least one tracked keyword (or a close variant) in the title.",
+        vars: { missing: missing.slice(0, 8).join(", ") },
       });
     }
   }
@@ -130,95 +138,46 @@ export function runPageChecks(opts: {
   // ---- Meta description ----
   const metaDesc = $('meta[name="description"]').attr("content")?.trim() ?? "";
   if (!metaDesc) {
-    findings.push({
-      url: opts.url,
-      category: "meta",
-      checkKey: "meta_missing",
-      severity: "high",
-      message: "Missing meta description",
-      fix: "Add a 120-160 character meta description with a clear value prop and CTA.",
-    });
+    add("meta_missing", { category: "meta", severity: "high" });
   } else if (metaDesc.length < 80) {
-    findings.push({
-      url: opts.url,
+    add("meta_short", {
       category: "meta",
-      checkKey: "meta_short",
       severity: "low",
-      message: `Meta description short (${metaDesc.length} chars)`,
+      vars: { n: metaDesc.length },
       detail: `"${metaDesc}"`,
-      fix: "Expand to 120-160 chars with keywords + a clear benefit.",
     });
   } else if (metaDesc.length > 170) {
-    findings.push({
-      url: opts.url,
+    add("meta_long", {
       category: "meta",
-      checkKey: "meta_long",
       severity: "low",
-      message: `Meta description long (${metaDesc.length} chars) — Google truncates`,
+      vars: { n: metaDesc.length },
       detail: `"${metaDesc}"`,
-      fix: "Trim to 150-160 chars.",
     });
   }
 
   // ---- H1 ----
   const h1s = $("h1").toArray();
   if (h1s.length === 0) {
-    findings.push({
-      url: opts.url,
-      category: "h1",
-      checkKey: "h1_missing",
-      severity: "high",
-      message: "Missing <h1>",
-      fix: "Add exactly one <h1> at the top of the page describing what it's about.",
-    });
+    add("h1_missing", { category: "h1", severity: "high" });
   } else if (h1s.length > 1) {
-    findings.push({
-      url: opts.url,
-      category: "h1",
-      checkKey: "h1_multiple",
-      severity: "medium",
-      message: `${h1s.length} <h1> tags — should be exactly 1`,
-      fix: "Convert extra h1s to h2/h3. Keep one h1 only.",
-    });
+    add("h1_multiple", { category: "h1", severity: "medium", vars: { n: h1s.length } });
   } else {
     const h1Text = $(h1s[0]).text().trim();
     if (!h1Text) {
-      findings.push({
-        url: opts.url,
-        category: "h1",
-        checkKey: "h1_empty",
-        severity: "high",
-        message: "<h1> is empty",
-        fix: "Put descriptive content in the h1.",
-      });
+      add("h1_empty", { category: "h1", severity: "high" });
     }
   }
 
   // ---- Canonical ----
   const canonical = $('link[rel="canonical"]').attr("href")?.trim();
   if (!canonical) {
-    findings.push({
-      url: opts.url,
-      category: "canonical",
-      checkKey: "canonical_missing",
-      severity: "medium",
-      message: "Missing canonical link",
-      fix: 'Add <link rel="canonical" href="..."> pointing to the canonical URL.',
-    });
+    add("canonical_missing", { category: "canonical", severity: "medium" });
   }
 
   // ---- Robots meta ----
   const robotsMeta = $('meta[name="robots"]').attr("content")?.toLowerCase() ?? "";
   if (robotsMeta.includes("noindex")) {
-    findings.push({
-      url: opts.url,
-      category: "tech",
-      checkKey: "robots_noindex",
-      severity: "high",
-      message: "Page is set to noindex",
-      detail: robotsMeta,
-      fix: "Remove the noindex directive if you want this page in Google.",
-    });
+    add("robots_noindex", { category: "tech", severity: "high", detail: robotsMeta });
   }
 
   // ---- Open Graph ----
@@ -226,20 +185,14 @@ export function runPageChecks(opts: {
   const ogDesc = $('meta[property="og:description"]').attr("content");
   const ogImg = $('meta[property="og:image"]').attr("content");
   if (!ogTitle || !ogDesc || !ogImg) {
-    findings.push({
-      url: opts.url,
+    add("og_incomplete", {
       category: "og",
-      checkKey: "og_incomplete",
       severity: "low",
-      message: "Open Graph tags incomplete",
-      detail: `Missing: ${[
-        !ogTitle && "og:title",
-        !ogDesc && "og:description",
-        !ogImg && "og:image",
-      ]
-        .filter(Boolean)
-        .join(", ")}`,
-      fix: "Add all three OG tags so social shares render with a preview card.",
+      vars: {
+        missing: [!ogTitle && "og:title", !ogDesc && "og:description", !ogImg && "og:image"]
+          .filter(Boolean)
+          .join(", "),
+      },
     });
   }
 
@@ -250,19 +203,7 @@ export function runPageChecks(opts: {
   const hasMicrodata = $("[itemscope][itemtype]").length > 0;
   const hasRdfa = $("[typeof], [vocab]").length > 0;
   if (!hasJsonLd && !hasMicrodata && !hasRdfa) {
-    findings.push({
-      url: opts.url,
-      category: "schema",
-      checkKey: "schema_missing",
-      severity: "info",
-      message: "No schema.org markup detected in initial HTML",
-      detail:
-        "Checked JSON-LD, microdata, and RDFa in the SSR response. " +
-        "If you inject schema via client-side JavaScript or a tag manager, " +
-        "our crawler can't see it — but Google can.",
-      fix: "Add LocalBusiness/Organization/Article/Product/BreadcrumbList JSON-LD server-side. " +
-        "Verify with Google Rich Results Test (search.google.com/test/rich-results).",
-    });
+    add("schema_missing", { category: "schema", severity: "info" });
   }
 
   // ---- Image alt text ----
@@ -274,13 +215,10 @@ export function runPageChecks(opts: {
     }).length;
     const ratio = noAlt / imgs.length;
     if (ratio > 0.3 && noAlt >= 3) {
-      findings.push({
-        url: opts.url,
+      add("alt_missing", {
         category: "alt",
-        checkKey: "alt_missing",
         severity: "medium",
-        message: `${noAlt}/${imgs.length} images missing alt text (${Math.round(ratio * 100)}%)`,
-        fix: "Add descriptive alt to every meaningful image. Decorative images: alt=\"\".",
+        vars: { n: noAlt, n2: imgs.length, pct: Math.round(ratio * 100) },
       });
     }
   }
@@ -303,13 +241,10 @@ export function runPageChecks(opts: {
     }
   }).length;
   if (internal < 3) {
-    findings.push({
-      url: opts.url,
+    add("low_internal_links", {
       category: "links",
-      checkKey: "low_internal_links",
       severity: "medium",
-      message: `Only ${internal} internal links on this page`,
-      fix: "Add 5-15 contextual internal links to related pages. Helps crawl + ranking.",
+      vars: { n: internal },
     });
   }
 
@@ -319,45 +254,29 @@ export function runPageChecks(opts: {
   const text = $("body").text().replace(/\s+/g, " ").trim();
   const wordCount = text ? text.split(" ").length : 0;
   if (wordCount < 300) {
-    findings.push({
-      url: opts.url,
+    add("thin_content", {
       category: "content",
-      checkKey: "thin_content",
       severity: wordCount < 100 ? "high" : "medium",
-      message: `Thin content — only ${wordCount} words`,
-      fix: "Add at least 300 words of substantive content. 600-1200 is the sweet spot.",
+      vars: { n: wordCount },
     });
   }
 
   // ---- Tech: response code / size / time ----
   if (opts.status >= 400) {
-    findings.push({
-      url: opts.url,
-      category: "tech",
-      checkKey: "bad_status",
-      severity: "high",
-      message: `Page returns HTTP ${opts.status}`,
-      fix: "Fix the underlying error or redirect to a working page.",
-    });
+    add("bad_status", { category: "tech", severity: "high", vars: { status: opts.status } });
   }
   if (opts.bytes > 1_500_000) {
-    findings.push({
-      url: opts.url,
+    add("heavy_html", {
       category: "tech",
-      checkKey: "heavy_html",
       severity: "low",
-      message: `HTML is ${(opts.bytes / 1024).toFixed(0)} KB — heavy`,
-      fix: "Reduce inline scripts/styles, defer non-critical JS, lazy-load images.",
+      vars: { kb: (opts.bytes / 1024).toFixed(0) },
     });
   }
   if (opts.responseMs > 1500) {
-    findings.push({
-      url: opts.url,
+    add("slow_response", {
       category: "tech",
-      checkKey: "slow_response",
       severity: "medium",
-      message: `Server response slow (${opts.responseMs}ms)`,
-      fix: "Aim for <500ms TTFB. Check origin server, cache, and middleware.",
+      vars: { ms: opts.responseMs },
     });
   }
 
@@ -368,84 +287,62 @@ export function runPageChecks(opts: {
  * Site-wide checks: robots.txt, sitemap.xml, HTTPS.
  * Takes the homepage URL.
  */
-export async function runSiteWideChecks(homepageUrl: string): Promise<Finding[]> {
+export async function runSiteWideChecks(
+  homepageUrl: string,
+  lang: AuditLang = "fr",
+): Promise<Finding[]> {
   const findings: Finding[] = [];
+  const add = (url: string, checkKey: string, severity: Severity) => {
+    const copy = auditCopy(checkKey, lang);
+    findings.push({
+      url,
+      category: "site",
+      checkKey,
+      severity,
+      message: copy?.message ?? checkKey,
+      fix: copy?.fix,
+    });
+  };
   let origin = "";
   try {
     const u = new URL(homepageUrl);
     origin = `${u.protocol}//${u.host}`;
     if (u.protocol !== "https:") {
-      findings.push({
-        url: origin,
-        category: "site",
-        checkKey: "no_https",
-        severity: "high",
-        message: "Site is not served over HTTPS",
-        fix: "Move to HTTPS — Google ranks HTTPS pages higher and modern browsers warn on HTTP.",
-      });
+      add(origin, "no_https", "high");
     }
   } catch {
     return findings;
   }
 
-  // robots.txt
   try {
     const res = await fetch(`${origin}/robots.txt`, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
-      findings.push({
-        url: `${origin}/robots.txt`,
-        category: "site",
-        checkKey: "robots_missing",
-        severity: "medium",
-        message: "robots.txt not found",
-        fix: "Add a robots.txt at site root listing your sitemap and any disallowed paths.",
-      });
+      add(`${origin}/robots.txt`, "robots_missing", "medium");
     } else {
       const text = await res.text();
       if (!/sitemap:/i.test(text)) {
+        const copy = auditCopy("robots_no_sitemap", lang);
         findings.push({
           url: `${origin}/robots.txt`,
           category: "site",
           checkKey: "robots_no_sitemap",
           severity: "low",
-          message: "robots.txt does not declare a sitemap",
-          fix: `Add "Sitemap: ${origin}/sitemap.xml" to robots.txt.`,
+          message: copy?.message ?? "robots_no_sitemap",
+          fix: copy?.fix,
         });
       }
     }
   } catch {
-    findings.push({
-      url: `${origin}/robots.txt`,
-      category: "site",
-      checkKey: "robots_unreachable",
-      severity: "medium",
-      message: "robots.txt unreachable",
-      fix: "Check that /robots.txt returns a 200 response.",
-    });
+    add(`${origin}/robots.txt`, "robots_unreachable", "medium");
   }
 
-  // sitemap.xml
   try {
     const res = await fetch(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
-      findings.push({
-        url: `${origin}/sitemap.xml`,
-        category: "site",
-        checkKey: "sitemap_missing",
-        severity: "medium",
-        message: "sitemap.xml not found",
-        fix: "Generate a sitemap.xml listing all indexable URLs and submit to GSC.",
-      });
+      add(`${origin}/sitemap.xml`, "sitemap_missing", "medium");
     }
   } catch {
-    findings.push({
-      url: `${origin}/sitemap.xml`,
-      category: "site",
-      checkKey: "sitemap_unreachable",
-      severity: "low",
-      message: "sitemap.xml unreachable",
-      fix: "Make /sitemap.xml return a 200 response.",
-    });
+    add(`${origin}/sitemap.xml`, "sitemap_unreachable", "low");
   }
 
   return findings;

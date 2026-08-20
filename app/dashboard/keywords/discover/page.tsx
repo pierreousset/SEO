@@ -1,52 +1,23 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { resolveAccountContext } from "@/lib/account-context";
-import { tenantDb } from "@/db/client";
+import { getLocale } from "@/lib/i18n-server";
+import { locale } from "./locale";
 import { DiscoverTabs } from "@/components/discover-tabs";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
 export default async function DiscoverPage() {
-  const ctx = await resolveAccountContext();
-  const t = tenantDb(ctx.ownerId);
-  const [gscToken, sites] = await Promise.all([t.selectGscToken(), t.selectSites()]);
-
-  if (gscToken.length === 0) {
-    return (
-      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto">
-        <h1 className="text-heading mb-4">Discover</h1>
-        <div className="rounded-2xl bg-card p-8 text-sm">
-          Connect Google Search Console first to discover untracked keywords.
-        </div>
-      </div>
-    );
-  }
-
-  if (sites.length === 0) {
-    return (
-      <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto">
-        <h1 className="text-heading mb-4">Discover</h1>
-        <div className="rounded-2xl bg-card p-8 text-sm">
-          No site registered yet. Re-connect GSC to auto-import your site.
-        </div>
-      </div>
-    );
-  }
+  const lng = await getLocale();
+  const i = locale[lng];
 
   return (
     <div className="px-4 md:px-9 py-7 max-w-[1400px] mx-auto space-y-6">
       <div>
         <Breadcrumbs />
-        <h1 className="text-heading-lg mt-2">Discover</h1>
-        <p className="mt-3 text-base text-muted-foreground max-w-2xl">
-          Three sources to expand your tracked keyword list: your own Search Console queries,
-          what your declared competitors rank for, and AI-generated candidates from your
-          business context. Select + add in bulk.
-        </p>
+        <h1 className="text-heading-lg mt-2">{i.title}</h1>
+        <p className="mt-3 text-base text-muted-foreground max-w-2xl">{i.subtitle}</p>
       </div>
 
-      <DiscoverTabs />
+      <DiscoverTabs lng={lng} />
     </div>
   );
 }

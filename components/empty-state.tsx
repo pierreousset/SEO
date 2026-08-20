@@ -12,7 +12,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="bg-card rounded-2xl p-12 flex flex-col items-center text-center max-w-md mx-auto">
+    <div className="sheet p-12 flex flex-col items-center text-center max-w-md mx-auto">
       <div className="w-16 h-16 rounded-2xl bg-sky-teal/10 flex items-center justify-center mb-6">
         <Icon className="h-8 w-8 text-sky-teal" strokeWidth={1.5} />
       </div>

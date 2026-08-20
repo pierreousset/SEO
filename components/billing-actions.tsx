@@ -10,6 +10,7 @@ import {
   updateAutoRefill,
 } from "@/lib/actions/billing";
 import { toast } from "sonner";
+import { PLAN_PRICE_EUR } from "@/lib/billing-constants";
 
 export function SubscribeButton({ label = "Upgrade to Pro" }: { label?: string }) {
   const [pending, start] = useTransition();
@@ -120,30 +121,14 @@ export function PlanToggle({
 }
 
 export function ProPlanCard() {
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   return (
     <div className="space-y-4">
-      <PlanToggle billing={billing} onToggle={setBilling} />
       <div className="mt-2 flex items-baseline gap-2">
-        {billing === "monthly" ? (
-          <>
-            <span className="text-display">15&euro;</span>
-            <span className="text-muted-foreground">/mois</span>
-          </>
-        ) : (
-          <>
-            <span className="text-display">150&euro;</span>
-            <span className="text-muted-foreground">/an</span>
-            <span className="text-xs text-[var(--up)] ml-2">save 30&euro;</span>
-          </>
-        )}
+        <span className="text-display">{PLAN_PRICE_EUR}&euro;</span>
+        <span className="text-muted-foreground">/mois, tout inclus</span>
       </div>
       <div className="mt-6">
-        {billing === "monthly" ? (
-          <SubscribeButton />
-        ) : (
-          <SubscribeAnnualButton />
-        )}
+        <SubscribeButton />
       </div>
     </div>
   );
@@ -258,7 +243,7 @@ export function ReferralSection({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Earn 20 credits for each friend who subscribes to Pro.
+        Invite friends to SEO Coach. Share your link below.
       </p>
 
       <div className="flex items-center gap-2">
@@ -275,7 +260,7 @@ export function ReferralSection({
 
       {totalRewards > 0 && (
         <p className="text-xs text-muted-foreground">
-          Total earned: <span className="font-mono tabular-nums text-foreground">{totalRewards}</span> credits
+          Friends subscribed: <span className="font-mono tabular-nums text-foreground">{totalRewards}</span>
         </p>
       )}
 

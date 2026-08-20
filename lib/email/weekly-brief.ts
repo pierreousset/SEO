@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { render } from "@react-email/render";
+import { fromAddress, getResend } from "@/lib/email/client";
 import WeeklyBriefEmail, {
   renderWeeklyBriefText,
   type WeeklyBriefEmailProps,
@@ -15,13 +15,11 @@ const SUBJECTS = {
 export async function sendWeeklyBriefEmail(
   input: WeeklyBriefEmailInput,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn("[weekly-brief-email] RESEND_API_KEY missing — skip send");
     return { ok: false, error: "resend_not_configured" };
   }
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = process.env.RESEND_FROM_EMAIL || "noreply@localhost";
   const subject = SUBJECTS[input.language](
     `${input.periodStart} → ${input.periodEnd}`,
   );
@@ -31,7 +29,7 @@ export async function sendWeeklyBriefEmail(
   const text = renderWeeklyBriefText(templateProps);
 
   const { error } = await resend.emails.send({
-    from,
+    from: fromAddress(),
     to,
     subject,
     html,

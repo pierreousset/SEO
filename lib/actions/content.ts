@@ -31,6 +31,7 @@ export async function triggerArticleGeneration(keywordId?: string, topic?: strin
 
   const guard = await guardMeteredAction({
     userId: ctx.ownerId,
+    action: "articleGeneration",
     credits: CREDIT_COSTS.articleGeneration,
     reason: "article_generation",
     metadata: { keywordId, topic },

@@ -4,6 +4,8 @@ import { tenantDb } from "@/db/client";
 import { db, schema } from "@/db/client";
 import { and, eq, isNull } from "drizzle-orm";
 import { getAuthUrl } from "@/lib/google-oauth";
+import { adsDeveloperTokenConfigured, getAdsAuthUrl } from "@/lib/google-ads";
+import { RetryAdsImportButton } from "@/components/retry-ads-import-button";
 import { getApiKeyStatus } from "@/lib/actions/api-keys";
 import { randomBytes } from "node:crypto";
 import {
@@ -31,17 +33,27 @@ export default async function SettingsPage({
   const ctx = await resolveAccountContext();
   const t = tenantDb(ctx.ownerId);
   const [gsc] = await t.selectGscToken();
+  const [ads] = await t.selectAdsToken();
+  const adsAccounts = await t.selectAdsAccounts();
+  const selectedAds = adsAccounts.find((a) => a.selected);
   const error = (await searchParams).error;
   const profile = await t.selectBusinessProfile();
 
   const state = randomBytes(16).toString("hex");
   const authUrl = process.env.GOOGLE_CLIENT_ID ? getAuthUrl(state) : null;
+  const adsAuthUrl =
+    process.env.GOOGLE_CLIENT_ID && adsDeveloperTokenConfigured()
+      ? getAdsAuthUrl(randomBytes(16).toString("hex"))
+      : null;
 
   // API keys status
   const apiKeyStatus = ctx.isOwner ? await getApiKeyStatus(ctx.ownerId) : null;
   const configuredKeys = apiKeyStatus
     ? Object.values(apiKeyStatus).filter(Boolean).length
     : 0;
+  // BYOK API Keys section hidden for now. Set to true to re-enable.
+  // Typed `boolean` (not literal false) so the section below still type-checks.
+  const showByokKeys: boolean = false;
 
   // Team members count
   const members = await db
@@ -129,8 +141,65 @@ export default async function SettingsPage({
         </div>
       </section>
 
-      {/* API Keys — owner only */}
-      {ctx.isOwner && apiKeyStatus && (
+      <section className="bg-card rounded-2xl border border-border overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-sky-teal/10 flex items-center justify-center shrink-0">
+              <Globe className="h-5 w-5 text-sky-teal" strokeWidth={1.5} />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Google Ads</h2>
+              <p className="text-xs text-muted-foreground">
+                Read-only search terms. Crossed with organic to stop wasted spend.
+              </p>
+            </div>
+            {ads && (
+              <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--up)] text-xs">
+                <Check className="h-3 w-3" strokeWidth={2} />
+                connected
+              </span>
+            )}
+          </div>
+
+          {ads && (
+            <p className="text-xs text-muted-foreground mb-4">
+              Connected {new Date(ads.connectedAt).toLocaleDateString()}
+              {selectedAds?.descriptiveName ? ` · ${selectedAds.descriptiveName}` : ""}
+              {selectedAds?.customerId ? ` · ${selectedAds.customerId}` : ""}
+            </p>
+          )}
+
+          {ctx.isOwner ? (
+            <>
+              {adsAuthUrl && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={adsAuthUrl}
+                    className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium hover:opacity-85 transition"
+                  >
+                    {ads ? "Re-connect Ads" : "Connect Google Ads"}
+                  </a>
+                  {ads && <RetryAdsImportButton label="Retry import" />}
+                </div>
+              )}
+              {!adsAuthUrl && (
+                <p className="text-xs text-muted-foreground">
+                  Set <code className="font-mono">GOOGLE_ADS_DEVELOPER_TOKEN</code> and enable the
+                  Google Ads API + <code className="font-mono">adwords</code> scope on the same
+                  OAuth client as Search Console.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {ads ? "Connected by the account owner." : "Only the account owner can connect Ads."}
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* API Keys (BYOK) — hidden for now. Flip `showByokKeys` to re-enable. */}
+      {showByokKeys && ctx.isOwner && apiKeyStatus && (
         <section className="bg-card rounded-2xl border border-border overflow-hidden">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, boolean, jsonb, uniqueIndex, index, real } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, boolean, jsonb, uniqueIndex, index, real, primaryKey, bigint } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // Better Auth core tables
@@ -147,6 +147,21 @@ export const creditTransactions = pgTable("credit_transactions", {
   index("credit_tx_event_idx").on(t.stripeEventId),
 ]);
 
+// Fair-use monthly usage counter. Replaces the credit wallet for margin
+// protection under the flat 99€/mo plan: one row per (user, action, month),
+// incremented when a metered action runs. Invisible unless a user exceeds the
+// generous monthly limit for an expensive action (see MONTHLY_LIMITS).
+export const monthlyUsage = pgTable("monthly_usage", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(), // MeteredAction key, e.g. 'audit' | 'backlinks'
+  period: text("period").notNull(), // 'YYYY-MM' UTC month bucket
+  count: integer("count").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.action, t.period] }),
+  index("monthly_usage_user_idx").on(t.userId),
+]);
+
 // User-provided API keys — encrypted at rest with AES-256-GCM (lib/encryption.ts).
 // When present, these override the platform-level env vars for AI features.
 export const userApiKeys = pgTable("user_api_keys", {
@@ -178,6 +193,61 @@ export const gscTokens = pgTable("gsc_tokens", {
   lastRefreshedAt: timestamp("last_refreshed_at"),
 });
 
+// Encrypted Google Ads OAuth tokens — one per user. Separate from GSC.
+export const adsTokens = pgTable("ads_tokens", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+  scope: text("scope").notNull(),
+  connectedAt: timestamp("connected_at").notNull().defaultNow(),
+  lastRefreshedAt: timestamp("last_refreshed_at"),
+});
+
+export const adsAccounts = pgTable("ads_accounts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").notNull(),
+  descriptiveName: text("descriptive_name"),
+  currencyCode: text("currency_code"),
+  manager: boolean("manager").notNull().default(false),
+  selected: boolean("selected").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("ads_accounts_unique").on(t.userId, t.customerId),
+  index("ads_accounts_user_idx").on(t.userId),
+]);
+
+// Rolling 30-day snapshot of Ads search terms (replaced on each pull).
+export const adsSearchTerms = pgTable("ads_search_terms", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").notNull(),
+  query: text("query").notNull(),
+  clicks: integer("clicks").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
+  conversions: real("conversions").notNull().default(0),
+  periodStart: text("period_start").notNull(),
+  periodEnd: text("period_end").notNull(),
+  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("ads_search_terms_unique").on(t.userId, t.customerId, t.query, t.periodStart),
+  index("ads_search_terms_user_idx").on(t.userId),
+]);
+
+export const adsRuns = pgTable("ads_runs", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  source: text("source").notNull(),
+  status: text("status").notNull(),
+  queuedAt: timestamp("queued_at").notNull().defaultNow(),
+  startedAt: timestamp("started_at"),
+  finishedAt: timestamp("finished_at"),
+  rowsFetched: integer("rows_fetched"),
+  error: text("error"),
+}, (t) => [
+  index("ads_runs_user_idx").on(t.userId),
+]);
+
 export const keywords = pgTable("keywords", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -188,6 +258,12 @@ export const keywords = pgTable("keywords", {
   // Intent stage 1-4 (problem-unaware → ready-to-hire). Null = not yet classified.
   // 1=problem-unaware, 2=problem-aware, 3=solution-aware, 4=ready-to-hire
   intentStage: integer("intent_stage"),
+  // DataForSEO keyword metrics (Google Ads volume — not GSC impressions).
+  searchVolume: integer("search_volume"),
+  keywordDifficulty: integer("keyword_difficulty"),
+  cpc: real("cpc"),
+  searchIntent: text("search_intent"),
+  volumeUpdatedAt: timestamp("volume_updated_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   removedAt: timestamp("removed_at"),
 }, (t) => [

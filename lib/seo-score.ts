@@ -96,7 +96,10 @@ const CTR_BENCHMARK: Record<number, number> = {
   10: 0.03,
 };
 
-function expectedCtr(position: number): number {
+// Expected click-through rate for an average SERP position. Exported so the
+// opportunity selector (lib/seo/prioritize.ts) reuses the same curve instead of
+// duplicating a CTR table.
+export function expectedCtr(position: number): number {
   if (position <= 0) return 0;
   if (position <= 10) return CTR_BENCHMARK[Math.round(position)] ?? 0.03;
   if (position <= 20) return 0.01;
@@ -119,22 +122,28 @@ const WEIGHTS = {
 export function computeGlobalScore(data: SiteData): { score: number; breakdown: ScoreBreakdown } {
   const scores: Record<string, number | null> = {};
 
-  // Title quality: % of pages with title 30-60 chars
-  if (data.pages.length > 0) {
-    const good = data.pages.filter(
+  // Title quality: only pages we actually crawled. Unknown titles must not
+  // count as failures (that zeros the score after a GSC-only import).
+  const pagesWithTitle = data.pages.filter(
+    (p) => p.title != null || p.titleLength > 0,
+  );
+  if (pagesWithTitle.length > 0) {
+    const good = pagesWithTitle.filter(
       (p) => p.titleLength >= 30 && p.titleLength <= 60,
     ).length;
-    scores.titleQuality = (good / data.pages.length) * 100;
+    scores.titleQuality = (good / pagesWithTitle.length) * 100;
   } else {
     scores.titleQuality = null;
   }
 
-  // Meta description quality: % of pages with meta 120-160 chars
-  if (data.pages.length > 0) {
-    const good = data.pages.filter(
+  const pagesWithMeta = data.pages.filter(
+    (p) => p.metaDescription != null || p.metaDescriptionLength > 0,
+  );
+  if (pagesWithMeta.length > 0) {
+    const good = pagesWithMeta.filter(
       (p) => p.metaDescriptionLength >= 120 && p.metaDescriptionLength <= 160,
     ).length;
-    scores.metaQuality = (good / data.pages.length) * 100;
+    scores.metaQuality = (good / pagesWithMeta.length) * 100;
   } else {
     scores.metaQuality = null;
   }
@@ -196,10 +205,11 @@ export function computeGlobalScore(data: SiteData): { score: number; breakdown: 
     scores.indexCoverage = null;
   }
 
-  // H1 presence
-  if (data.pages.length > 0) {
-    const withH1 = data.pages.filter((p) => p.h1 != null && p.h1.length > 0).length;
-    scores.h1Presence = (withH1 / data.pages.length) * 100;
+  // H1 presence — skip when we have never crawled.
+  const pagesCrawled = data.pages.filter((p) => p.title != null || p.h1 != null);
+  if (pagesCrawled.length > 0) {
+    const withH1 = pagesCrawled.filter((p) => p.h1 != null && p.h1.length > 0).length;
+    scores.h1Presence = (withH1 / pagesCrawled.length) * 100;
   } else {
     scores.h1Presence = null;
   }

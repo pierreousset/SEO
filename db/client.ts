@@ -52,6 +52,25 @@ export function tenantDb(userId: string) {
     selectGscToken: () =>
       db.select().from(schema.gscTokens).where(eq(schema.gscTokens.userId, userId)).limit(1),
 
+    selectAdsToken: () =>
+      db.select().from(schema.adsTokens).where(eq(schema.adsTokens.userId, userId)).limit(1),
+
+    upsertAdsToken: (encryptedRefreshToken: string, scope: string) =>
+      db
+        .insert(schema.adsTokens)
+        .values({ userId, encryptedRefreshToken, scope })
+        .onConflictDoUpdate({
+          target: schema.adsTokens.userId,
+          set: { encryptedRefreshToken, scope, lastRefreshedAt: new Date() },
+        })
+        .returning(),
+
+    selectAdsAccounts: () =>
+      db.select().from(schema.adsAccounts).where(eq(schema.adsAccounts.userId, userId)),
+
+    selectAdsSearchTerms: () =>
+      db.select().from(schema.adsSearchTerms).where(eq(schema.adsSearchTerms.userId, userId)),
+
     selectBusinessProfile: async () => {
       const rows = await db
         .select()

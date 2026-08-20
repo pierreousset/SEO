@@ -1,0 +1,8 @@
+# https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Next.js + native addons (sharp, unrs-resolver) expect a hoisted tree.
+linker = "hoisted"
+
+[run]
+# Use `bun run test` (Vitest). Bare `bun test` is Bun's own runner.

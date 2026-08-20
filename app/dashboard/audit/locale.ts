@@ -13,6 +13,9 @@ const fr = {
 
   fixFirst: "à corriger en priorité",
   pagesAffected: (n: number) => `${n} page${n !== 1 ? "s" : ""} concernée${n !== 1 ? "s" : ""}`,
+  detailHowTo: "Comment corriger",
+  detailPages: "Pages",
+  detailOpen: "Ouvrir",
   defaultImpact: (n: number) =>
     `Corriger ce point pourrait améliorer le SEO sur ${n} page${n !== 1 ? "s" : ""}`,
 
@@ -36,6 +39,18 @@ const fr = {
 
   allFindings: (n: number) => `tous les findings (${n})`,
   findingCount: (n: number) => `${n} finding${n > 1 ? "s" : ""}`,
+  detailSeen: "Valeur actuelle",
+  detailInspect: "Inspecteur",
+  detailSelector: "Sélecteur",
+  detailCopy: "Copier",
+  detailCopied: "Copié",
+  detailKeywords: "À insérer (le moins de changement)",
+  detailTryFirst: "obligatoire",
+  detailAiPaste: "À coller dans une IA",
+  severityHigh: "critique",
+  severityMedium: "moyen",
+  severityLow: "faible",
+  severityInfo: "info",
 
   impactEstimates: {
     title_missing: "Ajouter des titres pourrait améliorer la visibilité des pages concernées",
@@ -61,6 +76,9 @@ const en: typeof fr = {
 
   fixFirst: "fix these first",
   pagesAffected: (n: number) => `${n} page${n !== 1 ? "s" : ""} affected`,
+  detailHowTo: "How to fix",
+  detailPages: "Pages",
+  detailOpen: "Open",
   defaultImpact: (n: number) =>
     `Fixing this could improve SEO for ${n} page${n !== 1 ? "s" : ""}`,
 
@@ -84,6 +102,18 @@ const en: typeof fr = {
 
   allFindings: (n: number) => `all findings (${n})`,
   findingCount: (n: number) => `${n} finding${n > 1 ? "s" : ""}`,
+  detailSeen: "Current value",
+  detailInspect: "Inspector",
+  detailSelector: "Selector",
+  detailCopy: "Copy",
+  detailCopied: "Copied",
+  detailKeywords: "Insert these (minimal change)",
+  detailTryFirst: "required",
+  detailAiPaste: "Paste into an AI",
+  severityHigh: "high",
+  severityMedium: "medium",
+  severityLow: "low",
+  severityInfo: "info",
 
   impactEstimates: {
     title_missing: "Adding titles could improve visibility for affected pages",

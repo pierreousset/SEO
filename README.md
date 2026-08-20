@@ -4,10 +4,11 @@ AI-first rank tracking + weekly actionable briefs. Indie alternative to Semrush.
 
 ## Stack
 
+- **Bun** (package manager + script runner — see `.bun-version`)
 - **Next.js 16** (App Router, Turbopack)
 - **Neon Postgres** + **Drizzle ORM**
 - **Better Auth** (OTP email, via **Resend**)
-- **Google OAuth** (separate flow, for Google Search Console API access)
+- **Google OAuth** (separate flow, Search Console + optional Google Ads)
 - **Inngest** (daily SERP fetch + weekly brief cron)
 - **DataForSEO** (SERP Standard API, ~$0.0006/query)
 - **Anthropic Claude Sonnet** (brief generation)
@@ -16,6 +17,8 @@ AI-first rank tracking + weekly actionable briefs. Indie alternative to Semrush.
 Design system: see `DESIGN.md` at the repo root (above this folder).
 
 ## Setup (first time)
+
+Requires [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`). Do not use npm/yarn/pnpm — this repo is locked to `bun.lock`.
 
 ```bash
 # 1. Install
@@ -64,7 +67,7 @@ scheduled jobs and trigger them manually.
 app/
   api/
     auth/[...all]/      Better Auth OTP routes
-    google/callback/    Google OAuth callback (GSC connect)
+    google/callback/    Google OAuth callback (GSC + Ads, `state=ads_…`)
     inngest/            Inngest webhook handler
   dashboard/            Authenticated area
     keywords/           Table view
