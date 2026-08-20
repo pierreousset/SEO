@@ -412,8 +412,6 @@ export async function suggestKeywordsWithAI(): Promise<{
 // SEO keyword ideas — DataForSEO volume / difficulty / intent (not GSC)
 // ---------------------------------------------------------------------------
 
-export type { SeoKeywordIdea };
-
 export async function discoverSeoKeywordIdeas(opts: {
   minSearchVolume?: number;
 } = {}): Promise<{
