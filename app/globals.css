@@ -170,12 +170,12 @@
     @apply border-border outline-ring/50;
   }
   html {
-    font-family: var(--font-sans);
     font-feature-settings: "blwf" on, "cv03" on, "cv04" on, "cv09" on, "cv11" on;
     color-scheme: light;
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-open-runde), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

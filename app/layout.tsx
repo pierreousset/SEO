@@ -16,6 +16,7 @@ const openRunde = localFont({
   variable: "--font-open-runde",
   display: "swap",
   adjustFontFallback: false,
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
 const caveat = Caveat({
@@ -79,9 +80,9 @@ export default async function RootLayout({
   return (
     <html
       lang={lng}
-      className={`${openRunde.variable} ${openRunde.className} ${caveat.variable} ${inter.variable} h-full antialiased`}
+      className={`${openRunde.variable} ${caveat.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-ink-black">
+      <body className="min-h-full flex flex-col bg-background text-ink-black font-sans">
         <LocaleProvider>{children}</LocaleProvider>
         <Toaster position="top-right" />
       </body>
