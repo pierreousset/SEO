@@ -4,7 +4,7 @@ export type InspectHint = {
   selector: string;
   snippet: string;
   hint: string;
-  tool?: { label: string; href: (url: string) => string };
+  tool?: { label: string; href: string };
 };
 
 const HINT: Record<

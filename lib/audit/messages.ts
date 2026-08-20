@@ -279,7 +279,7 @@ export function auditCopy(
   lang: AuditLang,
   vars: FindingVars = {},
 ): { message: string; fix: string; detail?: string; impact?: string } | null {
-  const entry = dict[lang][checkKey as keyof typeof fr];
+  const entry = dict[lang][checkKey as keyof typeof fr] as Copy | undefined;
   if (!entry) return null;
   return {
     message: render(entry.message, vars) ?? "",

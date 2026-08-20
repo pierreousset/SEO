@@ -60,7 +60,7 @@ export default async function GapPage({
     searchVolume: (f) => f.searchVolume,
     keywordDifficulty: (f) => f.keywordDifficulty,
     cpc: (f) => f.cpc,
-    bestCompetitor: (f) => f.bestCompetitorDomain ?? null,
+    bestCompetitor: (f) => f.competitorDomain ?? null,
   });
 
   // Aggregate stats for headline tiles.

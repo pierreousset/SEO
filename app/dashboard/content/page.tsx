@@ -44,7 +44,7 @@ export default async function ContentPage({
   const { field: sortField, dir: sortDir } = parseSort(sp, "createdAt", "desc");
   const sortedArticles = sortRows(articles, sortField, sortDir, {
     title: (a) => a.title?.toLowerCase() ?? null,
-    keyword: (a) => kwMap.get(a.keywordId)?.toLowerCase() ?? null,
+    keyword: (a) => (a.keywordId ? kwMap.get(a.keywordId)?.toLowerCase() ?? null : null),
     wordCount: (a) => a.wordCount,
     status: (a) => a.status,
     createdAt: (a) => a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt as unknown as string).getTime(),
