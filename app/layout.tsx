@@ -1,9 +1,22 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import { Caveat, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/components/locale-provider";
 import { getLocale } from "@/lib/i18n-server";
 import "./globals.css";
+
+const openRunde = localFont({
+  src: [
+    { path: "../public/fonts/open-runde/OpenRunde-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/open-runde/OpenRunde-Medium.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/open-runde/OpenRunde-Semibold.woff2", weight: "600", style: "normal" },
+    { path: "../public/fonts/open-runde/OpenRunde-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-open-runde",
+  display: "swap",
+  adjustFontFallback: false,
+});
 
 const caveat = Caveat({
   variable: "--font-caveat",
@@ -66,7 +79,7 @@ export default async function RootLayout({
   return (
     <html
       lang={lng}
-      className={`${caveat.variable} ${inter.variable} h-full antialiased`}
+      className={`${openRunde.variable} ${openRunde.className} ${caveat.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-ink-black">
         <LocaleProvider>{children}</LocaleProvider>
