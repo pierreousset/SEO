@@ -97,6 +97,13 @@ export async function bootstrapGscForUser(
     keywordCount = topQueries.filter((q) => q.query.trim()).length;
   }
 
+  try {
+    const { hydrateBusinessProfile } = await import("@/lib/seo/hydrate-profile");
+    await hydrateBusinessProfile(userId);
+  } catch (err) {
+    console.warn("[gsc-bootstrap] profile hydrate skipped:", err);
+  }
+
   let totalsDays = 0;
   if (siteUrl) {
     try {

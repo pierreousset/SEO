@@ -22,10 +22,10 @@ import {
   filterIdeasByActivity,
   keywordMarket,
   mergeKeywordIdeas,
-  seedsFromPageCopy,
   type SeoKeywordIdea,
 } from "@/lib/seo/keyword-ideas";
-import * as cheerio from "cheerio";
+import { hydrateBusinessProfile } from "@/lib/seo/hydrate-profile";
+import { fetchHomepageCopy, homepageSeeds } from "@/lib/seo/homepage";
 
 /**
  * Live GSC pull: ALL queries over the past N days (no tracked-keyword filter),
@@ -546,6 +546,7 @@ export async function discoverSeoKeywordIdeas(opts: {
   error?: string;
 }> {
   const ctx = await requireAccountContext();
+  await hydrateBusinessProfile(ctx.ownerId);
   const t = tenantDb(ctx.ownerId);
   const saved = await readKeywordIdeaSnapshot(ctx.ownerId);
   const [profile, keywords, sites] = await Promise.all([
@@ -655,31 +656,6 @@ export async function discoverSeoKeywordIdeas(opts: {
 }
 
 async function seedsFromHomepage(domain: string): Promise<string[]> {
-  const urls = [`https://${domain}/`, `https://www.${domain}/`];
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: { "User-Agent": "SEODashboard-KeywordIdeas/1.0" },
-        redirect: "follow",
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) continue;
-      const html = await res.text();
-      const $ = cheerio.load(html);
-      const title = $("title").first().text();
-      const h1s = $("h1")
-        .toArray()
-        .map((el) => $(el).text())
-        .filter(Boolean);
-      const description =
-        $('meta[name="description"]').attr("content") ??
-        $('meta[property="og:title"]').attr("content") ??
-        null;
-      const seeds = seedsFromPageCopy(title, h1s, description);
-      if (seeds.length > 0) return seeds;
-    } catch {
-      /* try next url */
-    }
-  }
-  return [];
+  const copy = await fetchHomepageCopy(domain);
+  return homepageSeeds(copy);
 }
