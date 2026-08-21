@@ -10,14 +10,14 @@ const fr = {
   },
   tabDesc: {
     ideas:
-      "Mots-clés à volume (données Google Ads via DataForSEO), à partir de votre activité et de votre site — pas seulement ce que Search Console a déjà vu.",
+      "Idées à volume (Google Ads via DataForSEO) : on part de votre service + villes, et des requêtes liées à votre domaine. Pas les mots-clés des concurrents (onglet dédié).",
     gsc: "Requêtes où vous apparaissez déjà, mais que vous ne suivez pas.",
     competitors: "Mots-clés sur lesquels vos concurrents se classent, pas vous.",
     ai: "Candidats générés à partir du profil business (sans volume mesuré).",
   },
   ideas: {
     intro:
-      "On part du service + des villes du profil, et des mots-clés liés au domaine. Volume réel, difficulté, intention. Limité à 8 recherches/mois, 12 h entre deux.",
+      "Deux sources : (1) idées autour de votre service et de vos villes, (2) requêtes de la même catégorie que votre site. Volume et difficulté Google Ads. Les concurrents sont l'onglet à côté. 8 recherches/mois, 12 h entre deux — seulement une fois que vous avez déjà une liste.",
     pull: "Chercher des idées",
     pulling: "Recherche…",
     refresh: "Actualiser",
@@ -65,14 +65,14 @@ const en: typeof fr = {
   },
   tabDesc: {
     ideas:
-      "Volume-backed keywords (Google Ads data via DataForSEO) from your business and domain — not only what Search Console already saw.",
+      "Volume-backed ideas (Google Ads via DataForSEO) from your service + cities, and queries in the same category as your domain. Not competitor keywords (that's the next tab).",
     gsc: "Queries you already appear for but don't track.",
     competitors: "Keywords competitors rank for, you don't.",
     ai: "Candidates from the business profile (no measured volume).",
   },
   ideas: {
     intro:
-      "Seeded from your services + cities, plus keywords in the same category as your domain. Limited to 8 searches/month, 12 h apart.",
+      "Two sources: (1) ideas around your service and cities, (2) queries in the same category as your site. Google Ads volume and difficulty. Competitors are the next tab. 8 searches/month, 12 h apart — only after you already have a list.",
     pull: "Find ideas",
     pulling: "Searching…",
     refresh: "Refresh",

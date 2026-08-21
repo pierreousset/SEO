@@ -576,24 +576,27 @@ export async function discoverSeoKeywordIdeas(opts: {
     };
   }
 
-  const lastAt = await lastUsageUpdatedAt(ctx.ownerId, "keywordIdeas");
-  const waitMs = cooldownRemainingMs(lastAt, KEYWORD_IDEAS_COOLDOWN_MS);
-  if (waitMs > 0) {
-    const lng = await getLocale();
-    const wait = formatRetryWait(waitMs);
-    const cap = MONTHLY_LIMITS.keywordIdeas ?? 8;
-    return {
-      ...saved,
-      error:
-        lng === "en"
-          ? `Keyword research is limited to ${cap}/month. Try again in ${wait}.`
-          : `Recherche limitée à ${cap}/mois. Réessayez dans ${wait}.`,
-    };
-  }
+  const hasSaved = saved.keywords.length > 0;
+  if (hasSaved) {
+    const lastAt = await lastUsageUpdatedAt(ctx.ownerId, "keywordIdeas");
+    const waitMs = cooldownRemainingMs(lastAt, KEYWORD_IDEAS_COOLDOWN_MS);
+    if (waitMs > 0) {
+      const lng = await getLocale();
+      const wait = formatRetryWait(waitMs);
+      const cap = MONTHLY_LIMITS.keywordIdeas ?? 8;
+      return {
+        ...saved,
+        error:
+          lng === "en"
+            ? `Keyword research is limited to ${cap}/month. Try again in ${wait}.`
+            : `Recherche limitée à ${cap}/mois. Réessayez dans ${wait}.`,
+      };
+    }
 
-  const usage = await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
-  if (!usage.ok) {
-    return { ...saved, error: usage.error };
+    const usage = await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
+    if (!usage.ok) {
+      return { ...saved, error: usage.error };
+    }
   }
 
   const minVolume = opts.minSearchVolume ?? 10;
@@ -645,6 +648,9 @@ export async function discoverSeoKeywordIdeas(opts: {
     .slice(0, 250);
 
   await saveKeywordIdeaSnapshot(ctx.ownerId, merged, seeds, sourcesUsed);
+  if (!hasSaved) {
+    await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
+  }
   const fetchedAt = new Date().toISOString();
   return { keywords: merged, seeds, sourcesUsed, fetchedAt };
 }
