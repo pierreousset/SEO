@@ -3,6 +3,8 @@
  * Network lives in lib/dataforseo.ts; this file stays unit-testable.
  */
 
+import { tokenize } from "@/lib/audit/keyword-context";
+
 export type KeywordIdeaSource = "ideas" | "site";
 
 export type SeoKeywordIdea = {
@@ -73,6 +75,74 @@ export function buildKeywordSeeds(input: KeywordSeedInput): string[] {
   }
 
   return out.slice(0, 12);
+}
+
+const WEAK_TOPIC = new Set([
+  "france", "french", "francais", "francaise", "espagne", "spain", "espagnol",
+  "official", "accueil", "home", "page", "site", "www", "https", "http",
+  "votre", "nous", "avec", "plus", "tout", "tous", "equipe",
+]);
+
+function relatedToken(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a))) return true;
+  const n = Math.min(a.length, b.length);
+  return n >= 6 && a.slice(0, 6) === b.slice(0, 6);
+}
+
+/** Content tokens from seeds, ignoring cities and weak filler words. */
+export function activityTokens(seeds: string[], cities: string[] = []): string[] {
+  const cityTok = new Set(cities.flatMap((c) => tokenize(c)));
+  const tokens = new Set<string>();
+  for (const seed of seeds) {
+    const words = tokenize(seed).filter((w) => w.length >= 3 && !WEAK_TOPIC.has(w));
+    const withoutCities = words.filter((w) => !cityTok.has(w));
+    const core =
+      cityTok.size > 0
+        ? withoutCities
+        : withoutCities.length >= 3
+          ? withoutCities.slice(0, -1)
+          : withoutCities;
+    for (const w of core) tokens.add(w);
+  }
+  return [...tokens];
+}
+
+/**
+ * Keep ideas that share a real activity word with the seeds.
+ * City-only overlap is not enough (madrid must not keep "demande rsa madrid").
+ */
+export function filterIdeasByActivity(
+  rows: SeoKeywordIdea[],
+  seeds: string[],
+  cities: string[] = [],
+): SeoKeywordIdea[] {
+  const tokens = activityTokens(seeds, cities);
+  if (tokens.length === 0) return [];
+  return rows.filter((row) => {
+    const kw = tokenize(row.keyword);
+    return kw.some((w) => tokens.some((t) => relatedToken(w, t)));
+  });
+}
+
+/** Turn a homepage title / H1 / meta into seed queries. */
+export function seedsFromPageCopy(
+  title?: string | null,
+  h1s: string[] = [],
+  description?: string | null,
+): string[] {
+  const chunks: string[] = [];
+  if (title) {
+    chunks.push(title.split("|")[0]!.split("–")[0]!.split(" - ")[0]!.trim());
+  }
+  chunks.push(...h1s.slice(0, 3).map((h) => h.trim()));
+  if (description) chunks.push(description.split(/[.!?]/)[0]!.trim());
+  const out: string[] = [];
+  for (const c of chunks) {
+    const s = cleanSeed(c);
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out.slice(0, 8);
 }
 
 export function keywordOpportunityScore(opts: {

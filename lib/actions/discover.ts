@@ -11,7 +11,6 @@ import { classifyIntentRule } from "@/lib/llm/intent-classifier";
 import {
   fetchCompetitorRankedKeywords,
   fetchKeywordIdeas,
-  fetchKeywordsForSite,
   urlToDomain,
 } from "@/lib/dataforseo";
 import { generateKeywordSuggestions, type KeywordSuggestion } from "@/lib/llm/keyword-suggestions";
@@ -20,10 +19,13 @@ import { KEYWORD_IDEAS_COOLDOWN_MS, MONTHLY_LIMITS } from "@/lib/billing-constan
 import { getLocale } from "@/lib/i18n-server";
 import {
   buildKeywordSeeds,
+  filterIdeasByActivity,
   keywordMarket,
   mergeKeywordIdeas,
+  seedsFromPageCopy,
   type SeoKeywordIdea,
 } from "@/lib/seo/keyword-ideas";
+import * as cheerio from "cheerio";
 
 /**
  * Live GSC pull: ALL queries over the past N days (no tracked-keyword filter),
@@ -553,18 +555,23 @@ export async function discoverSeoKeywordIdeas(opts: {
   ]);
 
   const { locationCode, languageCode } = keywordMarket(profile?.preferredLanguage);
-  const seeds = buildKeywordSeeds({
+  const cities = profile?.targetCities ?? [];
+  let seeds = buildKeywordSeeds({
     primaryService: profile?.primaryService,
     secondaryServices: profile?.secondaryServices ?? [],
-    targetCities: profile?.targetCities ?? [],
+    targetCities: cities,
   });
   const domain = sites[0]?.domain ? urlToDomain(sites[0].domain) : "";
 
-  if (seeds.length === 0 && !domain) {
+  if (seeds.length === 0 && domain) {
+    seeds = await seedsFromHomepage(domain);
+  }
+
+  if (seeds.length === 0) {
     return {
       ...saved,
       error:
-        "Renseignez le service principal (et les villes) dans le profil business, ou connectez un site.",
+        "Rien à partir de quoi chercher. Indiquez le service principal (ex. « agence immobilière Madrid ») dans le profil business.",
     };
   }
 
@@ -576,7 +583,7 @@ export async function discoverSeoKeywordIdeas(opts: {
     };
   }
 
-  const hasSaved = saved.keywords.length > 0;
+  const hasSaved = saved.keywords.length > 0 && saved.seeds.length > 0;
   if (hasSaved) {
     const lastAt = await lastUsageUpdatedAt(ctx.ownerId, "keywordIdeas");
     const waitMs = cooldownRemainingMs(lastAt, KEYWORD_IDEAS_COOLDOWN_MS);
@@ -606,51 +613,73 @@ export async function discoverSeoKeywordIdeas(opts: {
       .map((k) => k.query.toLowerCase().trim().replace(/\s+/g, " ")),
   );
 
-  const sourcesUsed: Array<"ideas" | "site"> = [];
-  const settled = await Promise.allSettled([
-    seeds.length > 0
-      ? fetchKeywordIdeas(seeds, { locationCode, languageCode, minVolume, limit: 200 })
-      : Promise.resolve([] as SeoKeywordIdea[]),
-    domain
-      ? fetchKeywordsForSite(domain, { locationCode, languageCode, minVolume, limit: 200 })
-      : Promise.resolve([] as SeoKeywordIdea[]),
-  ]);
-
-  const collected: SeoKeywordIdea[] = [];
-  if (settled[0].status === "fulfilled") {
-    if (settled[0].value.length > 0) sourcesUsed.push("ideas");
-    collected.push(...settled[0].value);
-  } else {
-    console.warn("[discoverSeoKeywordIdeas] keyword_ideas failed:", settled[0].reason);
-  }
-  if (settled[1].status === "fulfilled") {
-    if (settled[1].value.length > 0) sourcesUsed.push("site");
-    collected.push(...settled[1].value);
-  } else {
-    console.warn("[discoverSeoKeywordIdeas] keywords_for_site failed:", settled[1].reason);
-  }
-
-  if (collected.length === 0) {
-    const firstErr =
-      settled.find((s) => s.status === "rejected") as PromiseRejectedResult | undefined;
+  let collected: SeoKeywordIdea[] = [];
+  try {
+    collected = await fetchKeywordIdeas(seeds, {
+      locationCode,
+      languageCode,
+      minVolume,
+      limit: 200,
+    });
+  } catch (err) {
+    console.warn("[discoverSeoKeywordIdeas] keyword_ideas failed:", err);
     return {
       ...saved,
-      error:
-        firstErr?.reason instanceof Error
-          ? firstErr.reason.message
-          : "Aucun mot-clé trouvé. Vérifiez le profil business ou DataForSEO.",
+      error: err instanceof Error ? err.message : "La recherche DataForSEO a échoué.",
     };
   }
 
-  const merged = mergeKeywordIdeas(collected)
-    .filter((row) => !trackedNorm.has(row.keyword))
-    .filter((row) => (row.searchVolume ?? 0) >= minVolume)
-    .slice(0, 250);
+  const merged = filterIdeasByActivity(
+    mergeKeywordIdeas(collected)
+      .filter((row) => !trackedNorm.has(row.keyword))
+      .filter((row) => (row.searchVolume ?? 0) >= minVolume),
+    seeds,
+    cities,
+  ).slice(0, 250);
 
+  if (merged.length === 0) {
+    return {
+      ...saved,
+      error:
+        "Aucune idée assez proche de votre activité. Précisez le service principal dans le profil business.",
+    };
+  }
+
+  const sourcesUsed: Array<"ideas" | "site"> = ["ideas"];
   await saveKeywordIdeaSnapshot(ctx.ownerId, merged, seeds, sourcesUsed);
   if (!hasSaved) {
     await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
   }
   const fetchedAt = new Date().toISOString();
   return { keywords: merged, seeds, sourcesUsed, fetchedAt };
+}
+
+async function seedsFromHomepage(domain: string): Promise<string[]> {
+  const urls = [`https://${domain}/`, `https://www.${domain}/`];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "SEODashboard-KeywordIdeas/1.0" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const $ = cheerio.load(html);
+      const title = $("title").first().text();
+      const h1s = $("h1")
+        .toArray()
+        .map((el) => $(el).text())
+        .filter(Boolean);
+      const description =
+        $('meta[name="description"]').attr("content") ??
+        $('meta[property="og:title"]').attr("content") ??
+        null;
+      const seeds = seedsFromPageCopy(title, h1s, description);
+      if (seeds.length > 0) return seeds;
+    } catch {
+      /* try next url */
+    }
+  }
+  return [];
 }

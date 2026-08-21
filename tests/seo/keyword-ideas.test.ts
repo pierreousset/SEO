@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
+  activityTokens,
   buildKeywordSeeds,
+  filterIdeasByActivity,
   keywordMarket,
   keywordOpportunityScore,
   mergeKeywordIdeas,
   parseLabsKeyword,
+  seedsFromPageCopy,
+  type SeoKeywordIdea,
 } from "@/lib/seo/keyword-ideas";
+
+function idea(keyword: string): SeoKeywordIdea {
+  return {
+    keyword,
+    searchVolume: 100,
+    keywordDifficulty: 20,
+    cpc: 1,
+    competition: 0.1,
+    intent: "commercial",
+    source: "ideas",
+    opportunityScore: 10,
+  };
+}
 
 describe("buildKeywordSeeds", () => {
   it("combines primary service with cities", () => {
@@ -25,6 +42,39 @@ describe("buildKeywordSeeds", () => {
 
   it("returns empty when the profile has no services", () => {
     expect(buildKeywordSeeds({ targetCities: ["Paris"] })).toEqual([]);
+  });
+});
+
+describe("seedsFromPageCopy", () => {
+  it("keeps the title before the pipe", () => {
+    expect(
+      seedsFromPageCopy(
+        "Agence immobilière française à Madrid | Achat, gestion",
+        ["Achetez, rénovez et gérez votre bien à Madrid"],
+      )[0],
+    ).toContain("agence immobilière");
+  });
+});
+
+describe("filterIdeasByActivity", () => {
+  it("keeps immobilier ideas and drops french admin paperwork", () => {
+    const seeds = ["agence immobilière française à madrid"];
+    const kept = filterIdeasByActivity(
+      [
+        idea("justificatifs de domicile"),
+        idea("certificat de cession"),
+        idea("agence immobilière madrid"),
+        idea("achat immobilier madrid"),
+        idea("demande rsa"),
+      ],
+      seeds,
+      ["Madrid"],
+    ).map((k) => k.keyword);
+    expect(kept).toEqual(["agence immobilière madrid", "achat immobilier madrid"]);
+  });
+
+  it("does not treat a city as enough overlap", () => {
+    expect(activityTokens(["immobilier madrid"], ["Madrid"])).toEqual(["immobilier"]);
   });
 });
 
