@@ -272,6 +272,24 @@ export const keywords = pgTable("keywords", {
   uniqueIndex("keywords_unique").on(t.siteId, t.query, t.country, t.device),
 ]);
 
+/** Last DataForSEO keyword-ideas pull, kept so refresh doesn't wipe the list. */
+export const keywordIdeaSnapshots = pgTable("keyword_idea_snapshots", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  keywords: jsonb("keywords").$type<Array<{
+    keyword: string;
+    searchVolume: number | null;
+    keywordDifficulty: number | null;
+    cpc: number | null;
+    competition: number | null;
+    intent: string | null;
+    source: "ideas" | "site";
+    opportunityScore: number;
+  }>>().notNull().default([]),
+  seeds: jsonb("seeds").$type<string[]>().notNull().default([]),
+  sourcesUsed: jsonb("sources_used").$type<Array<"ideas" | "site">>().notNull().default([]),
+  fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+});
+
 // Daily position history. One row per (keyword, date).
 export const positions = pgTable("positions", {
   id: text("id").primaryKey(),

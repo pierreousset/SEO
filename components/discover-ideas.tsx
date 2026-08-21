@@ -26,26 +26,40 @@ function kdClass(kd: number | null): string {
   return "text-down";
 }
 
-export function DiscoverIdeas({ lng }: { lng: Locale }) {
+export function DiscoverIdeas({
+  lng,
+  initial,
+}: {
+  lng: Locale;
+  initial?: {
+    keywords: SeoKeywordIdea[];
+    seeds: string[];
+    fetchedAt: string | null;
+  };
+}) {
   const i = locale[lng].ideas;
   const [loading, setLoading] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<SeoKeywordIdea[]>([]);
-  const [seeds, setSeeds] = useState<string[]>([]);
+  const [data, setData] = useState<SeoKeywordIdea[]>(initial?.keywords ?? []);
+  const [seeds, setSeeds] = useState<string[]>(initial?.seeds ?? []);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(initial?.fetchedAt ?? null);
   const [search, setSearch] = useState("");
   const [minVolume, setMinVolume] = useState(20);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState((initial?.keywords.length ?? 0) > 0);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const res = await discoverSeoKeywordIdeas({ minSearchVolume: minVolume });
+      const res = await discoverSeoKeywordIdeas({ minSearchVolume: 10 });
       if (res.error) setError(res.error);
-      setData(res.keywords);
-      setSeeds(res.seeds);
+      if (res.keywords.length > 0) {
+        setData(res.keywords);
+        setSeeds(res.seeds);
+        setFetchedAt(res.fetchedAt);
+      }
       setHasLoaded(true);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : i.failed);
@@ -54,14 +68,23 @@ export function DiscoverIdeas({ lng }: { lng: Locale }) {
     }
   }
 
+  const fetchedLabel = fetchedAt
+    ? i.lastFetched(
+        new Date(fetchedAt).toLocaleString(lng === "fr" ? "fr-FR" : "en-GB", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }),
+      )
+    : null;
+
   const filtered = useMemo(() => {
-    let rows = data;
+    let rows = data.filter((r) => (r.searchVolume ?? 0) >= minVolume);
     if (search) {
       const lc = search.toLowerCase();
       rows = rows.filter((r) => r.keyword.toLowerCase().includes(lc));
     }
     return rows;
-  }, [data, search]);
+  }, [data, search, minVolume]);
 
   function toggle(q: string) {
     setSelected((prev) => {
@@ -97,7 +120,7 @@ export function DiscoverIdeas({ lng }: { lng: Locale }) {
     });
   }
 
-  if (error && !hasLoaded) {
+  if (error && data.length === 0 && !loading) {
     return (
       <div className="sheet p-8 text-sm text-muted-foreground space-y-3">
         <p>{error}</p>
@@ -132,9 +155,6 @@ export function DiscoverIdeas({ lng }: { lng: Locale }) {
         <select
           value={minVolume}
           onChange={(e) => setMinVolume(Number(e.target.value))}
-          onBlur={() => {
-            if (hasLoaded) void load();
-          }}
           className="h-8 rounded-full bg-background border border-input px-3 text-xs"
           aria-label={i.minVolume}
         >
@@ -146,6 +166,7 @@ export function DiscoverIdeas({ lng }: { lng: Locale }) {
         <div className="text-xs text-muted-foreground tabular-nums ml-auto">
           {i.shown(filtered.length, seeds.length)}
           {selected.size > 0 && ` · ${i.selected(selected.size)}`}
+          {fetchedLabel && ` · ${fetchedLabel}`}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>

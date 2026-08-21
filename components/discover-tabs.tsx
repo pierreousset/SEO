@@ -8,6 +8,13 @@ import { DiscoverAi } from "@/components/discover-ai";
 import { DiscoverIdeas } from "@/components/discover-ideas";
 import { locale } from "@/app/dashboard/keywords/discover/locale";
 import type { Locale } from "@/lib/i18n";
+import type { SeoKeywordIdea } from "@/lib/seo/keyword-ideas";
+
+export type SavedKeywordIdeas = {
+  keywords: SeoKeywordIdea[];
+  seeds: string[];
+  fetchedAt: string | null;
+};
 
 const TAB_IDS = ["ideas", "gsc", "competitors", "ai"] as const;
 type TabId = (typeof TAB_IDS)[number];
@@ -19,7 +26,13 @@ const ICONS: Record<TabId, typeof Target> = {
   ai: Sparkles,
 };
 
-export function DiscoverTabs({ lng }: { lng: Locale }) {
+export function DiscoverTabs({
+  lng,
+  initialIdeas,
+}: {
+  lng: Locale;
+  initialIdeas?: SavedKeywordIdeas;
+}) {
   const [active, setActive] = useState<TabId>("ideas");
   const i = locale[lng];
 
@@ -49,7 +62,7 @@ export function DiscoverTabs({ lng }: { lng: Locale }) {
 
       <p className="text-sm text-muted-foreground">{i.tabDesc[active]}</p>
 
-      {active === "ideas" && <DiscoverIdeas lng={lng} />}
+      {active === "ideas" && <DiscoverIdeas lng={lng} initial={initialIdeas} />}
       {active === "gsc" && <DiscoverKeywords />}
       {active === "competitors" && <DiscoverCompetitors />}
       {active === "ai" && <DiscoverAi />}

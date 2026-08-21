@@ -230,6 +230,13 @@ export async function bulkAddKeywords(
     }
   }
 
+  const addedQueries = items
+    .map((x) => x.query.trim().toLowerCase().replace(/\s+/g, " "))
+    .filter(Boolean);
+  if (added > 0 && addedQueries.length > 0) {
+    await pruneKeywordIdeaSnapshot(ctx.ownerId, addedQueries);
+  }
+
   revalidatePath("/dashboard/keywords");
   revalidatePath("/dashboard/keywords/discover");
   return { added, skipped };
@@ -412,16 +419,133 @@ export async function suggestKeywordsWithAI(): Promise<{
 // SEO keyword ideas — DataForSEO volume / difficulty / intent (not GSC)
 // ---------------------------------------------------------------------------
 
+function normQuery(s: string): string {
+  return s.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function isIdeaSource(v: unknown): v is SeoKeywordIdea["source"] {
+  return v === "ideas" || v === "site";
+}
+
+function parseSavedIdeas(raw: unknown): SeoKeywordIdea[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SeoKeywordIdea[] = [];
+  for (const row of raw) {
+    if (typeof row !== "object" || row === null) continue;
+    const rec = row as Record<string, unknown>;
+    const keyword = typeof rec.keyword === "string" ? normQuery(rec.keyword) : "";
+    if (!keyword) continue;
+    out.push({
+      keyword,
+      searchVolume: typeof rec.searchVolume === "number" ? rec.searchVolume : null,
+      keywordDifficulty: typeof rec.keywordDifficulty === "number" ? rec.keywordDifficulty : null,
+      cpc: typeof rec.cpc === "number" ? rec.cpc : null,
+      competition: typeof rec.competition === "number" ? rec.competition : null,
+      intent: typeof rec.intent === "string" ? rec.intent : null,
+      source: isIdeaSource(rec.source) ? rec.source : "ideas",
+      opportunityScore: typeof rec.opportunityScore === "number" ? rec.opportunityScore : 0,
+    });
+  }
+  return out;
+}
+
+async function trackedQuerySet(userId: string): Promise<Set<string>> {
+  const rows = await tenantDb(userId).selectKeywords();
+  return new Set(
+    rows.filter((k) => !k.removedAt).map((k) => normQuery(k.query)),
+  );
+}
+
+async function readKeywordIdeaSnapshot(userId: string): Promise<{
+  keywords: SeoKeywordIdea[];
+  seeds: string[];
+  sourcesUsed: Array<"ideas" | "site">;
+  fetchedAt: string | null;
+}> {
+  const [row] = await db
+    .select()
+    .from(schema.keywordIdeaSnapshots)
+    .where(eq(schema.keywordIdeaSnapshots.userId, userId))
+    .limit(1);
+  if (!row) {
+    return { keywords: [], seeds: [], sourcesUsed: [], fetchedAt: null };
+  }
+  const tracked = await trackedQuerySet(userId);
+  const seeds = Array.isArray(row.seeds) ? row.seeds.filter((s): s is string => typeof s === "string") : [];
+  const sourcesUsed = Array.isArray(row.sourcesUsed)
+    ? row.sourcesUsed.filter(isIdeaSource)
+    : [];
+  return {
+    keywords: parseSavedIdeas(row.keywords).filter((k) => !tracked.has(k.keyword)),
+    seeds,
+    sourcesUsed,
+    fetchedAt: row.fetchedAt ? row.fetchedAt.toISOString() : null,
+  };
+}
+
+async function saveKeywordIdeaSnapshot(
+  userId: string,
+  keywords: SeoKeywordIdea[],
+  seeds: string[],
+  sourcesUsed: Array<"ideas" | "site">,
+): Promise<void> {
+  await db
+    .insert(schema.keywordIdeaSnapshots)
+    .values({
+      userId,
+      keywords,
+      seeds,
+      sourcesUsed,
+      fetchedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.keywordIdeaSnapshots.userId,
+      set: {
+        keywords,
+        seeds,
+        sourcesUsed,
+        fetchedAt: new Date(),
+      },
+    });
+}
+
+async function pruneKeywordIdeaSnapshot(userId: string, addedNorm: string[]): Promise<void> {
+  const drop = new Set(addedNorm.map(normQuery));
+  const [row] = await db
+    .select()
+    .from(schema.keywordIdeaSnapshots)
+    .where(eq(schema.keywordIdeaSnapshots.userId, userId))
+    .limit(1);
+  if (!row) return;
+  const next = parseSavedIdeas(row.keywords).filter((k) => !drop.has(k.keyword));
+  await db
+    .update(schema.keywordIdeaSnapshots)
+    .set({ keywords: next })
+    .where(eq(schema.keywordIdeaSnapshots.userId, userId));
+}
+
+export async function listSavedKeywordIdeas(): Promise<{
+  keywords: SeoKeywordIdea[];
+  seeds: string[];
+  sourcesUsed: Array<"ideas" | "site">;
+  fetchedAt: string | null;
+}> {
+  const ctx = await requireAccountContext();
+  return readKeywordIdeaSnapshot(ctx.ownerId);
+}
+
 export async function discoverSeoKeywordIdeas(opts: {
   minSearchVolume?: number;
 } = {}): Promise<{
   keywords: SeoKeywordIdea[];
   seeds: string[];
   sourcesUsed: Array<"ideas" | "site">;
+  fetchedAt: string | null;
   error?: string;
 }> {
   const ctx = await requireAccountContext();
   const t = tenantDb(ctx.ownerId);
+  const saved = await readKeywordIdeaSnapshot(ctx.ownerId);
   const [profile, keywords, sites] = await Promise.all([
     t.selectBusinessProfile(),
     t.selectKeywords(),
@@ -438,9 +562,7 @@ export async function discoverSeoKeywordIdeas(opts: {
 
   if (seeds.length === 0 && !domain) {
     return {
-      keywords: [],
-      seeds: [],
-      sourcesUsed: [],
+      ...saved,
       error:
         "Renseignez le service principal (et les villes) dans le profil business, ou connectez un site.",
     };
@@ -448,9 +570,8 @@ export async function discoverSeoKeywordIdeas(opts: {
 
   if (!process.env.DATAFORSEO_LOGIN || !process.env.DATAFORSEO_PASSWORD) {
     return {
-      keywords: [],
-      seeds,
-      sourcesUsed: [],
+      ...saved,
+      seeds: saved.seeds.length > 0 ? saved.seeds : seeds,
       error: "DataForSEO n'est pas configuré (DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD).",
     };
   }
@@ -462,9 +583,7 @@ export async function discoverSeoKeywordIdeas(opts: {
     const wait = formatRetryWait(waitMs);
     const cap = MONTHLY_LIMITS.keywordIdeas ?? 8;
     return {
-      keywords: [],
-      seeds,
-      sourcesUsed: [],
+      ...saved,
       error:
         lng === "en"
           ? `Keyword research is limited to ${cap}/month. Try again in ${wait}.`
@@ -474,7 +593,7 @@ export async function discoverSeoKeywordIdeas(opts: {
 
   const usage = await guardMonthlyUsage(ctx.ownerId, "keywordIdeas");
   if (!usage.ok) {
-    return { keywords: [], seeds, sourcesUsed: [], error: usage.error };
+    return { ...saved, error: usage.error };
   }
 
   const minVolume = opts.minSearchVolume ?? 10;
@@ -512,9 +631,7 @@ export async function discoverSeoKeywordIdeas(opts: {
     const firstErr =
       settled.find((s) => s.status === "rejected") as PromiseRejectedResult | undefined;
     return {
-      keywords: [],
-      seeds,
-      sourcesUsed,
+      ...saved,
       error:
         firstErr?.reason instanceof Error
           ? firstErr.reason.message
@@ -527,5 +644,7 @@ export async function discoverSeoKeywordIdeas(opts: {
     .filter((row) => (row.searchVolume ?? 0) >= minVolume)
     .slice(0, 250);
 
-  return { keywords: merged, seeds, sourcesUsed };
+  await saveKeywordIdeaSnapshot(ctx.ownerId, merged, seeds, sourcesUsed);
+  const fetchedAt = new Date().toISOString();
+  return { keywords: merged, seeds, sourcesUsed, fetchedAt };
 }
